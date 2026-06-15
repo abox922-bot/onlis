@@ -1,0 +1,452 @@
+/* --- 1. ШРИФТЫ И БАЗОВЫЕ НАСТРОЙКИ --- */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+:root {
+    --bs-body-font-family: 'Montserrat', sans-serif;
+    --bs-body-bg: #eeeeee;
+    --card-bg: #ffffff;
+    --accent-color: #000000;
+    --text-main: #333333;
+    --text-muted: #555555;
+    --bg-hover: #f5f5f5;
+    --border-color: #f0f0f0;
+    --input-bg: #fdfdfd;
+    --dropdown-bg: #ffffff;
+    --shadow: rgba(0,0,0,0.06);
+    --transition: all 0.2s ease-in-out;
+}
+
+body {
+    font-family: var(--bs-body-font-family);
+    background-color: var(--bs-body-bg);
+    color: var(--text-main);
+    transition: background-color 0.3s ease;
+}
+
+/* --- 2. BOOTSTRAP OVERRIDES --- */
+.table { --bs-table-bg: var(--card-bg); color: var(--text-main); }
+.modal-content { background-color: var(--card-bg); color: var(--text-main); border: 1px solid var(--border-color); }
+.card { --bs-card-bg: var(--card-bg); border-color: var(--border-color); }
+.list-group { --bs-list-group-bg: var(--card-bg); }
+
+.form-control, .form-select {
+    background-color: var(--input-bg);
+    color: var(--text-main);
+    border-color: var(--border-color);
+}
+.form-control:focus {
+    background-color: var(--input-bg);
+    color: var(--text-main);
+}
+
+.form-label { margin-bottom: 0; }
+.dropdown-menu {
+    --bs-dropdown-bg: var(--dropdown-bg);
+    --bs-dropdown-link-color: var(--text-main);
+    --bs-dropdown-link-hover-bg: var(--bg-hover);
+    --bs-dropdown-link-active-bg: var(--accent-color);
+    border-color: var(--border-color);
+}
+.form-check-input:checked {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+/* --- 3. OFFCANVAS MENU --- */
+#myOffcanvas {
+    --bs-offcanvas-width: 290px;
+    --bs-offcanvas-bg: var(--card-bg);
+    border-radius: 0 24px 24px 0;
+    border: none;
+    box-shadow: 10px 0 40px var(--shadow);
+}
+#myOffcanvas .offcanvas-header {
+    padding: 1.5rem 1.2rem;
+    border-bottom: 1px solid var(--border-color);
+}
+#myOffcanvas .offcanvas-body {
+    padding: 1rem 0.8rem;
+}
+
+.my-nav { list-style: none; padding: 0; }
+.my-nav-item { list-style-type: none; margin-bottom: 4px; }
+.my-nav-link {
+    display: flex;
+    align-items: center;
+    padding: 5px 14px;
+    border-radius: 12px;
+    color: var(--text-main);
+    font-weight: 500;
+    text-decoration: none !important;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.my-nav-link:hover { background-color: var(--bg-hover); color: var(--accent-color); }
+.my-nav-link i, .my-nav-link svg {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: var(--text-muted);
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+}
+.my-nav-link span { line-height: 1; }
+.my-nav-link:hover i, .my-nav-link:hover svg { color: var(--accent-color); }
+.my-nav-link__name { margin-left: 12px; font-size: 0.92rem; line-height: 1.2; }
+.head-link { font-weight: 600; }
+
+.my-nav-item_second_level { list-style: none; padding-left: 32px; margin-bottom: 10px; }
+.my-nav-item_second_level .my-nav-link { padding: 8px 12px; font-size: 0.88rem; opacity: 0.8; }
+.my-nav-item_second_level .my-nav-link:hover {
+    opacity: 1;
+    background-color: transparent;
+    color: var(--accent-color);
+    text-decoration: underline !important;
+}
+.my-nav-item_second_level .my-nav-link__name { margin-left: 0; }
+
+.my-menu-footer-wrapper {
+    margin-top: auto;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+}
+
+.my-nav-section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    margin-bottom: 4px;
+}
+
+#spanUsersName { font-weight: 700; }
+#spnQuit { color: #dc3545 !important; }
+#spnQuit:hover { background-color: rgba(220, 53, 69, 0.1); }
+
+/* --- 4. AUTH PAGE & ПИН-ПАД --- */
+.auth-container-wrapper { background-color: var(--bs-body-bg); }
+.auth-card { border: none; border-radius: 20px; background-color: var(--card-bg); color: var(--text-main); }
+.btnInNmb {
+    height: 48px; width: 100%; border-radius: 10px !important;
+    font-size: 1.2rem; font-weight: 600; display: flex;
+    align-items: center; justify-content: center; transition: all 0.2s;
+    border: 1px solid var(--border-color) !important;
+    background-color: var(--card-bg) !important;
+    color: var(--text-main) !important;
+    user-select: none;
+}
+.btnInNmb:hover { background-color: var(--accent-color) !important; color: #fff !important; }
+#btnLogin { height: 48px; background-color: var(--accent-color) !important; color: #fff !important; font-weight: 700; border-radius: 10px; }
+
+/* --- 5. КНОПКИ И ФОРМЫ --- */
+.card-content-wrapper {
+    background-color: var(--card-bg);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 15px var(--shadow);
+}
+.btn-action, .btn-action-outline, .btn-action-main {
+    padding: 8px 20px; border-radius: 10px; font-weight: 600;
+    font-size: 0.85rem; transition: all 0.2s ease;
+    display: inline-flex; align-items: center; border: none;
+}
+.btn-action { background-color: var(--accent-color); color: #fff; }
+.btn-action-main { background-color: #198754; color: white; }
+.btn-action-outline {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+}
+.btn-action-outline:hover { border-color: var(--accent-color); background-color: var(--bg-hover); }
+
+.form-in {
+    width: 100%; display: block;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px !important;
+    padding: 8px 15px; font-size: 0.95rem;
+    background-color: #fff;
+    transition: all 0.2s ease-in-out;
+}
+.form-in.is-invalid {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
+}
+input.form-in, select.form-in { height: 42px; }
+textarea.form-in { min-height: 100px; resize: vertical; }
+.form-in:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 4px rgba(0,0,0,0.05);
+    outline: none;
+}
+
+.my-input-label {
+    display: block; font-size: 0.9rem; font-weight: 700;
+    color: #2c3e50; margin-bottom: 6px !important;
+    margin-left: 2px; letter-spacing: 0.02em; line-height: 1.2;
+}
+
+.input-group { display: flex; border-radius: 10px; overflow: hidden; }
+.input-group > .form-in {
+    flex: 1 1 auto; width: 1% !important;
+    border-right: none !important;
+    border-radius: 10px 0 0 10px !important;
+    margin: 0 !important;
+}
+.input-group > .btn-generate {
+    height: 42px; border: 1px solid #e0e0e0;
+    background-color: #fdfdfd; padding: 0 15px;
+    border-radius: 0 10px 10px 0 !important;
+    transition: all 0.2s ease;
+}
+
+.btn-group {
+    background-color: #eee; border-radius: 12px;
+    padding: 3px; display: inline-flex;
+    border: 1px solid #e0e0e0;
+}
+.btn-group .btn {
+    border: none !important; border-radius: 9px !important;
+    font-size: 0.85rem; font-weight: 600; color: #666;
+    padding: 8px 24px; transition: all 0.2s ease;
+}
+.btn-group .btn-check:checked + .btn {
+    background-color: #fff !important; color: #000 !important;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* --- 6. ТАБЛИЦЫ --- */
+.table { border-collapse: separate; border-spacing: 0 4px; margin-top: 10px; }
+.table caption { font-size: 1.1rem; font-weight: 700; color: #000; padding: 15px 5px; }
+.table thead th {
+    font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #888;
+    border: none !important; padding: 12px 15px !important;
+}
+.table td {
+    padding: 12px 15px !important; vertical-align: middle;
+    background-color: #fff;
+    border-top: 1px solid #f2f2f2 !important;
+    border-bottom: 1px solid #f2f2f2 !important;
+}
+.table td:first-child { border-left: 1px solid #f2f2f2; border-radius: 10px 0 0 10px; }
+.table td:last-child { border-right: 1px solid #f2f2f2; border-radius: 0 10px 10px 0; }
+.table-hover tbody tr:hover td { background-color: var(--bg-hover) !important; color: var(--accent-color); }
+
+/* --- 7. МОДУЛЬ РАСПИСАНИЯ --- */
+.letter-spacing-2 { letter-spacing: 2px; }
+
+.date-strip-container { scrollbar-width: none; -ms-overflow-style: none; }
+.date-strip-container::-webkit-scrollbar { display: none; }
+
+.date-item {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 8px 12px; border-radius: 10px; cursor: pointer;
+    transition: 0.2s; flex: 0 0 auto; margin: 0 4px; min-width: 45px;
+}
+.date-item span { font-size: 0.7rem; font-weight: 600; opacity: 0.6; }
+.date-item strong { font-size: 1rem; }
+.date-item.active {
+    background-color: #000; color: #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+/* Блок расписания */
+.schedule-hour-block {
+    margin-bottom: 8px;
+}
+
+/* Слипкий заголовок залов */
+.sticky-hall-headers {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--card-bg);
+    padding: 6px 0 8px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+}
+
+/* Метка времени на мобилке */
+.mobile-time-label {
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #888;
+    background-color: rgba(0,0,0,0.03);
+    padding: 4px 0;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+}
+
+/* Базовые стили слота */
+.time-slot {
+    height: 68px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: 0.2s;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.time-slot .time {
+    font-weight: 700;
+    width: 60px;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* Свободный слот */
+.free-slot { border-style: dashed; cursor: pointer; }
+.free-slot .slot-action-text {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    color: #ccc;
+    font-size: 0.85rem;
+    transition: var(--transition);
+    text-align: center;
+    flex-grow: 1;
+}
+.free-slot:hover {
+    background-color: var(--bg-hover);
+    border-style: solid;
+    border-color: var(--accent-color);
+}
+.free-slot:hover .slot-action-text { color: var(--accent-color); font-weight: 600; }
+.free-slot:hover .slot-action-text::after { content: " — забронировать"; }
+
+/* Общее для занятых слотов */
+.booked-my .slot-action-text,
+.booked-other .slot-action-text {
+    font-size: 0.85rem;
+    flex-grow: 1;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.booked-my .btn-book-action,
+.booked-other .btn-book-action { display: none; }
+
+/* Моя бронь — зелёная */
+.booked-my {
+    background-color: #EAF3DE;
+    border-color: #C0DD97;
+    color: #27500A;
+}
+.booked-my .time { color: #27500A; }
+
+/* Чужая бронь — фиолетовая */
+.booked-other {
+    background-color: #EEEDFE;
+    border-color: #CECBF6;
+    color: #3C3489;
+}
+.booked-other .time { color: #3C3489; }
+
+.slot-action-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    flex-grow: 1;
+    overflow: hidden;
+    min-width: 0;
+}
+
+.slot-training {
+    font-size: 0.85rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slot-trainer {
+    font-size: 0.75rem;
+    font-weight: 400;
+    opacity: 0.7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.slot-past {
+    background-color: var(--bg-hover);
+    border-color: transparent;
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* --- 8. ВСПОМОГАТЕЛЬНЫЕ СТИЛИ --- */
+hr { margin: 15px 0; opacity: 0.1; background-color: var(--text-main); }
+.text-limit {
+    display: inline-block; max-width: 170px;
+    overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+button:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    filter: grayscale(0.5);
+}
+
+.legend-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    display: inline-block;
+}
+
+/* --- 9. МЕДИАЗАПРОСЫ --- */
+
+/* Мобильные устройства */
+@media (max-width: 767.98px) {
+    /* Центрируем и упрощаем слоты на мобилке */
+    .main-schedule-container .time-slot {
+        padding: 10px 6px;
+        justify-content: center;
+        text-align: center;
+        height: 54px;
+    }
+    .main-schedule-container .slot-action-text {
+        text-align: center;
+        width: 100%;
+        font-size: 0.8rem;
+    }
+    /* Убираем ховер-эффект и кнопку — на мобилке кликабельна вся карточка */
+    .free-slot:hover .slot-action-text::after { content: "" !important; }
+    .free-slot .btn-book-action { display: none !important; }
+}
+
+/* Десктоп */
+@media (min-width: 768px) {
+    /* Прячем мобильную метку времени */
+    .mobile-time-label { display: none; }
+
+    /* Разделительная черта между залами */
+    .schedule-slots-row .col-md-6:first-child {
+        border-right: 1px solid var(--border-color);
+        padding-right: 1.5rem !important;
+    }
+    .schedule-slots-row .col-md-6:last-child {
+        padding-left: 1.5rem !important;
+    }
+
+    .auth-card { max-width: 400px; margin: 0 auto; }
+
+    .time-slot .slot-action-text {
+        max-width: calc(100% - 70px); /* вычитаем ширину .time */
+    }
+}
