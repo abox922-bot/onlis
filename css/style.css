@@ -1,5 +1,4 @@
 /* --- 1. ШРИФТЫ И БАЗОВЫЕ НАСТРОЙКИ --- */
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
 
 :root {
     --bs-body-font-family: 'Montserrat', sans-serif;
@@ -235,160 +234,7 @@ textarea.form-in { min-height: 100px; resize: vertical; }
 .table td:last-child { border-right: 1px solid #f2f2f2; border-radius: 0 10px 10px 0; }
 .table-hover tbody tr:hover td { background-color: var(--bg-hover) !important; color: var(--accent-color); }
 
-/* --- 7. МОДУЛЬ РАСПИСАНИЯ --- */
-.letter-spacing-2 { letter-spacing: 2px; }
-
-.date-strip-container { scrollbar-width: none; -ms-overflow-style: none; }
-.date-strip-container::-webkit-scrollbar { display: none; }
-
-.date-item {
-    display: flex; flex-direction: column; align-items: center;
-    padding: 8px 12px; border-radius: 10px; cursor: pointer;
-    transition: 0.2s; flex: 0 0 auto; margin: 0 4px; min-width: 45px;
-}
-.date-item span { font-size: 0.7rem; font-weight: 600; opacity: 0.6; }
-.date-item strong { font-size: 1rem; }
-.date-item.active {
-    background-color: #000; color: #fff;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-}
-
-/* Блок расписания */
-.schedule-hour-block {
-    margin-bottom: 8px;
-}
-
-/* Слипкий заголовок залов */
-.sticky-hall-headers {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background-color: var(--card-bg);
-    padding: 6px 0 8px;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 8px;
-}
-
-/* Метка времени на мобилке */
-.mobile-time-label {
-    text-align: center;
-    font-weight: 700;
-    font-size: 0.85rem;
-    color: #888;
-    background-color: rgba(0,0,0,0.03);
-    padding: 4px 0;
-    border-radius: 6px;
-    margin-bottom: 6px;
-    letter-spacing: 1px;
-}
-
-/* Базовые стили слота */
-.time-slot {
-    height: 68px;
-    padding: 10px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: 0.2s;
-    overflow: hidden;
-    cursor: pointer;
-}
-
-.time-slot .time {
-    font-weight: 700;
-    width: 60px;
-    flex-shrink: 0;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-}
-
-/* Свободный слот */
-.free-slot { border-style: dashed; cursor: pointer; }
-.free-slot .slot-action-text {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    color: #ccc;
-    font-size: 0.85rem;
-    transition: var(--transition);
-    text-align: center;
-    flex-grow: 1;
-}
-.free-slot:hover {
-    background-color: var(--bg-hover);
-    border-style: solid;
-    border-color: var(--accent-color);
-}
-.free-slot:hover .slot-action-text { color: var(--accent-color); font-weight: 600; }
-.free-slot:hover .slot-action-text::after { content: " — забронировать"; }
-
-/* Общее для занятых слотов */
-.booked-my .slot-action-text,
-.booked-other .slot-action-text {
-    font-size: 0.85rem;
-    flex-grow: 1;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.booked-my .btn-book-action,
-.booked-other .btn-book-action { display: none; }
-
-/* Моя бронь — зелёная */
-.booked-my {
-    background-color: #EAF3DE;
-    border-color: #C0DD97;
-    color: #27500A;
-}
-.booked-my .time { color: #27500A; }
-
-/* Чужая бронь — фиолетовая */
-.booked-other {
-    background-color: #EEEDFE;
-    border-color: #CECBF6;
-    color: #3C3489;
-}
-.booked-other .time { color: #3C3489; }
-
-.slot-action-text {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 2px;
-    flex-grow: 1;
-    overflow: hidden;
-    min-width: 0;
-}
-
-.slot-training {
-    font-size: 0.85rem;
-    font-weight: 700;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.slot-trainer {
-    font-size: 0.75rem;
-    font-weight: 400;
-    opacity: 0.7;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.slot-past {
-    background-color: var(--bg-hover);
-    border-color: transparent;
-    opacity: 0.4;
-    cursor: not-allowed;
-    pointer-events: none;
-}
-
-/* --- 8. ВСПОМОГАТЕЛЬНЫЕ СТИЛИ --- */
+/* --- 7. ВСПОМОГАТЕЛЬНЫЕ СТИЛИ --- */
 hr { margin: 15px 0; opacity: 0.1; background-color: var(--text-main); }
 .text-limit {
     display: inline-block; max-width: 170px;
@@ -409,44 +255,9 @@ button:disabled {
     display: inline-block;
 }
 
-/* --- 9. МЕДИАЗАПРОСЫ --- */
-
-/* Мобильные устройства */
-@media (max-width: 767.98px) {
-    /* Центрируем и упрощаем слоты на мобилке */
-    .main-schedule-container .time-slot {
-        padding: 10px 6px;
-        justify-content: center;
-        text-align: center;
-        height: 54px;
-    }
-    .main-schedule-container .slot-action-text {
-        text-align: center;
-        width: 100%;
-        font-size: 0.8rem;
-    }
-    /* Убираем ховер-эффект и кнопку — на мобилке кликабельна вся карточка */
-    .free-slot:hover .slot-action-text::after { content: "" !important; }
-    .free-slot .btn-book-action { display: none !important; }
-}
+/* --- 8. МЕДИАЗАПРОСЫ --- */
 
 /* Десктоп */
 @media (min-width: 768px) {
-    /* Прячем мобильную метку времени */
-    .mobile-time-label { display: none; }
-
-    /* Разделительная черта между залами */
-    .schedule-slots-row .col-md-6:first-child {
-        border-right: 1px solid var(--border-color);
-        padding-right: 1.5rem !important;
-    }
-    .schedule-slots-row .col-md-6:last-child {
-        padding-left: 1.5rem !important;
-    }
-
     .auth-card { max-width: 400px; margin: 0 auto; }
-
-    .time-slot .slot-action-text {
-        max-width: calc(100% - 70px); /* вычитаем ширину .time */
-    }
 }

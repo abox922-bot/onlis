@@ -17,8 +17,6 @@ $(document).ready(function(){
 		$("#mainModal").addClass("modal-xl");
 		$(".modal-dialog").addClass("modal-dialog-centered");
 		$("#mainModalBody").html("");
-		$("#mainModalFooter").html("");
-		$("#mainModalFooter").addClass("d-none");
 	});
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	$(".my-menu-div-btn").click(function(){
@@ -33,13 +31,13 @@ $(document).ready(function(){
 		} else if (e.target.closest(".link-item")) {
 			myOffcanvas.hide();
 			fncChptLoad($(e.target).attr("data-ln") + ".php", $(e.target).attr("data-pth"), $(e.target).attr("data-ttl"), $(e.target).attr("data-inside"));
-		} else if(e.target.closest("#spnQuit")){
+		} else if (e.target.closest("#spnQuit")) {
 			myOffcanvas.hide();
 			if (confirm("Выйти из системы?")) {
 				fncMyAjax("close_ses", "main")
-				.always(function(){
-
-				});
+					.always(function () {
+						window.location.reload();
+					});
 			}
 		}
 	});
@@ -113,13 +111,13 @@ function fncBookNav(folder, inside_file) {
 			$("#btnSlct").html($(`.liSlctItem[data-target=${chpt}]`).html());
 			$("#btnSlct").attr("data-target", chpt);
 			$("#rowContent").html(`<div class="col-12">${spnr_loading}</div>`);
-			path = new URL(`./${folder}/${$("#btnSlct").attr("data-target")}.php`, url);
+			let path = new URL(`./${folder}/${$("#btnSlct").attr("data-target")}.php`, url);
 			$("#rowContent").load(path.href);
 		});
 		//++++++++++++++++++++++++++++++++++++
 	} else {
 		$("#rowContent").html(`<div class="col-12">${spnr_loading}</div>`);
-		path = new URL(`./${folder}/${inside_file}.php`, url);
+		let path = new URL(`./${folder}/${inside_file}.php`, url);
 		$("#rowContent").load(path.href);
 	}
 }

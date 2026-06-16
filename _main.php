@@ -1,12 +1,19 @@
 <?php
-  if (isset($_SERVER['HTTP_X_CSRF_TOKEN']) && isset($_COOKIE['_onlis_id'])) {
-    require_once("./app/includes/request.php");
-    $data = ["action" => "in_cntrl"];
-    $ses_info = ["_onlis_id" => $_COOKIE["_onlis_id"], "x_token" => $_SERVER['HTTP_X_CSRF_TOKEN']];
-    $data = array_merge($ses_info, $data);
-    $result = send_request($data, "main");
-    if ($result["sccss"]) {
-      ?>
+require_once("./app/includes/request.php");
+
+$cntrl_ok = isset($_SERVER['HTTP_X_CSRF_TOKEN']) && isset($_COOKIE['_onlis_id']);
+
+if ($cntrl_ok) {
+    $ses_info = [
+        '_onlis_id' => $_COOKIE['_onlis_id'],
+        'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
+    ];
+    $data   = array_merge($ses_info, ['action' => 'in_cntrl']);
+    $result = send_request($data, 'main');
+}
+
+if ($cntrl_ok && $result && $result['sccss']) {
+    ?>
         <div class="row d-flex justify-content-end align-items-start sticky-top">
           <div class="col-12">
             <div class="row p-2">
@@ -116,7 +123,7 @@
                 <div class="my-menu-footer-wrapper px-3 py-2">
                     <a class="my-nav-link" id="menuButtonProfile">
                         <i class="bi bi-person-circle"></i>
-                        <span id="spanUsersName" class="ms-2"><?php echo $result["user_name"]; ?></span>
+                        <span id="spanUsersName" class="ms-2"><?php echo htmlspecialchars($result['user_name'], ENT_QUOTES, 'UTF-8'); ?></span>
                     </a>
                     <a class="my-nav-link" id="spnQuit">
                         <i class="bi bi-box-arrow-left"></i>
@@ -126,12 +133,8 @@
 
             </div>
         </div>
-        <script src="./js/_main.js?2026052600"></script>
+        <script src="./js/_main.js?2026061602"></script>
       <?php
-    } else {
-      echo "Oops... something went wrong...1";
-    }
-  } else {
-    echo "Oops... something went wrong...2";
-  }
-?>
+} else {
+    echo "Сессия истекла. Обновите страницу.";
+}
