@@ -76,49 +76,31 @@ if ($cntrl_ok && $result && $result['sccss']) {
                 <!-- ОСНОВНАЯ НАВИГАЦИЯ -->
                 <nav class="flex-grow-1 px-3 py-3" style="overflow-y: auto; scrollbar-width: none;">
 
-                    <div class="my-nav-section-label">Главное</div>
                     <ul class="my-nav">
                         <li class="my-nav-item">
-                            <a class="my-nav-link">
-                                <i class="bi bi-calendar3"></i>
-                                <span class="my-nav-link__name link-item"
-                                      data-onload="1" data-ln="main_main"
-                                      data-pth="_main" data-ttl="Расписание"
-                                      data-inside="main">Расписание</span>
+                            <a class="my-nav-link head-item head-link" data-target="reference" style="cursor: pointer;">
+                                <i class="bi bi-journal-bookmark"></i>
+                                <span class="my-nav-link__name">Справочники</span>
+                                <i class="bi bi-chevron-down ms-auto small"></i>
                             </a>
                         </li>
-                    </ul>
-
-                    <div class="my-nav-section-label mt-3">Справочники</div>
-                    <ul class="my-nav">
-                        <li class="my-nav-item">
+                        <li class="my-nav-item_second_level d-none" data-target="reference">
                             <a class="my-nav-link">
-                                <i class="bi bi-activity"></i>
-                                <span class="my-nav-link__name link-item"
-                                      data-ln="main_trainings" data-pth="_books_trainings"
-                                      data-ttl="Тренировки" data-inside="trainings">Тренировки</span>
-                            </a>
-                        </li>
-                        <li class="my-nav-item">
-                            <a class="my-nav-link">
-                                <i class="bi bi-building"></i>
-                                <span class="my-nav-link__name link-item"
-                                      data-ln="main_rooms" data-pth="_books_rooms"
-                                      data-ttl="Залы" data-inside="rooms">Залы</span>
-                            </a>
-                        </li>
-                        <li class="my-nav-item">
-                            <a class="my-nav-link">
-                                <i class="bi bi-people"></i>
                                 <span class="my-nav-link__name link-item"
                                       data-ln="main_users" data-pth="_books_users"
                                       data-ttl="Сотрудники" data-inside="users">Сотрудники</span>
                             </a>
                         </li>
+                        <li class="my-nav-item_second_level d-none" data-target="reference">
+                            <a class="my-nav-link">
+                                <span class="my-nav-link__name link-item"
+                                      data-ln="main_geography" data-pth="_books_geography"
+                                      data-ttl="География" data-inside="geography">География</span>
+                            </a>
+                        </li>
                     </ul>
 
                 </nav>
-
                 <!-- ФУТЕР -->
                 <div class="my-menu-footer-wrapper px-3 py-2">
                     <a class="my-nav-link" id="menuButtonProfile">
@@ -133,7 +115,7 @@ if ($cntrl_ok && $result && $result['sccss']) {
 
             </div>
         </div>
-        <script src="./js/_main.js?2026061602"></script>
+        <script src="./js/_main.js?2026061701"></script>
       <?php
 } else {
     echo "Сессия истекла. Обновите страницу.";

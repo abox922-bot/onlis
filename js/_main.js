@@ -5,7 +5,11 @@ const modalOffcanvas = new bootstrap.Offcanvas('#modalOffcanvas');
 //==============================================================================
 $(document).ready(function(){
 	$('body, html').animate({scrollTop: 0}, 100, "linear");
-	fncChptLoad(`${$(".link-item[data-onload=1]").attr("data-ln")}.php`, $(".link-item[data-onload=1]").attr("data-pth"), $(".link-item[data-onload=1]").attr("data-ttl"), $(".link-item[data-onload=1]").attr("data-inside"));
+
+	const $startItem = $(".link-item[data-onload=1]");
+	if ($startItem.length) {
+		fncChptLoad(`${$startItem.attr("data-ln")}.php`, $startItem.attr("data-pth"), $startItem.attr("data-ttl"), $startItem.attr("data-inside"));
+	}
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	$("#mainModal").on("shown.bs.modal", function(){
 		$("html").css("overflow-y", "hidden");
@@ -26,8 +30,9 @@ $(document).ready(function(){
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	$(document).click(function(e){
 		if (e.target.closest(".head-item")) {
-			$(`.my-nav-item_second_level[data-target!=${$(e.target).attr("data-target")}]`).addClass("d-none");
-			$(`.my-nav-item_second_level[data-target=${$(e.target).attr("data-target")}]`).toggleClass("d-none");
+		    const target = $(e.target).closest(".head-item").attr("data-target");
+		    $(`.my-nav-item_second_level[data-target!=${target}]`).addClass("d-none");
+		    $(`.my-nav-item_second_level[data-target=${target}]`).toggleClass("d-none");
 		} else if (e.target.closest(".link-item")) {
 			myOffcanvas.hide();
 			fncChptLoad($(e.target).attr("data-ln") + ".php", $(e.target).attr("data-pth"), $(e.target).attr("data-ttl"), $(e.target).attr("data-inside"));
