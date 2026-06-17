@@ -180,7 +180,8 @@ function fncSetupToken(token = null) {
 		if (window.AppSSE) {
 		    window.AppSSE.close();
 		}
-		window.AppSSE = new EventSource(`sse.php?token=${token}`);
+		//window.AppSSE = new EventSource(`sse.php?token=${token}`);
+		window.AppSSE = new EventSource('sse.php');
 
     window.AppSSE.onerror = function(e) {
       if (this.readyState == EventSource.CONNECTING) {

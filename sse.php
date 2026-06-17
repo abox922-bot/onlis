@@ -22,13 +22,9 @@ if (session_status() === PHP_SESSION_ACTIVE) {
 
 require_once("./app/includes/request.php");
 
-$ses_id  = $_COOKIE["_onlis_id"] ?? '';
-$token   = $_GET['token']        ?? '';
-
 $auth_data = [
     "action"    => "usr_info",
-    "_onlis_id" => $ses_id,
-    "x_token"   => $token,
+    "_onlis_id" => $_COOKIE["_onlis_id"] ?? '',
 ];
 
 $result = send_request($auth_data, "main");

@@ -8,7 +8,7 @@ $(document).ready(function(){
 
 	const $startItem = $(".link-item[data-onload=1]");
 	if ($startItem.length) {
-		fncChptLoad(`${$startItem.attr("data-ln")}.php`, $startItem.attr("data-pth"), $startItem.attr("data-ttl"), $startItem.attr("data-inside"));
+	    fncChptLoad($startItem.attr("data-module"), $startItem.attr("data-ttl"));
 	}
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	$("#mainModal").on("shown.bs.modal", function(){
@@ -35,7 +35,8 @@ $(document).ready(function(){
 		    $(`.my-nav-item_second_level[data-target=${target}]`).toggleClass("d-none");
 		} else if (e.target.closest(".link-item")) {
 			myOffcanvas.hide();
-			fncChptLoad($(e.target).attr("data-ln") + ".php", $(e.target).attr("data-pth"), $(e.target).attr("data-ttl"), $(e.target).attr("data-inside"));
+	    const $item = $(e.target).closest(".link-item");
+	    fncChptLoad($item.attr("data-module"), $item.attr("data-ttl"));
 		} else if (e.target.closest("#spnQuit")) {
 			myOffcanvas.hide();
 			if (confirm("Выйти из системы?")) {
@@ -103,37 +104,39 @@ function fncStartFnc() {
   //++++++++++++++++++++++++++++++++++++
 }
 //==============================================================================
-function fncBookNav(folder, inside_file) {
+function fncBookNav() {
+	const $shell = $("#divModuleShell");
+	const folder = $shell.data("folder");
+
 	if ($("#btnSlct").length == 1) {
-		$("#btnSlct").html($(".liSlctItem:first").html());
-		$("#btnSlct").attr("data-target", $(".liSlctItem:first").attr("data-target"));
+		const target = $("#btnSlct").data("target");
 		$("#rowContent").html(`<div class="col-12">${spnr_loading}</div>`);
-		let path = new URL(`./${folder}/${$("#btnSlct").attr("data-target")}.php`, url);
+		let path = new URL(`./${folder}/${target}.php`, url);
 		$("#rowContent").load(path.href);
 		//++++++++++++++++++++++++++++++++++++
 		$(".liSlct").click(function(){
 			let chpt = $(this).attr("data-target");
-			$("#btnSlct").html($(`.liSlctItem[data-target=${chpt}]`).html());
+			$("#btnSlct").html($(this).find(".liSlctItem").html());
 			$("#btnSlct").attr("data-target", chpt);
 			$("#rowContent").html(`<div class="col-12">${spnr_loading}</div>`);
-			let path = new URL(`./${folder}/${$("#btnSlct").attr("data-target")}.php`, url);
+			let path = new URL(`./${folder}/${chpt}.php`, url);
 			$("#rowContent").load(path.href);
 		});
 		//++++++++++++++++++++++++++++++++++++
 	} else {
+		const default_file = $shell.data("default");
 		$("#rowContent").html(`<div class="col-12">${spnr_loading}</div>`);
-		let path = new URL(`./${folder}/${inside_file}.php`, url);
+		let path = new URL(`./${folder}/${default_file}.php`, url);
 		$("#rowContent").load(path.href);
 	}
-}
-//==============================================================================
-function fncChptLoad(file_url, fld_url, chpt_header, inside_file) {
+}//==============================================================================
+function fncChptLoad(module_key, chpt_header) {
 	$("#divMainContent").html(`<div class="col-12">${spnr_loading}</div>`);
 	$("#sectionHeader").html(chpt_header);
-	let path = new URL(file_url, url);
+	let path = new URL(`main_module.php?module=${module_key}`, url);
 	$("#divMainContent").load(path.href, function(){
 		$('body, html').animate({scrollTop: 0}, 100, "linear");
-		fncBookNav(fld_url, inside_file);
+		fncBookNav();
 	});
 }
 //==============================================================================

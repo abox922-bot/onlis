@@ -81,16 +81,14 @@
                   <a class="my-nav-link">
                       <i class="bi bi-people"></i>
                       <span class="my-nav-link__name link-item"
-                            data-ln="main_users" data-pth="_books_users"
-                            data-ttl="Сотрудники" data-inside="users">Сотрудники</span>
+                            data-module="users" data-ttl="Сотрудники">Сотрудники</span>
                   </a>
               </li>
               <li class="my-nav-item_second_level d-none" data-target="reference">
                   <a class="my-nav-link">
                       <i class="bi bi-globe-americas"></i>
                       <span class="my-nav-link__name link-item"
-                            data-ln="main_geography" data-pth="_books_geography"
-                            data-ttl="География" data-inside="countries">География</span>
+                            data-module="geography" data-ttl="География">География</span>
                   </a>
               </li>
           </ul>
@@ -111,4 +109,4 @@
 
     </div>
   </div>
-  <script src="./js/_main.js?2026061701"></script>
+  <script src="./js/_main.js?2026061702"></script>
