@@ -49,6 +49,7 @@ $(document).ready(function(){
 	});
 	//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	$("#menuButtonProfile").click(function(){
+		myOffcanvas.hide();
 	  $("#mainModalBody").html(spnr_loading);
 	  $("#mainModalLabel").html("Профиль");
 	  main_modal.show();
