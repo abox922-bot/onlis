@@ -7,18 +7,18 @@
         'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
     ];
 
-    $data   = array_merge($ses_info, ["action" => "users_list"]);
-    $result = send_request($data, "users");
+    $data   = array_merge($ses_info, ["action" => "regions_list", "country" => $country]);
+    $result = send_request($data, "geo");
     ?>
       <div class="col-12">
-        <table class="table table-sm table-striped table-hover caption-top mt-2">
-          <caption>Список сотрудников</caption>
+        <table class="table table-sm table-hover caption-top mt-2">
+          <caption>Список регионов</caption>
           <tbody>
             <?php
               foreach ($result as $key => $value) {
                 ?>
                   <tr class="itemTr" data-id="<?php echo $value["id"]; ?>" style="cursor: pointer;">
-                    <td class="itemName" data-id="<?php echo $value["id"]; ?>">
+                    <td class="py-2 itemName" data-id="<?php echo $value["id"]; ?>">
                       <?php echo $value["name"]; ?>
                     </td>
                   </tr>

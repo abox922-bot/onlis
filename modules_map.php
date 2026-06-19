@@ -9,7 +9,7 @@
       ],
 
       'geography' => [
-          'folder'   => '_books_geography',
+          'folder'   => '_books_geo',
           'sections' => [
               ['key' => 'countries', 'title' => 'Страны',  'file' => 'countries', 'default' => true],
               ['key' => 'regions',   'title' => 'Регионы', 'file' => 'regions'],

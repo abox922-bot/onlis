@@ -6,7 +6,6 @@
         '_onlis_id' => $_COOKIE['_onlis_id'],
         'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
     ];
-
     ?>
     <div class="col-12 mt-3">
       <div class="row">
@@ -26,4 +25,4 @@
         </div>
       </div>
     </div>
-    <script src="./_books_users/js/rules.js?2025033000"></script>
+    <script src="./_books_geo/js/countries.js?2025032601"></script>

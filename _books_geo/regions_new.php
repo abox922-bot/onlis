@@ -7,28 +7,18 @@
         'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
     ];
 
-    $data   = array_merge($ses_info, ["action" => "rules_list"]);
-    $result = send_request($data, "users");
+    $country_name = $_POST["country_name"];
     ?>
       <div class="col-12">
         <form id="formNew">
           <div class="row">
             <div class="col-12 col-md-6 mb-2">
               <label for="inpName" class="form-label mb-0">Название</label>
-              <input type="text" class="form-control form-control-sm form-inp" id="inpName" data-name="stat-name" data-type="text" data-required="1" value="">
+              <input type="text" class="form-control form-control-sm form-inp" id="inpName" data-name="reg-name" data-type="text" data-required="1" value="">
             </div>
             <div class="col-12 col-md-6 mb-2">
-              <label for="inpRules" class="form-label mb-0">Права доступа</label>
-              <select class="form-select form-select-sm form-inp" id="inpRules" data-name="stat-rules" data-type="select" data-required="1">
-                <option value="0">выбери</option>
-                <?php
-                  foreach ($result as $key => $value) {
-                    ?>
-                      <option value="<?php echo $value["id"]; ?>"><?php echo $value["name"]; ?></option>
-                    <?php
-                  }
-                ?>
-              </select>
+              <label for="inpCountry" class="form-label mb-0">Страна</label>
+              <input type="text" class="form-control form-control-sm" id="inpCountry" value="<?php echo $country_name; ?>" disabled>
             </div>
             <div class="col-12 mt-3">
               <button type="submit" class="btn btn-sm btn-outline-success" id="btnSave">сохранить</button>

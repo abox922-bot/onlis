@@ -13,7 +13,7 @@
           <div class="row">
             <div class="col-12 mb-2">
               <label for="inpName" class="form-label mb-0">Название</label>
-              <input type="text" class="form-control form-control-sm form-inp" id="inpName" data-name="rul-name" data-type="text" data-required="1" value="">
+              <input type="text" class="form-control form-control-sm form-inp" id="inpName" data-name="cntr-name" data-type="text" data-required="1" value="">
             </div>
             <div class="col-12 mt-3">
               <button type="submit" class="btn btn-sm btn-outline-success" id="btnSave">сохранить</button>
