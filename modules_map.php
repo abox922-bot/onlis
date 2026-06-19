@@ -4,7 +4,6 @@
           'folder'   => '_books_users',
           'sections' => [
               ['key' => 'users',  'title' => 'Пользователи',       'file' => 'users',  'default' => true],
-              ['key' => 'groups', 'title' => 'Роли пользователей', 'file' => 'groups'],
           ],
       ],
 
