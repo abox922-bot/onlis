@@ -7,8 +7,9 @@
         'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
     ];
 
-    $data   = array_merge($ses_info, ["action" => "regions_list", "country" => $country]);
-    $result = send_request($data, "geo");
+    $country  = $_POST["country"];
+    $data     = array_merge($ses_info, ["action" => "regions_list", "country" => $country]);
+    $result   = send_request($data, "geo");
     ?>
       <div class="col-12">
         <table class="table table-sm table-hover caption-top mt-2">
