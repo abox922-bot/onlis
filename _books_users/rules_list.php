@@ -5,13 +5,13 @@
     $result = send_request($data, "main");
     $today = $result["today"];
     if ($result["sccss"]) {
-      $data = ["action" => "users_list"];
+      $data = ["action" => "rules_list"];
       $data = array_merge($_COOKIE, $data);
       $result = send_request($data, "users");
       ?>
         <div class="col-12">
           <table class="table table-sm table-striped table-hover caption-top mt-2">
-            <caption>Список сотрудников</caption>
+            <caption>Список прав доступа</caption>
             <tbody>
               <?php
                 foreach ($result as $key => $value) {

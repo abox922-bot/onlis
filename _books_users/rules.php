@@ -16,10 +16,14 @@
             </button>
             <input type="text" class="form-control form-control-sm" id="inpSearchVal" value="" placeholder="поиск" style="max-width: 250px; background-color: #fff;">
           </div>
-          <div class="col-12 mt-3" id="divChptContent"></div>
+          <div class="col-12 mt-3" id="divChptContent">
+            <div class="spinner-border spinner-border-sm d-none" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
         </div>
       </div>
-      <script src="./_books_users/js/users.js?2025033000"></script>
+      <script src="./_books_users/js/rules.js?2025033000"></script>
       <?php
     } else {
       echo "Oops... something went wrong...";

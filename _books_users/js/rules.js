@@ -4,8 +4,8 @@ $(document).ready(function(){
   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   $("#btnFastNew").click(function(){
     $("#mainModalBody").html(spnr_loading);
-    $("#mainModalLabel").html("Добавление сотрудника");
-    let path = new URL("./_books_users/users_new.php", url);
+    $("#mainModalLabel").html("Добавление прав доступа");
+    let path = new URL("./_books_users/rules_new.php", url);
     $("#mainModalBody").load(path.href, function(){
       main_modal.show();
       $("#formNew").submit(function(e){
@@ -13,7 +13,7 @@ $(document).ready(function(){
         let crt_arr = fncParamsCrt(".form-inp");
         if (crt_arr["all_good"] && confirm("Сохранить?")) {
           $("#btnSave, #divSaveLoading").toggleClass("d-none");
-          $.ajax({type: "POST",	url: rqst_path.href, data: {params: JSON.stringify(crt_arr["params"]), action: "new_user", module: "users", return_data: 0},	success: function(){
+          $.ajax({type: "POST",	url: rqst_path.href, data: {params: JSON.stringify(crt_arr["params"]), action: "new_rules", module: "users", return_data: 0},	success: function(){
             listLoadFunction();
             main_modal.hide();
           }});
@@ -26,7 +26,7 @@ $(document).ready(function(){
 //==============================================================================
 function listLoadFunction() {
 	$("#divChptContent").html(spnr_loading);
-	let path = new URL("./_books_users/users_list.php", url);
+	let path = new URL("./_books_users/rules_list.php", url);
 	$("#divChptContent").load(path.href, function(){
 		searchFunction();
     $(".itemTr").click(function(){
@@ -42,10 +42,23 @@ function listLoadFunction() {
 function infoLoadFunction(item_id) {
   let item_name = $(`.itemName[data-id=${item_id}]`).html();
   $("#mainModalBody").html(spnr_loading);
-  $("#mainModalLabel").html(`<small class="fw-normal">Информация о сотруднике</small><br>${item_name}`);
-  let path = new URL("./_books_org/orgs_info_staff_info.php", url);
-  $("#mainModalBody").load(path.href, {st_id: item_id}, function(){
+  $("#mainModalLabel").html(`<small class="fw-normal">Информация о правах доступа</small><br>${item_name}`);
+  let path = new URL("./_books_users/rules_info.php", url);
+  $("#mainModalBody").load(path.href, {id: item_id}, function(){
     main_modal.show();
+    $("#formInfo").submit(function(e){
+      e.preventDefault();
+      let params_arr = [];
+      params_arr.push({name: "item-id", value: item_id});
+      let crt_arr = fncParamsCrt(".form-inp", params_arr);
+      if (crt_arr["all_good"] && confirm("Сохранить?")) {
+        $("#btnSave, #divSaveLoading").toggleClass("d-none");
+        $.ajax({type: "POST",	url: rqst_path.href, data: {params: JSON.stringify(crt_arr["params"]), action: "upd_rules", module: "users", return_data: 0},	success: function(){
+          listLoadFunction();
+          main_modal.hide();
+        }});
+      }
+    });
   });
 }
 //==============================================================================

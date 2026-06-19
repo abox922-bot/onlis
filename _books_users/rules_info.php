@@ -5,27 +5,26 @@
     $result = send_request($data, "main");
     $today = $result["today"];
     if ($result["sccss"]) {
-      $data = ["action" => "users_list"];
+      $id = $_POST["id"];
+      $data = ["action" => "rules_info", "id" => $id];
       $data = array_merge($_COOKIE, $data);
       $result = send_request($data, "users");
       ?>
         <div class="col-12">
-          <table class="table table-sm table-striped table-hover caption-top mt-2">
-            <caption>Список сотрудников</caption>
-            <tbody>
-              <?php
-                foreach ($result as $key => $value) {
-                  ?>
-                    <tr class="itemTr" data-id="<?php echo $value["id"]; ?>" style="cursor: pointer;">
-                      <td class="itemName" data-id="<?php echo $value["id"]; ?>">
-                        <?php echo $value["name"]; ?>
-                      </td>
-                    </tr>
-                  <?php
-                }
-              ?>
-            </tbody>
-          </table>
+          <form id="formInfo">
+            <div class="row">
+              <div class="col-12 mb-2">
+                <label for="inpName" class="form-label mb-0">Название</label>
+                <input type="text" class="form-control form-control-sm form-inp" id="inpName" data-name="rul-name" data-type="text" data-required="1" value="<?php echo $result["name"]; ?>">
+              </div>
+              <div class="col-12 mt-3">
+                <button type="submit" class="btn btn-sm btn-outline-success" id="btnSave">сохранить</button>
+                <div class="spinner-border spinner-border-sm d-none" role="status" id="divSaveLoading">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+            </div>
+          </form>
         </div>
       <?php
     } else {
