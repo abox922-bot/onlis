@@ -38,4 +38,4 @@
         <div class="empty-hint__text">Выберите город для просмотра улиц</div>
     </div>
 
-    <script src="./_books_geo/js/streets.js?2026062104"></script>
+    <script src="./_books_geo/js/streets.js?2026062108"></script>

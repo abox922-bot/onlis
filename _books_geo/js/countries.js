@@ -1,13 +1,13 @@
 //==============================================================================
-$(document).ready(function(){
+$(function(){
     listLoadFunction();
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#btnFastNew").click(function(){
         $("#mainModalBody").html(spnr_loading);
         $("#mainModalLabel").html("Добавление страны");
+        main_modal.show();
         let path = new URL("./_books_geo/countries_new.php", url);
         $("#mainModalBody").load(path.href, function(){
-            main_modal.show();
             $("#formNew").submit(function(e){
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -40,19 +40,19 @@ function listLoadFunction() {
     $("#divChptContent").load(path.href, function(){
         searchFunction();
         $(".itemTr").click(function(){
-            infoLoadFunction(+$(this).attr("data-id"));
+            infoLoadFunction(+$(this).data("id"));
         });
         fncCheckNewItem(infoLoadFunction);
     });
 }
 //==============================================================================
 function infoLoadFunction(item_id) {
-    let item_name = $(`.itemName[data-id=${item_id}]`).html();
+    let item_name = $(`.itemName[data-id="${item_id}"]`).html();
     $("#mainModalBody").html(spnr_loading);
     $("#mainModalLabel").html(`<small class="fw-normal">Информация о стране</small><br>${item_name}`);
+    main_modal.show();
     let path = new URL("./_books_geo/countries_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
-        main_modal.show();
         $("#formInfo").submit(function(e){
             e.preventDefault();
             e.stopImmediatePropagation();

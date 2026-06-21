@@ -1,5 +1,5 @@
 //==============================================================================
-$(document).ready(function(){
+$(function(){
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#slctCountry").change(function(){
         if (+$(this).val() > 0) {
@@ -17,9 +17,9 @@ $(document).ready(function(){
         let country_name = $("#slctCountry option:selected").text();
         $("#mainModalBody").html(spnr_loading);
         $("#mainModalLabel").html("Добавление региона");
+        main_modal.show();
         let path = new URL("./_books_geo/regions_new.php", url);
         $("#mainModalBody").load(path.href, {country_name}, function(){
-            main_modal.show();
             $("#formNew").submit(function(e){
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -54,19 +54,19 @@ function listLoadFunction(country) {
     $("#divChptContent").load(path.href, {country}, function(){
         searchFunction();
         $(".itemTr").click(function(){
-            infoLoadFunction(+$(this).attr("data-id"));
+            infoLoadFunction(+$(this).data("id"));
         });
         fncCheckNewItem(infoLoadFunction);
     });
 }
 //==============================================================================
 function infoLoadFunction(item_id) {
-    let item_name = $(`.itemName[data-id=${item_id}]`).html();
+    let item_name = $(`.itemName[data-id="${item_id}"]`).html();
     $("#mainModalBody").html(spnr_loading);
     $("#mainModalLabel").html(`<small class="fw-normal">Информация о регионе</small><br>${item_name}`);
+    main_modal.show();
     let path = new URL("./_books_geo/regions_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
-        main_modal.show();
         $("#formInfo").submit(function(e){
             e.preventDefault();
             e.stopImmediatePropagation();

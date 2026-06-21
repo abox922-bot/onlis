@@ -7,25 +7,27 @@
         'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
     ];
 
-    $city   = $_POST["city"];
-    $data   = array_merge($ses_info, ["action" => "streets_list", "city" => $city]);
-    $result = send_request($data, "geo");
+    $city  = $_POST['city'];
+    $data  = array_merge($ses_info, ['action' => 'streets_list', 'city' => $city]);
+    $result = send_request($data, 'geo');
     ?>
-      <div class="col-12">
-        <table class="table table-sm table-hover caption-top mt-2">
-          <caption>Список улиц</caption>
-          <tbody>
-            <?php
-              foreach ($result as $key => $value) {
-                ?>
-                  <tr class="itemTr" data-id="<?php echo $value["id"]; ?>" style="cursor: pointer;">
-                    <td class="py-2 itemName" data-id="<?php echo $value["id"]; ?>">
-                      <?php echo $value["name"]; ?>
-                    </td>
-                  </tr>
-                <?php
-              }
-            ?>
-          </tbody>
-        </table>
-      </div>
+    <div class="col-12">
+        <?php if (empty($result)): ?>
+            <div class="empty-hint">
+                <i class="bi bi-inbox empty-hint__icon"></i>
+                <div class="empty-hint__text">Записей не найдено</div>
+            </div>
+        <?php else: ?>
+            <table class="table table-sm table-hover mt-2">
+                <tbody>
+                    <?php foreach ($result as $value): ?>
+                        <tr class="itemTr" data-id="<?php echo $value['id']; ?>">
+                            <td class="py-2 itemName" data-id="<?php echo $value['id']; ?>">
+                                <?php echo htmlspecialchars($value['name']); ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div>

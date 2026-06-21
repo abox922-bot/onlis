@@ -35,9 +35,9 @@ $(document).ready(function(){
         let city_name = cityPicker.getOption(city).textContent.trim();
         $("#mainModalBody").html(spnr_loading);
         $("#mainModalLabel").html("Добавление улицы");
+        main_modal.show();
         let path = new URL("./_books_geo/streets_new.php", url);
         $("#mainModalBody").load(path.href, {city_name}, function(){
-            main_modal.show();
             $("#formNew").submit(function(e){
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -74,7 +74,7 @@ function listLoadFunction(city) {
     $("#divChptContent").load(path.href, {city}, function(){
         searchFunction();
         $(".itemTr").click(function(){
-            infoLoadFunction(+$(this).attr("data-id"));
+            infoLoadFunction(+$(this).data("id"));
         });
         if (localStorage.getItem("new_item") !== null) {
             infoLoadFunction(localStorage.getItem("new_item"));
@@ -90,9 +90,9 @@ function infoLoadFunction(item_id) {
     let item_name = $(`.itemName[data-id=${item_id}]`).html();
     $("#mainModalBody").html(spnr_loading);
     $("#mainModalLabel").html(`<small class="fw-normal">Информация об улице</small><br>${item_name}`);
+    main_modal.show();
     let path = new URL("./_books_geo/streets_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id, city_name}, function(){
-        main_modal.show();
         $("#formInfo").submit(function(e){
             e.preventDefault();
             e.stopImmediatePropagation();
