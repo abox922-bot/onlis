@@ -34,7 +34,7 @@ $cntrl  = ($result && !empty($result['cntrl'])) ? $result['cntrl'] : null;
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="./css/style.css?2026061702">
+        <link rel="stylesheet" href="./css/style.css?2026062103">
     </head>
     <body>
         <div class="section d-flex flex-column justify-content-start container auth-container" id="mainContainer">

@@ -106,27 +106,30 @@ function fncStartFnc() {
 }
 //==============================================================================
 function fncBookNav() {
-	const $shell = $("#divModuleShell");
-	const folder = $shell.data("folder");
+	const $shell  = $("#divModuleShell");
+	const folder  = $shell.data("folder");
+	const $tabs   = $(".module-tab");
 
-	if ($("#btnSlct").length == 1) {
-		const target = $("#btnSlct").data("target");
-		$("#rowContent").html(`<div class="col-12">${spnr_loading}</div>`);
+	if ($tabs.length > 1) {
+		const target = $(".module-tab.active").data("target");
+		$("#rowContent").html(`<div class="col-12 p-3">${spnr_loading}</div>`);
 		let path = new URL(`./${folder}/${target}.php`, url);
 		$("#rowContent").load(path.href);
 		//++++++++++++++++++++++++++++++++++++
-		$(".liSlct").click(function(){
-			let chpt = $(this).attr("data-target");
-			$("#btnSlct").html($(this).find(".liSlctItem").html());
-			$("#btnSlct").attr("data-target", chpt);
-			$("#rowContent").html(`<div class="col-12">${spnr_loading}</div>`);
+		$tabs.click(function() {
+			$tabs.removeClass("active");
+			$(this).addClass("active");
+			this.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+			$("#divScrollArea").animate({ scrollTop: 0 }, 150, "linear");
+			let chpt = $(this).data("target");
+			$("#rowContent").html(`<div class="col-12 p-3">${spnr_loading}</div>`);
 			let path = new URL(`./${folder}/${chpt}.php`, url);
 			$("#rowContent").load(path.href);
 		});
 		//++++++++++++++++++++++++++++++++++++
 	} else {
 		const default_file = $shell.data("default");
-		$("#rowContent").html(`<div class="col-12">${spnr_loading}</div>`);
+		$("#rowContent").html(`<div class="col-12 p-3">${spnr_loading}</div>`);
 		let path = new URL(`./${folder}/${default_file}.php`, url);
 		$("#rowContent").load(path.href);
 	}
@@ -136,7 +139,7 @@ function fncChptLoad(module_key, chpt_header) {
 	$("#sectionHeader").html(chpt_header);
 	let path = new URL(`main_module.php?module=${module_key}`, url);
 	$("#divMainContent").load(path.href, function(){
-		$('body, html').animate({scrollTop: 0}, 100, "linear");
+		$("#divScrollArea").animate({ scrollTop: 0 }, 150, "linear");
 		fncBookNav();
 	});
 }

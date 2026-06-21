@@ -1,0 +1,238 @@
+**Проект ONL.IS — система управления кофейней/общепитом/ритейлом.**
+Стек: MySQL, PHP 7.4, SSE, jQuery, HTML, CSS, Bootstrap.
+Архитектура: мультитенантная — каждый клиент на своём поддомене, своя БД, мастер-база для управления всеми клиентами. Одна БД клиента рассчитана на до 100 точек этого клиента (не 100 разных клиентов).
+
+Репозиторий: https://github.com/abox922-bot/onlis
+
+Текущая задача: полная разработка с нуля. Связь со старой системой/БД не рассматривается ни в каком виде (включая синхронизацию через триггеры) — эта идея уже была отклонена.
+
+---
+
+**Принципы БД**
+
+utf8mb4 везде, TINYINT(1) для флагов, DECIMAL(10,2) для денег, created_at / created_by / updated_at / updated_by на каждой таблице (там где необходимо исходя из логики), полные имена без аббревиатур, файлы и изображения не хранятся в БД.
+
+updated_at и updated_by — NULL по умолчанию (NULL означает «запись ни разу не редактировалась»). FK для created_by / updated_by ссылаются на users.id.
+
+Таблица users + users_auth — разделение учётных данных и персональных данных.
+
+---
+
+**Файлы фундамента**
+
+- app/includes/config.php — константы конфигурации клиента
+- app/includes/db.php — PDO соединение с БД
+- app/includes/fncs.php — fncQuery, fncLog, fncValFind
+- app/includes/paths.php — маршруты API модулей
+- app/includes/request.php — внутренние cURL запросы (send_request)
+- app/includes/session_guard.php — проверка сессии (fncRequireSession)
+- app/app.php — основной API (auth, sessions). in_cntrl возвращает {sccss, user, user_name, rules, today}
+- index.php — точка входа SPA
+- main_request_modules.php — прокси запросов с фронта
+- modules_map.php — реестр модулей (folder, sections: key/title/file/default)
+- main_module.php — универсальная оболочка модуля
+- sse.php — SSE соединение
+- js/index.js — fncMyAjax, fncParamsCrt, fncItemCrt, fncNormalizeInp, fncSetupToken
+- _main.php — каркас SPA после авторизации
+- js/_main.js — логика каркаса
+- css/style.css — базовые стили (CSS-переменные, form-in, my-input-label, btn-action-main и др.)
+
+---
+
+**Архитектура загрузки модулей**
+
+Единый main_module.php, реестр в modules_map.php. Пункты меню несут только data-module и data-ttl. Раздел по умолчанию — флаг 'default'.
+
+fncRequireSession() обязателен в каждом PHP-фрагменте, загружаемом через .load(). HTTP-статус всегда 200 — jQuery .load() вставляет тело только при 2xx.
+
+---
+
+**Стандарт PHP-фрагментов (_books_X/)**
+
+Каждый файл начинается:
+```php
+<?php
+require_once('../app/includes/session_guard.php');
+$result = fncRequireSession();
+
+$ses_info = [
+    '_onlis_id' => $_COOKIE['_onlis_id'],
+    'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
+];
+```
+
+$ses_info объявляется только если в файле есть вызов send_request — в _new файлах без API-запроса он не нужен.
+
+При выводе любых данных из БД или $_POST — обязателен htmlspecialchars().
+
+Теги script только в главном файле раздела (countries.php и т.д.) — никогда в _new и _info.
+
+---
+
+**Стандарт форм — разметка**
+
+Два типа форм: formNew (создание), formInfo (редактирование).
+
+Два типа полей:
+
+Управляемые (участвуют в fncParamsCrt):
+- `class="form-inp"` — маркер для fncParamsCrt (обязателен)
+- `class="form-in"` — стили (обязателен отдельно)
+- `data-name="..."` — ключ параметра на сервер
+- `data-type="..."` — тип валидации
+- `data-required="1"` — если поле обязательное
+- `data-length="N"` — если значение должно быть ровно N символов
+- `data-phone-code="..."` — для типа phone, код страны для обрезки
+- `data-phone-mask="..."` — для типа phone, маска для подсчёта ожидаемой длины
+
+Пример:
+```html
+<input type="text"
+    class="form-in form-inp"
+    data-name="reg-code"
+    data-type="digits_only"
+    data-required="1"
+    data-length="2">
+```
+
+Отображаемые (контекст, не редактируются):
+- `class="form-in"` + атрибут `disabled`, без `form-inp`
+
+Классы: `form-in` для инпутов и селектов, `my-input-label` для label. Не использовать form-control, form-select, form-label.
+
+Первая опция select всегда `value="0"` с текстом-подсказкой.
+
+Кнопка сохранения — всегда:
+```html
+<button type="submit" class="btn-action-main" id="btnSave">
+  <span id="btnSaveText">Сохранить</span>
+  <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
+</button>
+```
+
+Layout формы определяется контентом и контекстом каждой конкретной формы — анализируется количество полей, их смысловые связи, приоритет визуального веса, поведение на мобиле. Bootstrap-сетка — инструмент, а не шаблон.
+
+---
+
+**Стандарт форм — data-type и валидация**
+
+Правило валидации: `required` добавляет только проверку на пустоту. Правила формата применяются всегда когда в поле есть хоть что-то. Если поле не `required` и пустое — ошибки нет, передаётся пустое значение.
+
+| data-type | Нормализация | Валидация |
+|---|---|---|
+| text | Убирает HTML-теги | required + пустое > ошибка |
+| digits_only | Только цифры | required + пустое > ошибка |
+| digits_double | Цифры и точка (запятая > точка) | required + пустое > ошибка |
+| without_letters | Убирает все буквы (рус/лат) | required + пустое > ошибка |
+| email | Убирает кириллицу и кавычки | Длина ? 5, есть @ и точка — всегда когда не пустое |
+| eng_text | Только a-z0-9 | required + пустое > ошибка |
+| select | — | Значение ? 0 (всегда) |
+| check | — | Возвращает 1 или 0 |
+| phone | Только цифры, обрезает код страны | Длина совпадает с маской — всегда когда не пустое |
+
+При ошибке валидации поле получает класс `is-invalid` (стиль в style.css). Поле подсвечивается до следующей попытки отправки.
+
+---
+
+**Стандарт JS — отправка формы**
+
+Использовать `fncMyAjax`, не `$.ajax` напрямую.
+
+Обработчик submit всегда начинается с `e.preventDefault()` + `e.stopImmediatePropagation()` — критично для форм внутри модалок, загружаемых через `.load()`. Без этого на мобильных устройствах и при повторном открытии модалки обработчики накапливаются и форма отправляется несколько раз.
+
+```js
+$("#formNew").submit(function(e) {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    let params_arr = [];
+    params_arr.push({name: "country", value: +$("#slctCountry").val()});
+    let crt_arr = fncParamsCrt(".form-inp", params_arr);
+    if (crt_arr["all_good"] && confirm("Сохранить?")) {
+        $("#btnSave").prop("disabled", true);
+        $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
+        fncMyAjax("new_country", "geo", crt_arr["params"], 1)
+            .done(function(data) {
+                if (data.sccss) {
+                    // успех
+                } else {
+                    fncBtnReset();
+                    // показать ошибку
+                }
+            })
+            .fail(function() {
+                fncBtnReset();
+                // показать ошибку
+            });
+    }
+});
+
+function fncBtnReset() {
+    $("#btnSave").prop("disabled", false);
+    $("#btnSaveText").removeClass("d-none");
+    $("#divSaveLoading").addClass("d-none");
+}
+```
+
+**return_data:** `1` — JS ожидает данные в ответе (main_request_modules.php возвращает тело). `0` — ответ не нужен. Что делать с данными — определяется логикой конкретного действия.
+
+---
+
+**Стандарт app_X.php (API модуля)**
+
+```php
+<?php
+require_once('./includes/fncs.php');
+require_once('./includes/request.php');
+
+header('Content-Type: application/json');
+
+$cookie = $_POST['_onlis_id'] ?? '';
+$token  = $_POST['x_token']   ?? '';
+
+if (!$cookie || !$token) { echo json_encode(['sccss' => false]); exit; }
+
+$ses_check = send_request([
+    '_onlis_id' => $cookie,
+    'x_token'   => $token,
+    'action'    => 'in_cntrl'
+], 'main');
+
+if (!$ses_check || empty($ses_check['sccss'])) {
+    echo json_encode(['sccss' => false]);
+    exit;
+}
+
+$user_id = (int)($ses_check['user'] ?? 0);
+$action  = $_POST['action'] ?? '';
+$params  = isset($_POST['params']) ? json_decode($_POST['params'], true) : [];
+if (!is_array($params)) $params = [];
+
+$result = [];
+
+switch ($action) {
+    case 'action_name':
+        // логика
+        break;
+    default:
+        echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
+        exit;
+}
+
+echo json_encode($result);
+```
+
+HTTP 200 всегда. Content-Type: application/json. Валидация входных данных через fncValFind. htmlspecialchars при выводе. created_by / updated_by берутся из $ses_check['user'].
+
+---
+
+**Открытые задачи — модуль Geography**
+
+1. Определить и реализовать паттерн обратной связи при ошибке (Toast / зона в модалке) — применить как стандарт для всех модулей
+2. Заменить $.ajax на fncMyAjax во всех _books_geo/js/ файлах
+3. Добавить e.stopImmediatePropagation() во все обработчики submit
+4. Добавить .fail() и проверку data.sccss в .done()
+5. Добавить fncBtnReset при ошибке
+6. Добавить htmlspecialchars в *_list.php файлы
+7. Убрать лишний $ses_info из countries_new.php, regions_new.php, cities_new.php
+8. Заменить confirm("Сохранить?") на паттерн подтверждения в стиле системы
+9. Проверить закрытие dropdown городов в streets.js по клику вне элемента

@@ -104,7 +104,6 @@ body {
     background-color: var(--bg-hover);
     color: var(--accent-color);
 }
-/*.my-nav-item_second_level .my-nav-link__name { margin-left: 0; }*/
 
 .my-menu-footer-wrapper {
     margin-top: auto;
@@ -152,6 +151,7 @@ body {
     padding: 8px 20px; border-radius: 10px; font-weight: 600;
     font-size: 0.85rem; transition: all 0.2s ease;
     display: inline-flex; align-items: center; border: none;
+    font-family: var(--bs-body-font-family);
 }
 .btn-action { background-color: var(--accent-color); color: #fff; }
 .btn-action-main { background-color: #198754; color: white; }
@@ -169,6 +169,7 @@ body {
     padding: 8px 15px; font-size: 0.95rem;
     background-color: #fff;
     transition: all 0.2s ease-in-out;
+    font-family: var(--bs-body-font-family);
 }
 .form-in.is-invalid {
     border-color: #dc3545 !important;
@@ -234,6 +235,7 @@ textarea.form-in { min-height: 100px; resize: vertical; }
 .table td:first-child { border-left: 1px solid #f2f2f2; border-radius: 10px 0 0 10px; }
 .table td:last-child { border-right: 1px solid #f2f2f2; border-radius: 0 10px 10px 0; }
 .table-hover tbody tr:hover td { background-color: var(--bg-hover) !important; color: var(--accent-color); }
+.itemTr { cursor: pointer; }
 
 /* --- 7. ВСПОМОГАТЕЛЬНЫЕ СТИЛИ --- */
 hr { margin: 15px 0; opacity: 0.1; background-color: var(--text-main); }
@@ -256,9 +258,152 @@ button:disabled {
     display: inline-block;
 }
 
-/* --- 8. МЕДИАЗАПРОСЫ --- */
+/* --- 8. МОДУЛЬ — ОБОЛОЧКА И ТАБЫ --- */
+.module-shell {
+    background-color: var(--card-bg);
+    border-radius: 15px;
+    box-shadow: 0 4px 15px var(--shadow);
+    overflow: hidden;
+    width: 100%;
+}
 
-/* Десктоп */
+.module-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 10px 0px;
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+.module-tabs::-webkit-scrollbar { display: none; }
+
+.module-tab {
+    flex-shrink: 0;
+    padding: 7px 16px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+    font-family: var(--bs-body-font-family);
+}
+.module-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+.module-tab.active {
+    background: var(--accent-color);
+    color: #fff;
+}
+
+/* --- 9. TOOLBAR РАЗДЕЛОВ (универсальный) --- */
+.section-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.toolbar-filter {
+    flex: 0 0 auto;
+    max-width: 220px;
+    min-width: 130px;
+    height: 42px;
+}
+
+.toolbar-search {
+    position: relative;
+    flex: 1;
+    max-width: 240px;
+    min-width: 120px;
+}
+.toolbar-search__icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+    display: flex;
+}
+.toolbar-search .form-in {
+    padding-left: 36px;
+}
+
+.toolbar-add {
+    flex-shrink: 0;
+    margin-left: auto;
+    gap: 7px;
+}
+.btn-label { font-size: 0.85rem; }
+
+/* --- 10. КАСТОМНЫЙ DROPDOWN (универсальный) --- */
+.custom-dropdown {
+    position: relative;
+    flex: 0 0 auto;
+    max-width: 240px;
+    min-width: 150px;
+}
+.custom-dropdown__list {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 100%;
+    max-height: 220px;
+    overflow-y: auto;
+    background: var(--dropdown-bg);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 20px var(--shadow);
+    z-index: 100;
+}
+
+/* --- 11. ПУСТОЕ СОСТОЯНИЕ (универсальное) --- */
+.empty-hint {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--text-muted);
+}
+.empty-hint svg {
+    opacity: 0.3;
+    margin-bottom: 12px;
+}
+.empty-hint__text {
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+/* --- 12. МЕДИАЗАПРОСЫ --- */
 @media (min-width: 768px) {
     .auth-card { max-width: 400px; margin: 0 auto; }
+}
+
+@media (max-width: 767px) {
+    .toolbar-filter {
+        flex: 1 0 100%;
+        max-width: 100%;
+    }
+    .toolbar-search {
+        flex: 1;
+        max-width: none;
+        min-width: 0;
+    }
+    .toolbar-add {
+        margin-left: 0;
+    }
+    .btn-label {
+        display: none;
+    }
+    .custom-dropdown {
+        flex: 1 0 100%;
+        max-width: 100%;
+    }
 }
