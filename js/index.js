@@ -235,3 +235,9 @@ function fncMyAjax(action, module, params = {}, return_data = 1) {
     return $.ajax(ajaxOptions);
 }
 //==============================================================================
+function fncBtnReset() {
+    $("#btnSave").prop("disabled", false);
+    $("#btnSaveText").removeClass("d-none");
+    $("#divSaveLoading").addClass("d-none");
+}
+//==============================================================================

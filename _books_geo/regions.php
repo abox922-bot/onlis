@@ -7,35 +7,31 @@
         'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
     ];
 
-    $data   = array_merge($ses_info, ["action" => "countries_list"]);
-    $result = send_request($data, "geo");
+    $data   = array_merge($ses_info, ['action' => 'countries_list']);
+    $result = send_request($data, 'geo');
     ?>
-    <div class="col-12 mt-3">
-      <div class="row">
-        <div class="col-12 d-flex">
-          <select class="form-select form-select-sm" id="slctCountry" style="max-width: 250px; background-color: #fff;">
-            <option value="0">выбери страну</option>
-            <?php
-              foreach ($result as $key => $value) {
-                ?>
-                  <option value="<?php echo $value["id"]; ?>"><?php echo $value["name"]; ?></option>
-                <?php
-              }
-            ?>
-          </select>
-          <button type="button" class="btn btn-sm btn-success mx-1" id="btnFastNew" disabled>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-circle" style="vertical-align: sub;" viewBox="0 0 16 16">
-              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-              <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-            </svg>
-          </button>
-          <input type="text" class="form-control form-control-sm" id="inpSearchVal" value="" placeholder="поиск" style="max-width: 250px; background-color: #fff;">
+    <div class="section-toolbar">
+        <select class="form-in toolbar-filter" id="slctCountry">
+            <option value="0">Выберите страну</option>
+            <?php foreach ($result as $value): ?>
+                <option value="<?php echo $value['id']; ?>"><?php echo htmlspecialchars($value['name']); ?></option>
+            <?php endforeach; ?>
+        </select>
+        <div class="toolbar-search">
+            <i class="bi bi-search toolbar-search__icon"></i>
+            <input type="text" class="form-in" id="inpSearchVal" placeholder="Поиск...">
         </div>
-        <div class="col-12 mt-3 d-none" id="divChptContent">
-          <div class="spinner-border spinner-border-sm d-none" role="status">
-            <span class="visually-hidden">Loading...</span>
-          </div>
-        </div>
-      </div>
+        <button type="button" class="btn-action-main toolbar-add" id="btnFastNew" disabled>
+            <i class="bi bi-plus-lg"></i>
+            <span class="btn-label">Добавить</span>
+        </button>
     </div>
+
+    <div class="d-none" id="divChptContent"></div>
+
+    <div class="empty-hint" id="divEmptyHint">
+        <i class="bi bi-map empty-hint__icon"></i>
+        <div class="empty-hint__text">Выберите страну для просмотра регионов</div>
+    </div>
+
     <script src="./_books_geo/js/regions.js?2025032601"></script>

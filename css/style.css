@@ -270,7 +270,7 @@ button:disabled {
 .module-tabs {
     display: flex;
     gap: 4px;
-    padding: 10px 0px;
+    padding: 14px 0px;
     border-bottom: 1px solid var(--border-color);
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -345,28 +345,7 @@ button:disabled {
 }
 .btn-label { font-size: 0.85rem; }
 
-/* --- 10. КАСТОМНЫЙ DROPDOWN (универсальный) --- */
-.custom-dropdown {
-    position: relative;
-    flex: 0 0 auto;
-    max-width: 240px;
-    min-width: 150px;
-}
-.custom-dropdown__list {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    width: 100%;
-    max-height: 220px;
-    overflow-y: auto;
-    background: var(--dropdown-bg);
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 20px var(--shadow);
-    z-index: 100;
-}
-
-/* --- 11. ПУСТОЕ СОСТОЯНИЕ (универсальное) --- */
+/* --- 10. ПУСТОЕ СОСТОЯНИЕ (универсальное) --- */
 .empty-hint {
     text-align: center;
     padding: 48px 20px;
@@ -379,6 +358,61 @@ button:disabled {
 .empty-hint__text {
     font-size: 0.9rem;
     line-height: 1.6;
+}
+.empty-hint__icon {
+    font-size: 2rem;
+    opacity: 0.3;
+    display: block;
+    margin-bottom: 12px;
+}
+/* --- 11. TOM SELECT --- */
+.ts-wrapper { width: 100%; }
+.ts-control {
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 10px !important;
+    background: #fff !important;
+    font-family: var(--bs-body-font-family) !important;
+    font-size: 0.95rem !important;
+    min-height: 42px !important;
+    padding: 4px 15px !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+    flex-wrap: nowrap !important;
+    overflow: hidden;
+}
+.ts-wrapper.focus .ts-control {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 4px rgba(0,0,0,0.05) !important;
+}
+.ts-dropdown {
+    border: 1px solid var(--border-color) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 4px 20px var(--shadow) !important;
+    font-family: var(--bs-body-font-family) !important;
+    font-size: 0.9rem !important;
+    overflow: hidden;
+}
+.ts-dropdown .option {
+    padding: 9px 15px !important;
+}
+.ts-dropdown .option:hover,
+.ts-dropdown .option.active {
+    background-color: var(--bg-hover) !important;
+    color: var(--accent-color) !important;
+}
+.ts-dropdown .ts-no-results {
+    padding: 12px 15px;
+    color: var(--text-muted);
+}
+.clear-button {
+    color: var(--text-muted) !important;
+    font-size: 1rem !important;
+}
+.ts-control .item {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: calc(100% - 30px);
 }
 
 /* --- 12. МЕДИАЗАПРОСЫ --- */

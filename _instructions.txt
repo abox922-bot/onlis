@@ -1,3 +1,7 @@
+Коммит на месте. Теперь пишу финальные инструкции:
+
+---
+
 **Проект ONL.IS — система управления кофейней/общепитом/ритейлом.**
 Стек: MySQL, PHP 7.4, SSE, jQuery, HTML, CSS, Bootstrap.
 Архитектура: мультитенантная — каждый клиент на своём поддомене, своя БД, мастер-база для управления всеми клиентами. Одна БД клиента рассчитана на до 100 точек этого клиента (не 100 разных клиентов).
@@ -30,12 +34,12 @@ updated_at и updated_by — NULL по умолчанию (NULL означает «запись ни разу не ре
 - index.php — точка входа SPA
 - main_request_modules.php — прокси запросов с фронта
 - modules_map.php — реестр модулей (folder, sections: key/title/file/default)
-- main_module.php — универсальная оболочка модуля
+- main_module.php — универсальная оболочка модуля с табами
 - sse.php — SSE соединение
 - js/index.js — fncMyAjax, fncParamsCrt, fncItemCrt, fncNormalizeInp, fncSetupToken
-- _main.php — каркас SPA после авторизации
-- js/_main.js — логика каркаса
-- css/style.css — базовые стили (CSS-переменные, form-in, my-input-label, btn-action-main и др.)
+- _main.php — каркас SPA после авторизации (содержит #divScrollArea, #divMainContent, #sectionHeader)
+- js/_main.js — логика каркаса (fncChptLoad, fncBookNav, searchFunction)
+- css/style.css — базовые стили и универсальные компоненты
 
 ---
 
@@ -44,6 +48,35 @@ updated_at и updated_by — NULL по умолчанию (NULL означает «запись ни разу не ре
 Единый main_module.php, реестр в modules_map.php. Пункты меню несут только data-module и data-ttl. Раздел по умолчанию — флаг 'default'.
 
 fncRequireSession() обязателен в каждом PHP-фрагменте, загружаемом через .load(). HTTP-статус всегда 200 — jQuery .load() вставляет тело только при 2xx.
+
+---
+
+**Навигация между разделами модуля**
+
+Разделы переключаются через табы. В main_module.php генерируются кнопки `.module-tab` с `data-target`. fncBookNav() в _main.js обрабатывает клики: переключает класс `active`, скроллит таб в зону видимости (scrollIntoView), скроллит страницу вверх через `#divScrollArea`, загружает раздел через .load().
+
+При одном разделе в модуле табы не отображаются — раздел загружается сразу.
+
+---
+
+**Универсальные CSS-компоненты (css/style.css)**
+
+`.module-shell` — оболочка модуля (белая карточка с тенью, overflow: hidden).
+`.module-tabs` — строка табов с горизонтальным скроллом на мобиле.
+`.module-tab` — кнопка таба. `.module-tab.active` — активный таб (чёрный фон).
+
+`.section-toolbar` — универсальный toolbar раздела (flex, flex-wrap для адаптивности).
+`.toolbar-filter` — селект-фильтр в toolbar.
+`.toolbar-search` — обёртка поля поиска с иконкой лупы.
+`.toolbar-search__icon` — иконка лупы внутри поля.
+`.toolbar-add` — кнопка добавления записи.
+`.btn-label` — текст кнопки, скрывается на мобиле (display: none при max-width: 767px).
+
+`.custom-dropdown` — обёртка кастомного dropdown (поиск по большому справочнику).
+`.custom-dropdown__list` — выпадающий список кастомного dropdown.
+
+`.empty-hint` — блок пустого состояния (нет данных / не выбран фильтр).
+`.empty-hint__text` — текст подсказки.
 
 ---
 

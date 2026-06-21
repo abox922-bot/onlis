@@ -1,245 +1,356 @@
 <?php
-//==============================================================================
-  $action = $_POST["action"];
-  require_once('./includes/fncs.php');
-  $out_array = [];
-  if ($action == "new_country") {
-    $ses_id = $_POST["_onlis_id"];
-    $params = json_decode($_POST["params"], true);
-    $qu = " SELECT `user`, NOW() FROM `sessions` WHERE `session` = ?";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->bind_param("s", $ses_id);
-        $stmt->execute();
-        $stmt->bind_result($usr_id, $now);
-        $stmt->fetch();
-        $stmt->close();
-      }
-    $fields_list = [];
-    $fields_list[] = ["name" => "name", "type" => "s", "value" => fncValFind("cntr-name", $params)];
-    $result = fncInsCrt($fields_list, "countries");
-    echo $result;
-  } elseif ($action == "countries_list") {
-    $qu = "SELECT `id`, `name`, `full_name` FROM `countries` ORDER BY `name`";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->execute();
-        $stmt->bind_result($id, $name, $full_name);
-        while ($stmt->fetch()) {
-          $out_array[] = ["id" => $id, "name" => $name, "full_name" => $full_name];
+require_once('./includes/fncs.php');
+require_once('./includes/request.php');
+
+header('Content-Type: application/json');
+
+// =============================================================================
+// Проверка сессии
+// =============================================================================
+$cookie = $_POST['_onlis_id'] ?? '';
+$token  = $_POST['x_token']   ?? '';
+
+if (!$cookie || !$token) {
+    echo json_encode(['sccss' => false]);
+    exit;
+}
+
+$ses_check = send_request([
+    '_onlis_id' => $cookie,
+    'x_token'   => $token,
+    'action'    => 'in_cntrl',
+], 'main');
+
+if (!$ses_check || empty($ses_check['sccss'])) {
+    echo json_encode(['sccss' => false]);
+    exit;
+}
+
+$user_id = (int)($ses_check['user'] ?? 0);
+
+// =============================================================================
+// Роутинг
+// =============================================================================
+$action = $_POST['action'] ?? '';
+$params = isset($_POST['params']) ? json_decode($_POST['params'], true) : [];
+if (!is_array($params)) {
+    $params = [];
+}
+
+$result = [];
+
+switch ($action) {
+
+    // =========================================================================
+    // COUNTRIES
+    // =========================================================================
+
+    case 'countries_list':
+        $stmt   = fncQuery("SELECT id, name, full_name FROM countries ORDER BY name");
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'country_info':
+        $id     = (int)($_POST['id'] ?? 0);
+        $stmt   = fncQuery(
+            "SELECT id, name, full_name, phone_code, phone_mask
+             FROM countries
+             WHERE id = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'new_country':
+        $name = trim(fncValFind('cntr-name', $params) ?? '');
+
+        if (!$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указано название']);
+            exit;
         }
-        $stmt->close();
-      }
-    echo json_encode($out_array);
-  } elseif ($action == "country_info") {
-    $id = $_POST["id"];
-    $qu = "SELECT `name`, `full_name`, `phone_code`, `phone_mask` FROM `countries` WHERE `id` = ?";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $stmt->bind_result($name, $full_name, $phone_code, $phone_mask);
-        $stmt->fetch();
-        $stmt->close();
-      }
-    $out_array = ["id" => $id, "name" => $name, "full_name" => $full_name, "phone_code" => $phone_code, "phone_mask" => $phone_mask];
-    echo json_encode($out_array);
-  } elseif ($action == "upd_country") {
-    $params = json_decode($_POST["params"], true);
-    $fields_list = [];
-    $fields_list[] = ["name" => "name", "type" => "s", "value" => fncValFind("cntry-name", $params)];
-    $fields_list[] = ["name" => "full_name", "type" => "s", "value" => fncValFind("cntry-fname", $params)];
-    $fields_list[] = ["name" => "phone_code", "type" => "i", "value" => fncValFind("cntry-code", $params)];
-    $fields_list[] = ["name" => "phone_mask", "type" => "s", "value" => fncValFind("cntry-mask", $params)];
-    fncUpdCrt($fields_list, "countries", fncValFind("item-id", $params));
-  } elseif ($action == "new_region") {
-    $params = json_decode($_POST["params"], true);
-    $fields_list = [];
-    $fields_list[] = ["name" => "country", "type" => "i", "value" => fncValFind("country", $params)];
-    $fields_list[] = ["name" => "name", "type" => "s", "value" => fncValFind("reg-name", $params)];
-    $result = fncInsCrt($fields_list, "regions");
-    echo $result;
-  } elseif ($action == "regions_list") {
-    $country = $_POST["country"];
-    $qu = "SELECT `id`, `name` FROM `regions` WHERE `country` = ? ORDER BY `name`";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->bind_param("i", $country);
-        $stmt->execute();
-        $stmt->bind_result($id, $name);
-        while ($stmt->fetch()) {
-          $out_array[] = ["id" => $id, "name" => $name];
+
+        $stmt = fncQuery(
+            "INSERT INTO countries (name, created_by, updated_by) VALUES (?, ?, ?)",
+            [$name, $user_id, $user_id]
+        );
+
+        if (!$stmt) {
+            echo json_encode(['sccss' => false]);
+            exit;
         }
-        $stmt->close();
-      }
-    echo json_encode($out_array);
-  } elseif ($action == "region_info") {
-    $id = $_POST["id"];
-    $qu = " SELECT `regions`.`name`, `regions`.`region_code`, `regions`.`timezone`, `countries`.`name`
-            FROM `regions`
-            LEFT JOIN `countries` ON `countries`.`id` = `regions`.`country`
-            WHERE `regions`.`id` = ?";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $stmt->bind_result($name, $region_code, $timezone, $country_name);
-        $stmt->fetch();
-        $stmt->close();
-      }
-    $out_array = ["id" => $id, "name" => $name, "reg_code" => $region_code, "timezone" => $timezone, "country_name" => $country_name];
-    echo json_encode($out_array);
-  } elseif ($action == "upd_region") {
-    $params = json_decode($_POST["params"], true);
-    $fields_list = [];
-    $fields_list[] = ["name" => "name", "type" => "s", "value" => fncValFind("reg-name", $params)];
-    $fields_list[] = ["name" => "region_code", "type" => "i", "value" => fncValFind("reg-code", $params)];
-    $fields_list[] = ["name" => "timezone", "type" => "d", "value" => fncValFind("timezone", $params)];
-    fncUpdCrt($fields_list, "regions", fncValFind("item-id", $params));
-  } elseif ($action == "countries_regs_list") {
-    $countries = [];
-    $regions = [];
-    $qu = "SELECT `id`, `name` FROM `countries` ORDER BY `name`";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->execute();
-        $stmt->bind_result($id, $name);
-        while ($stmt->fetch()) {
-          $countries[] = ["id" => $id, "name" => $name];
+
+        global $pdo;
+        echo json_encode(['sccss' => true, 'id' => (int)$pdo->lastInsertId()]);
+        exit;
+
+    // -------------------------------------------------------------------------
+
+    case 'upd_country':
+        $id        = (int)(fncValFind('item-id',    $params) ?? 0);
+        $full_name = trim(fncValFind('cntry-fname', $params) ?? '');
+        $name      = trim(fncValFind('cntry-name',  $params) ?? '');
+        $code      = trim(fncValFind('cntry-code',  $params) ?? '');
+        $mask      = trim(fncValFind('cntry-mask',  $params) ?? '');
+
+        if (!$id || !$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка данных']);
+            exit;
         }
-        $stmt->close();
-      }
-    $qu = "SELECT `id`, `name`, `country` FROM `regions` ORDER BY `name`";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->execute();
-        $stmt->bind_result($id, $name, $country);
-        while ($stmt->fetch()) {
-          $regions[] = ["id" => $id, "name" => $name, "country" => $country];
+
+        $stmt = fncQuery(
+            "UPDATE countries SET name = ?, full_name = ?, phone_code = ?, phone_mask = ?, updated_by = ? WHERE id = ?",
+            [$name, $full_name, $code, $mask, $user_id, $id]
+        );
+
+        echo json_encode(['sccss' => (bool)$stmt]);
+        exit;
+
+    // =========================================================================
+    // REGIONS
+    // =========================================================================
+
+    case 'regions_list':
+        $country = (int)($_POST['country'] ?? 0);
+        $stmt    = fncQuery(
+            "SELECT id, name FROM regions WHERE country = ? ORDER BY name",
+            [$country]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'region_info':
+        $id   = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT r.id, r.name, r.reg_code, r.timezone, c.name AS country_name
+             FROM regions r
+             JOIN countries c ON c.id = r.country
+             WHERE r.id = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'new_region':
+        $name    = trim(fncValFind('reg-name', $params) ?? '');
+        $country = (int)(fncValFind('country',  $params) ?? 0);
+
+        if (!$name || !$country) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка данных']);
+            exit;
         }
-        $stmt->close();
-      }
-    $out_array = ["regions" => $regions, "countries" => $countries];
-    echo json_encode($out_array);
-  } elseif ($action == "new_city") {
-    $params = json_decode($_POST["params"], true);
-    $fields_list = [];
-    $fields_list[] = ["name" => "country", "type" => "i", "value" => fncValFind("country", $params)];
-    $fields_list[] = ["name" => "region", "type" => "i", "value" => fncValFind("region", $params)];
-    $fields_list[] = ["name" => "name", "type" => "s", "value" => fncValFind("city-name", $params)];
-    $result = fncInsCrt($fields_list, "cities");
-    echo $result;
-  } elseif ($action == "cities_list") {
-    $country = $_POST["country"];
-    $region = $_POST["region"];
-    $qu = "SELECT `id`, `name` FROM `cities` WHERE `country` = ? AND `region` = ? ORDER BY `name`";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->bind_param("ii", $country, $region);
-        $stmt->execute();
-        $stmt->bind_result($id, $name);
-        while ($stmt->fetch()) {
-          $out_array[] = ["id" => $id, "name" => $name];
+
+        $stmt = fncQuery(
+            "INSERT INTO regions (country, name, created_by, updated_by) VALUES (?, ?, ?, ?)",
+            [$country, $name, $user_id, $user_id]
+        );
+
+        if (!$stmt) {
+            echo json_encode(['sccss' => false]);
+            exit;
         }
-        $stmt->close();
-      }
-    echo json_encode($out_array);
-  } elseif ($action == "city_info") {
-    $id = $_POST["id"];
-    $qu = " SELECT `cities`.`name`, `countries`.`name`, `regions`.`name`
-            FROM `cities`
-            LEFT JOIN `countries` ON `countries`.`id` = `cities`.`country`
-            LEFT JOIN `regions` ON `regions`.`id` = `cities`.`region`
-            WHERE `cities`.`id` = ?";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $stmt->bind_result($name, $country_name, $region_name);
-        $stmt->fetch();
-        $stmt->close();
-      }
-    $out_array = ["id" => $id, "name" => $name, "country_name" => $country_name, "region_name" => $region_name];
-    echo json_encode($out_array);
-  } elseif ($action == "upd_city") {
-    $params = json_decode($_POST["params"], true);
-    $fields_list = [];
-    $fields_list[] = ["name" => "name", "type" => "s", "value" => fncValFind("city-name", $params)];
-    fncUpdCrt($fields_list, "cities", fncValFind("item-id", $params));
-  } elseif ($action == "cities_list_for_streets") {
-    $qu = " SELECT `cities`.`id`, `cities`.`name`, CONCAT_WS(', ', `countries`.`name`, `regions`.`name`), `cities`.`country`, `cities`.`region`
-            FROM `cities`
-            LEFT JOIN `countries` ON `countries`.`id` = `cities`.`country`
-            LEFT JOIN `regions` ON `regions`.`id` = `cities`.`region`
-            ORDER BY `cities`.`name`";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->execute();
-        $stmt->bind_result($id, $name, $reg_name, $country, $region);
-        while ($stmt->fetch()) {
-          $out_array[] = ["id" => $id, "name" => $name, "reg_name" => $reg_name, "country" => $country, "region" => $region];
+
+        global $pdo;
+        echo json_encode(['sccss' => true, 'id' => (int)$pdo->lastInsertId()]);
+        exit;
+
+    // -------------------------------------------------------------------------
+
+    case 'upd_region':
+        $id       = (int)(fncValFind('item-id',  $params) ?? 0);
+        $name     = trim(fncValFind('reg-name',  $params) ?? '');
+        $reg_code = trim(fncValFind('reg-code',  $params) ?? '');
+        $timezone = fncValFind('timezone', $params);
+
+        if (!$id || !$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка данных']);
+            exit;
         }
-        $stmt->close();
-      }
-    echo json_encode($out_array);
-  } elseif ($action == "streets_types_list") {
-    $qu = "SELECT `id`, `name` FROM `streets_types` ORDER BY `name`";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->execute();
-        $stmt->bind_result($id, $name);
-        while ($stmt->fetch()) {
-          $out_array[] = ["id" => $id, "name" => $name];
+
+        $stmt = fncQuery(
+            "UPDATE regions SET name = ?, reg_code = ?, timezone = ?, updated_by = ? WHERE id = ?",
+            [$name, $reg_code, $timezone, $user_id, $id]
+        );
+
+        echo json_encode(['sccss' => (bool)$stmt]);
+        exit;
+
+    // =========================================================================
+    // CITIES
+    // =========================================================================
+
+    case 'countries_regs_list':
+        $stmt_countries = fncQuery("SELECT id, name FROM countries ORDER BY name");
+        $stmt_regions   = fncQuery("SELECT id, country, name FROM regions ORDER BY name");
+
+        $result = [
+            'countries' => $stmt_countries ? $stmt_countries->fetchAll(PDO::FETCH_ASSOC) : [],
+            'regions'   => $stmt_regions   ? $stmt_regions->fetchAll(PDO::FETCH_ASSOC)   : [],
+        ];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'cities_list':
+        $country = (int)($_POST['country'] ?? 0);
+        $region  = (int)($_POST['region']  ?? 0);
+
+        $stmt   = fncQuery(
+            "SELECT id, name FROM cities WHERE country = ? AND region = ? ORDER BY name",
+            [$country, $region]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'city_info':
+        $id   = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT ci.id, ci.name, c.name AS country_name, r.name AS region_name
+             FROM cities ci
+             JOIN countries c ON c.id = ci.country
+             JOIN regions   r ON r.id = ci.region
+             WHERE ci.id = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'new_city':
+        $name    = trim(fncValFind('city-name', $params) ?? '');
+        $country = (int)(fncValFind('country',   $params) ?? 0);
+        $region  = (int)(fncValFind('region',    $params) ?? 0);
+
+        if (!$name || !$country || !$region) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка данных']);
+            exit;
         }
-        $stmt->close();
-      }
-    echo json_encode($out_array);
-  } elseif ($action == "new_street") {
-    $params = json_decode($_POST["params"], true);
-    $fields_list = [];
-    $fields_list[] = ["name" => "country", "type" => "i", "value" => fncValFind("country", $params)];
-    $fields_list[] = ["name" => "region", "type" => "i", "value" => fncValFind("region", $params)];
-    $fields_list[] = ["name" => "city", "type" => "i", "value" => fncValFind("city", $params)];
-    $fields_list[] = ["name" => "type", "type" => "i", "value" => fncValFind("street-type", $params)];
-    $fields_list[] = ["name" => "name", "type" => "s", "value" => fncValFind("street-name", $params)];
-    $result = fncInsCrt($fields_list, "streets");
-    echo $result;
-  } elseif ($action == "streets_list") {
-    $city = $_POST["city"];
-    $region = $_POST["region"];
-    $qu = " SELECT `streets`.`id`, CONCAT_WS(', ', `streets`.`name`, `streets_types`.`name`)
-            FROM `streets`
-            LEFT JOIN `streets_types` ON `streets_types`.`id` = `streets`.`type`
-            WHERE `streets`.`city` = ?
-            ORDER BY `streets`.`name`";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->bind_param("i", $city);
-        $stmt->execute();
-        $stmt->bind_result($id, $name);
-        while ($stmt->fetch()) {
-          $out_array[] = ["id" => $id, "name" => $name];
+
+        $stmt = fncQuery(
+            "INSERT INTO cities (country, region, name, created_by, updated_by) VALUES (?, ?, ?, ?, ?)",
+            [$country, $region, $name, $user_id, $user_id]
+        );
+
+        echo json_encode(['sccss' => (bool)$stmt]);
+        exit;
+
+    // -------------------------------------------------------------------------
+
+    case 'upd_city':
+        $id   = (int)(fncValFind('item-id',   $params) ?? 0);
+        $name = trim(fncValFind('city-name', $params) ?? '');
+
+        if (!$id || !$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка данных']);
+            exit;
         }
-        $stmt->close();
-      }
-    echo json_encode($out_array);
-  } elseif ($action == "street_info") {
-    $types = [];
-    $id = $_POST["id"];
-    $qu = "SELECT `id`, `name` FROM `streets_types` ORDER BY `name`";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->execute();
-        $stmt->bind_result($type_id, $name);
-        while ($stmt->fetch()) {
-          $types[] = ["id" => $type_id, "name" => $name];
+
+        $stmt = fncQuery("UPDATE cities SET name = ?, updated_by = ? WHERE id = ?", [$name, $user_id, $id]);
+
+        echo json_encode(['sccss' => (bool)$stmt]);
+        exit;
+
+    // =========================================================================
+    // STREETS
+    // =========================================================================
+
+    case 'cities_list_for_streets':
+        $stmt   = fncQuery(
+            "SELECT ci.id, ci.name, ci.region, ci.country, r.name AS reg_name
+             FROM cities ci
+             JOIN regions r ON r.id = ci.region
+             ORDER BY ci.name"
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'streets_list':
+        $city   = (int)($_POST['city'] ?? 0);
+        $stmt   = fncQuery(
+            "SELECT s.id, CONCAT(st.short_name, ' ', s.name) AS name
+             FROM streets s
+             JOIN streets_types st ON st.id = s.type
+             WHERE s.city = ?
+             ORDER BY s.name",
+            [$city]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'streets_types_list':
+        $stmt   = fncQuery("SELECT id, name FROM streets_types ORDER BY name");
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'street_info':
+        $id     = (int)($_POST['id'] ?? 0);
+        $stmt_s = fncQuery("SELECT id, name, type FROM streets WHERE id = ?", [$id]);
+        $street = $stmt_s ? ($stmt_s->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        $stmt_t = fncQuery("SELECT id, name FROM streets_types ORDER BY name");
+        $types  = $stmt_t ? $stmt_t->fetchAll(PDO::FETCH_ASSOC) : [];
+        $result = array_merge($street, ['types' => $types]);
+        break;
+
+    // -------------------------------------------------------------------------
+
+    case 'new_street':
+        $name    = trim(fncValFind('street-name',   $params) ?? '');
+        $type    = (int)(fncValFind('street-type',  $params) ?? 0);
+        $city    = (int)(fncValFind('city',         $params) ?? 0);
+        $region  = (int)(fncValFind('region',       $params) ?? 0);
+        $country = (int)(fncValFind('country',      $params) ?? 0);
+
+        if (!$name || !$type || !$city || !$region || !$country) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка данных']);
+            exit;
         }
-        $stmt->close();
-      }
-    $qu = "SELECT `name`, `type` FROM `streets` WHERE `id` = ?";
-      if ($stmt = $mysqli->prepare($qu)) {
-        $stmt->bind_param("i", $id);
-        $stmt->execute();
-        $stmt->bind_result($name, $type);
-        $stmt->fetch();
-        $stmt->close();
-      }
-    $out_array = ["id" => $id, "name" => $name, "type" => $type, "types" => $types];
-    echo json_encode($out_array);
-  } elseif ($action == "upd_street") {
-    $params = json_decode($_POST["params"], true);
-    $fields_list = [];
-    $fields_list[] = ["name" => "name", "type" => "s", "value" => fncValFind("street-name", $params)];
-    $fields_list[] = ["name" => "type", "type" => "s", "value" => fncValFind("street-type", $params)];
-    fncUpdCrt($fields_list, "streets", fncValFind("item-id", $params));
-  }
-  $mysqli->close();
-//==============================================================================
-?>
+
+        $stmt = fncQuery(
+            "INSERT INTO streets (city, region, country, type, name, created_by, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [$city, $region, $country, $type, $name, $user_id, $user_id]
+        );
+
+        echo json_encode(['sccss' => (bool)$stmt]);
+        exit;
+
+    // -------------------------------------------------------------------------
+
+    case 'upd_street':
+        $id   = (int)(fncValFind('item-id',     $params) ?? 0);
+        $name = trim(fncValFind('street-name', $params) ?? '');
+        $type = (int)(fncValFind('street-type', $params) ?? 0);
+
+        if (!$id || !$name || !$type) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка данных']);
+            exit;
+        }
+
+        $stmt = fncQuery("UPDATE streets SET name = ?, type = ?, updated_by = ? WHERE id = ?", [$name, $type, $user_id, $id]);
+
+        echo json_encode(['sccss' => (bool)$stmt]);
+        exit;
+
+    // =========================================================================
+
+    default:
+        echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
+        exit;
+}
+
+echo json_encode($result);
