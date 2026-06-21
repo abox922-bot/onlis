@@ -2,7 +2,7 @@ let cityPicker;
 //==============================================================================
 $(document).ready(function(){
     cityPicker = new TomSelect("#slctCity", {
-        placeholder: "Выберите город...",
+        placeholder: "Выберите город",
         allowEmptyOption: false,
         maxOptions: null,
         wrapperClass: "ts-wrapper toolbar-filter",
@@ -46,7 +46,7 @@ $(document).ready(function(){
                 params_arr.push({name: "region",  value: region});
                 params_arr.push({name: "city",    value: city});
                 let crt_arr = fncParamsCrt(".form-inp", params_arr);
-                if (crt_arr["all_good"] && confirm("Сохранить?")) {
+                if (crt_arr["all_good"]) {
                     $("#btnSave").prop("disabled", true);
                     $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                     fncMyAjax("new_street", "geo", crt_arr["params"], 0)
@@ -99,7 +99,7 @@ function infoLoadFunction(item_id) {
             let params_arr = [];
             params_arr.push({name: "item-id", value: item_id});
             let crt_arr = fncParamsCrt(".form-inp", params_arr);
-            if (crt_arr["all_good"] && confirm("Сохранить?")) {
+            if (crt_arr["all_good"]) {
                 $("#btnSave").prop("disabled", true);
                 $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                 fncMyAjax("upd_street", "geo", crt_arr["params"], 0)

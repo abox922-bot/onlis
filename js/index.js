@@ -241,3 +241,11 @@ function fncBtnReset() {
     $("#divSaveLoading").addClass("d-none");
 }
 //==============================================================================
+function fncCheckNewItem(callback) {
+    const id = localStorage.getItem("new_item");
+    if (id !== null) {
+        localStorage.removeItem("new_item");
+        callback(id);
+    }
+}
+//==============================================================================

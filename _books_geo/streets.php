@@ -12,7 +12,7 @@
     ?>
     <div class="section-toolbar">
       <select class="toolbar-filter" id="slctCity">
-          <option value="">Выберите город...</option>
+          <option value="">Выберите город</option>
           <?php foreach ($result as $value): ?>
               <option value="<?php echo $value['id']; ?>"
                       data-region="<?php echo $value['region']; ?>"
@@ -38,4 +38,4 @@
         <div class="empty-hint__text">Выберите город для просмотра улиц</div>
     </div>
 
-    <script src="./_books_geo/js/streets.js?2026062103"></script>
+    <script src="./_books_geo/js/streets.js?2026062104"></script>
