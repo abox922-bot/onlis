@@ -1,7 +1,7 @@
-let cityPicker;
 //==============================================================================
-$(document).ready(function(){
-    cityPicker = new TomSelect("#slctCity", {
+$(function(){
+    if (window.cityPicker) window.cityPicker.destroy();
+    window.cityPicker = new TomSelect("#slctCity", {
         placeholder: "Выберите город",
         allowEmptyOption: false,
         maxOptions: null,
@@ -18,7 +18,7 @@ $(document).ready(function(){
                 $("#divEmptyHint").addClass("d-none");
                 $("#btnFastNew").prop("disabled", false);
                 listLoadFunction(value);
-                cityPicker.blur();
+                window.cityPicker.blur();
             } else {
                 $("#divChptContent").addClass("d-none").html("");
                 $("#divEmptyHint").removeClass("d-none");
@@ -28,11 +28,11 @@ $(document).ready(function(){
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#btnFastNew").click(function(){
-        let city      = cityPicker.getValue();
+        let city      = window.cityPicker.getValue();
         let option    = document.querySelector(`#slctCity option[value="${city}"]`);
         let region    = option.dataset.region;
         let country   = option.dataset.country;
-        let city_name = cityPicker.getOption(city).textContent.trim();
+        let city_name = window.cityPicker.getOption(city).textContent.trim().split(" — ")[0].trim();
         $("#mainModalBody").html(spnr_loading);
         $("#mainModalLabel").html("Добавление улицы");
         main_modal.show();
@@ -50,16 +50,14 @@ $(document).ready(function(){
                     $("#btnSave").prop("disabled", true);
                     $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                     fncMyAjax("new_street", "geo", crt_arr["params"], 0)
-                        .done(function(data) {
-                            if (data.sccss) {
-                                listLoadFunction(cityPicker.getValue());
-                                main_modal.hide();
-                            } else {
-                                fncBtnReset();
-                            }
+                        .done(function() {
+                            main_modal.hide();
                         })
                         .fail(function() {
                             fncBtnReset();
+                        })
+                        .always(function() {
+                            listLoadFunction(window.cityPicker.getValue());
                         });
                 }
             });
@@ -73,23 +71,19 @@ function listLoadFunction(city) {
     let path = new URL("./_books_geo/streets_list.php", url);
     $("#divChptContent").load(path.href, {city}, function(){
         searchFunction();
-        $(".itemTr").click(function(){
+        $(".itemTr").off("click").on("click", function(){
             infoLoadFunction(+$(this).data("id"));
         });
-        if (localStorage.getItem("new_item") !== null) {
-            infoLoadFunction(localStorage.getItem("new_item"));
-            localStorage.removeItem("new_item");
-        }
+        fncCheckNewItem(infoLoadFunction);
     });
 }
 //==============================================================================
 function infoLoadFunction(item_id) {
-    let city      = cityPicker.getValue();
-    let option    = document.querySelector(`#slctCity option[value="${city}"]`);
-    let city_name = cityPicker.getOption(city).textContent.trim();
-    let item_name = $(`.itemName[data-id=${item_id}]`).html();
+    let city      = window.cityPicker.getValue();
+    let city_name = window.cityPicker.getOption(city).textContent.trim().split(" — ")[0].trim();
+    let item_name = $(`.itemName[data-id="${item_id}"]`).html();
     $("#mainModalBody").html(spnr_loading);
-    $("#mainModalLabel").html(`<small class="fw-normal">Информация об улице</small><br>${item_name}`);
+    $("#mainModalLabel").html("Информация об улице");
     main_modal.show();
     let path = new URL("./_books_geo/streets_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id, city_name}, function(){
@@ -103,16 +97,14 @@ function infoLoadFunction(item_id) {
                 $("#btnSave").prop("disabled", true);
                 $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                 fncMyAjax("upd_street", "geo", crt_arr["params"], 0)
-                    .done(function(data) {
-                        if (data.sccss) {
-                            listLoadFunction(cityPicker.getValue());
-                            main_modal.hide();
-                        } else {
-                            fncBtnReset();
-                        }
+                    .done(function() {
+                        main_modal.hide();
                     })
                     .fail(function() {
                         fncBtnReset();
+                    })
+                    .always(function() {
+                        listLoadFunction(window.cityPicker.getValue());
                     });
             }
         });

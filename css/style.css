@@ -217,6 +217,23 @@ textarea.form-in { min-height: 100px; resize: vertical; }
     background-color: #fff !important; color: #000 !important;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
+.form-context {
+    border-left: 3px solid var(--accent-color);
+    padding: 2px 0 2px 12px;
+    margin-bottom: 20px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    border-radius: 0;
+}
+
+.form-group-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+}
 
 /* --- 6. ТАБЛИЦЫ --- */
 .table { border-collapse: separate; border-spacing: 0 4px; margin-top: 10px; }

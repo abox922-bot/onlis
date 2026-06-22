@@ -14,7 +14,7 @@
     <div class="col-12">
         <form id="formNew">
             <div class="row">
-                <div class="col-12 mb-3">
+                <div class="col-12">
                     <div class="form-context"><?php echo htmlspecialchars($city_name); ?></div>
                 </div>
                 <div class="col-12 col-md-5 mb-3">

@@ -66,6 +66,9 @@ $(function(){
                         })
                         .fail(function() {
                             fncBtnReset();
+                        })
+                        .always(function() {
+                            listLoadFunction(+$("#slctCountry").val(), +$("#slctRegion").val());
                         });
                 }
             });
@@ -79,7 +82,7 @@ function listLoadFunction(country, region) {
     let path = new URL("./_books_geo/cities_list.php", url);
     $("#divChptContent").load(path.href, {country, region}, function(){
         searchFunction();
-        $(".itemTr").click(function(){
+        $(".itemTr").off("click").on("click", function(){
             infoLoadFunction(+$(this).data("id"));
         });
         fncCheckNewItem(infoLoadFunction);
@@ -89,7 +92,7 @@ function listLoadFunction(country, region) {
 function infoLoadFunction(item_id) {
     let item_name = $(`.itemName[data-id="${item_id}"]`).html();
     $("#mainModalBody").html(spnr_loading);
-    $("#mainModalLabel").html(`<small class="fw-normal">Информация о городе</small><br>${item_name}`);
+    $("#mainModalLabel").html("Информация о городе");
     main_modal.show();
     let path = new URL("./_books_geo/cities_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
@@ -113,6 +116,9 @@ function infoLoadFunction(item_id) {
                     })
                     .fail(function() {
                         fncBtnReset();
+                    })
+                    .always(function() {
+                      listLoadFunction(+$("#slctCountry").val(), +$("#slctRegion").val());
                     });
             }
         });

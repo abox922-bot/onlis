@@ -19,13 +19,15 @@ $(function(){
                         .done(function(data) {
                             if (data.sccss) {
                                 localStorage.setItem("new_item", data["id"]);
-                                listLoadFunction();
                             } else {
                                 fncBtnReset();
                             }
                         })
                         .fail(function() {
                             fncBtnReset();
+                        })
+                        .always(function() {
+                            listLoadFunction();
                         });
                 }
             });
@@ -39,7 +41,7 @@ function listLoadFunction() {
     let path = new URL("./_books_geo/countries_list.php", url);
     $("#divChptContent").load(path.href, function(){
         searchFunction();
-        $(".itemTr").click(function(){
+        $(".itemTr").off("click").on("click", function(){
             infoLoadFunction(+$(this).data("id"));
         });
         fncCheckNewItem(infoLoadFunction);
@@ -49,7 +51,7 @@ function listLoadFunction() {
 function infoLoadFunction(item_id) {
     let item_name = $(`.itemName[data-id="${item_id}"]`).html();
     $("#mainModalBody").html(spnr_loading);
-    $("#mainModalLabel").html(`<small class="fw-normal">Информация о стране</small><br>${item_name}`);
+    $("#mainModalLabel").html("Информация о стране");
     main_modal.show();
     let path = new URL("./_books_geo/countries_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
@@ -65,7 +67,6 @@ function infoLoadFunction(item_id) {
                 fncMyAjax("upd_country", "geo", crt_arr["params"], 0)
                     .done(function(data) {
                         if (data.sccss) {
-                            listLoadFunction();
                             main_modal.hide();
                         } else {
                             fncBtnReset();
@@ -73,6 +74,9 @@ function infoLoadFunction(item_id) {
                     })
                     .fail(function() {
                         fncBtnReset();
+                    })
+                    .always(function() {
+                        listLoadFunction();
                     });
             }
         });

@@ -14,12 +14,14 @@
     <div class="col-12">
         <form id="formInfo">
             <div class="row">
-                <div class="col-12 mb-3">
+                <div class="col-12">
                     <div class="form-context">
                         <?php echo htmlspecialchars($result['country_name']); ?>
-                        <span>›</span>
+                        <span style="opacity:0.35;margin:0 6px">›</span>
                         <?php echo htmlspecialchars($result['region_name']); ?>
                     </div>
+                </div>
+                <div class="col-12 mb-3">
                     <label class="my-input-label">Название</label>
                     <input type="text" class="form-in form-inp"
                         data-name="city-name" data-type="text" data-required="1"

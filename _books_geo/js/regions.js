@@ -40,6 +40,9 @@ $(function(){
                         })
                         .fail(function() {
                             fncBtnReset();
+                        })
+                        .always(function() {
+                            listLoadFunction($("#slctCountry").val());
                         });
                 }
             });
@@ -53,7 +56,7 @@ function listLoadFunction(country) {
     let path = new URL("./_books_geo/regions_list.php", url);
     $("#divChptContent").load(path.href, {country}, function(){
         searchFunction();
-        $(".itemTr").click(function(){
+        $(".itemTr").off("click").on("click", function(){
             infoLoadFunction(+$(this).data("id"));
         });
         fncCheckNewItem(infoLoadFunction);
@@ -63,7 +66,7 @@ function listLoadFunction(country) {
 function infoLoadFunction(item_id) {
     let item_name = $(`.itemName[data-id="${item_id}"]`).html();
     $("#mainModalBody").html(spnr_loading);
-    $("#mainModalLabel").html(`<small class="fw-normal">Информация о регионе</small><br>${item_name}`);
+    $("#mainModalLabel").html("Информация о регионе");
     main_modal.show();
     let path = new URL("./_books_geo/regions_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
@@ -87,6 +90,9 @@ function infoLoadFunction(item_id) {
                     })
                     .fail(function() {
                         fncBtnReset();
+                    })
+                    .always(function() {
+                      listLoadFunction($("#slctCountry").val());
                     });
             }
         });

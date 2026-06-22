@@ -7,8 +7,10 @@
     <div class="col-12">
         <form id="formNew">
             <div class="row">
-                <div class="col-12 mb-3">
+                <div class="col-12">
                     <div class="form-context"><?php echo htmlspecialchars($country_name); ?></div>
+                </div>
+                <div class="col-12 mb-3">
                     <label class="my-input-label">Название</label>
                     <input type="text" class="form-in form-inp"
                         data-name="reg-name" data-type="text" data-required="1" value="">
