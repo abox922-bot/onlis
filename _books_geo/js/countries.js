@@ -66,11 +66,7 @@ function infoLoadFunction(item_id) {
                 $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                 fncMyAjax("upd_country", "geo", crt_arr["params"], 0)
                     .done(function(data) {
-                        if (data.sccss) {
-                            main_modal.hide();
-                        } else {
-                            fncBtnReset();
-                        }
+                      main_modal.hide();
                     })
                     .fail(function() {
                         fncBtnReset();

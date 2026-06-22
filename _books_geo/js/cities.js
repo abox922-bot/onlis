@@ -3,7 +3,7 @@ $(function(){
     let regions_arr = [];
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#slctRegion option[value!=0]").each(function(){
-        regions_arr.push({id: +$(this).val(), country: +$(this).attr("data-country"), name: $(this).text()});
+        regions_arr.push({id: +$(this).val(), country: +$(this).data("country"), name: $(this).text()});
         $(this).remove();
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -58,7 +58,6 @@ $(function(){
                     fncMyAjax("new_city", "geo", crt_arr["params"], 0)
                         .done(function(data) {
                             if (data.sccss) {
-                                listLoadFunction(+$("#slctCountry").val(), +$("#slctRegion").val());
                                 main_modal.hide();
                             } else {
                                 fncBtnReset();
@@ -107,12 +106,7 @@ function infoLoadFunction(item_id) {
                 $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                 fncMyAjax("upd_city", "geo", crt_arr["params"], 0)
                     .done(function(data) {
-                        if (data.sccss) {
-                            listLoadFunction(+$("#slctCountry").val(), +$("#slctRegion").val());
-                            main_modal.hide();
-                        } else {
-                            fncBtnReset();
-                        }
+                      main_modal.hide();
                     })
                     .fail(function() {
                         fncBtnReset();

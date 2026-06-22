@@ -33,7 +33,6 @@ $(function(){
                         .done(function(data) {
                             if (data.sccss) {
                                 localStorage.setItem("new_item", data["id"]);
-                                listLoadFunction(+$("#slctCountry").val());
                             } else {
                                 fncBtnReset();
                             }
@@ -81,12 +80,7 @@ function infoLoadFunction(item_id) {
                 $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                 fncMyAjax("upd_region", "geo", crt_arr["params"], 0)
                     .done(function(data) {
-                        if (data.sccss) {
-                            listLoadFunction(+$("#slctCountry").val());
-                            main_modal.hide();
-                        } else {
-                            fncBtnReset();
-                        }
+                      main_modal.hide();
                     })
                     .fail(function() {
                         fncBtnReset();
