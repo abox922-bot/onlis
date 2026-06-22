@@ -3,7 +3,8 @@
       'users' => [
           'folder'   => '_books_users',
           'sections' => [
-              ['key' => 'users',  'title' => 'Пользователи',       'file' => 'users',  'default' => true],
+              ['key' => 'users',  'title' => 'Пользователи',  'file' => 'users',  'default' => true],
+              ['key' => 'rules',  'title' => 'Права доступа', 'file' => 'rules'],
           ],
       ],
 
