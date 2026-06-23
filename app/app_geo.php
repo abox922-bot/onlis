@@ -27,6 +27,7 @@ if (!$ses_check || empty($ses_check['sccss'])) {
 }
 
 $user_id = (int)($ses_check['user'] ?? 0);
+$perms   = $ses_check['rules'] ?? [];
 
 // =============================================================================
 // Роутинг
@@ -46,6 +47,10 @@ switch ($action) {
     // =========================================================================
 
     case 'countries_list':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $stmt   = fncQuery("SELECT id, name, full_name FROM countries ORDER BY name");
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         break;
@@ -53,6 +58,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'country_info':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $id     = (int)($_POST['id'] ?? 0);
         $stmt   = fncQuery(
             "SELECT id, name, full_name, phone_code, phone_mask
@@ -66,6 +75,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'new_country':
+        if (!fncCan($perms, 'geography.edit')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $name = trim(fncValFind('cntr-name', $params) ?? '');
 
         if (!$name) {
@@ -90,6 +103,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'upd_country':
+        if (!fncCan($perms, 'geography.edit')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $id        = (int)(fncValFind('item-id',    $params) ?? 0);
         $full_name = trim(fncValFind('cntry-fname', $params) ?? '');
         $name      = trim(fncValFind('cntry-name',  $params) ?? '');
@@ -114,6 +131,10 @@ switch ($action) {
     // =========================================================================
 
     case 'regions_list':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $country = (int)($_POST['country'] ?? 0);
         $stmt    = fncQuery(
             "SELECT id, name FROM regions WHERE country = ? ORDER BY name",
@@ -125,6 +146,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'region_info':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $id   = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
             "SELECT r.id, r.name, r.reg_code, r.timezone, c.name AS country_name
@@ -139,6 +164,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'new_region':
+        if (!fncCan($perms, 'geography.edit')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $name    = trim(fncValFind('reg-name', $params) ?? '');
         $country = (int)(fncValFind('country',  $params) ?? 0);
 
@@ -164,6 +193,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'upd_region':
+        if (!fncCan($perms, 'geography.edit')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $id       = (int)(fncValFind('item-id',  $params) ?? 0);
         $name     = trim(fncValFind('reg-name',  $params) ?? '');
         $reg_code = trim(fncValFind('reg-code',  $params) ?? '');
@@ -187,6 +220,10 @@ switch ($action) {
     // =========================================================================
 
     case 'countries_regs_list':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $stmt_countries = fncQuery("SELECT id, name FROM countries ORDER BY name");
         $stmt_regions   = fncQuery("SELECT id, country, name FROM regions ORDER BY name");
 
@@ -199,6 +236,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'cities_list':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $country = (int)($_POST['country'] ?? 0);
         $region  = (int)($_POST['region']  ?? 0);
 
@@ -212,6 +253,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'city_info':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $id   = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
             "SELECT ci.id, ci.name, c.name AS country_name, r.name AS region_name
@@ -227,6 +272,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'new_city':
+        if (!fncCan($perms, 'geography.edit')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $name    = trim(fncValFind('city-name', $params) ?? '');
         $country = (int)(fncValFind('country',   $params) ?? 0);
         $region  = (int)(fncValFind('region',    $params) ?? 0);
@@ -247,6 +296,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'upd_city':
+        if (!fncCan($perms, 'geography.edit')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $id   = (int)(fncValFind('item-id',   $params) ?? 0);
         $name = trim(fncValFind('city-name', $params) ?? '');
 
@@ -265,6 +318,10 @@ switch ($action) {
     // =========================================================================
 
     case 'cities_list_for_streets':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $stmt   = fncQuery(
             "SELECT ci.id, ci.name, ci.region, ci.country, r.name AS reg_name
              FROM cities ci
@@ -277,6 +334,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'streets_list':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $city   = (int)($_POST['city'] ?? 0);
         $stmt   = fncQuery(
             "SELECT s.id, CONCAT(st.short_name, ' ', s.name) AS name
@@ -292,6 +353,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'streets_types_list':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $stmt   = fncQuery("SELECT id, name FROM streets_types ORDER BY name");
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         break;
@@ -299,6 +364,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'street_info':
+        if (!fncCan($perms, 'geography')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $id     = (int)($_POST['id'] ?? 0);
         $stmt_s = fncQuery("SELECT id, name, type FROM streets WHERE id = ?", [$id]);
         $street = $stmt_s ? ($stmt_s->fetch(PDO::FETCH_ASSOC) ?: []) : [];
@@ -310,6 +379,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'new_street':
+        if (!fncCan($perms, 'geography.edit')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $name    = trim(fncValFind('street-name',   $params) ?? '');
         $type    = (int)(fncValFind('street-type',  $params) ?? 0);
         $city    = (int)(fncValFind('city',         $params) ?? 0);
@@ -332,6 +405,10 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'upd_street':
+        if (!fncCan($perms, 'geography.edit')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         $id   = (int)(fncValFind('item-id',     $params) ?? 0);
         $name = trim(fncValFind('street-name', $params) ?? '');
         $type = (int)(fncValFind('street-type', $params) ?? 0);

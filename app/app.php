@@ -73,34 +73,37 @@ if ($action === 'in') {
 
   $qu = "SELECT s.id AS ses_id, s.user AS usr_id,
                 CONCAT_WS(' ', u.name, u.last_name) AS usr_name,
-                CURDATE() AS today,
-                r.id AS rules
+                u.is_active,
+                CURDATE() AS today
          FROM sessions s
          LEFT JOIN users u ON u.id = s.user
-         LEFT JOIN rules r ON r.id = u.rules
          WHERE s.session = :session AND s.cntrl = :cntrl AND s.cntrl IS NOT NULL";
 
   $stmt    = fncQuery($qu, ['session' => $ses_id, 'cntrl' => $x_token]);
   $session = $stmt ? $stmt->fetch() : null;
 
   if ($session) {
-      $flag_path = $_SERVER['DOCUMENT_ROOT'] . '/sse_cache/u_' . md5($session['usr_id']) . '.flag';
-
-      $out_array = [
-          'sccss'     => true,
-          'rules'     => $session['rules'],
-          'user'      => $session['usr_id'],
-          'user_name' => $session['usr_name'],
-          'path'      => '_main.php',
-          'today'     => $session['today'],
-      ];
-
+      if (!$session['is_active']) {
+          $out_array = ['sccss' => false, 'msg' => 'Доступ заблокирован'];
+      } else {
+          $perms = fncLoadPermissions((int)$session['usr_id']);
+          $flag_path = $_SERVER['DOCUMENT_ROOT'] . '/sse_cache/u_' . md5($session['usr_id']) . '.flag';
+          $out_array = [
+              'sccss'     => true,
+              'user'      => $session['usr_id'],
+              'user_name' => $session['usr_name'],
+              'rules'     => $perms,
+              'path'      => '_main.php',
+              'today'     => $session['today'],
+          ];
+      }
   } else {
+
+      $stmt_user = fncQuery("SELECT user AS usr_id FROM sessions WHERE session = :session", ['session' => $ses_id]);
+      $ses_user  = $stmt_user ? $stmt_user->fetch() : null;
 
       $qu = "UPDATE sessions SET session = NULL, cntrl = NULL, stop_time = NOW()
              WHERE session = :session";
-      $stmt_user = fncQuery("SELECT user AS usr_id FROM sessions WHERE session = :session", ['session' => $ses_id]);
-      $ses_user  = $stmt_user ? $stmt_user->fetch() : null;
       fncQuery($qu, ['session' => $ses_id]);
 
       if ($ses_user) {

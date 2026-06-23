@@ -2,6 +2,10 @@
   require_once('./app/includes/session_guard.php');
   $result = fncRequireSession();
 
+  $perms = $result['rules'] ?? [];
+
+  $menu = require('./menu_map.php');
+
   $ses_info = [
       '_onlis_id' => $_COOKIE['_onlis_id'],
       'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
@@ -68,33 +72,53 @@
 
       <!-- ОСНОВНАЯ НАВИГАЦИЯ -->
       <nav class="flex-grow-1 px-3 py-3" style="overflow-y: auto; scrollbar-width: none;">
-
           <ul class="my-nav">
-              <li class="my-nav-item">
-                  <a class="my-nav-link head-item head-link" data-target="reference" style="cursor: pointer;">
-                      <i class="bi bi-journal-bookmark"></i>
-                      <span class="my-nav-link__name">Справочники</span>
-                      <i class="bi bi-chevron-down ms-auto small"></i>
-                  </a>
-              </li>
-              <li class="my-nav-item_second_level d-none" data-target="reference">
-                  <a class="my-nav-link">
-                      <i class="bi bi-people"></i>
-                      <span class="my-nav-link__name link-item"
-                            data-module="users" data-ttl="Сотрудники">Сотрудники</span>
-                  </a>
-              </li>
-              <li class="my-nav-item_second_level d-none" data-target="reference">
-                  <a class="my-nav-link">
-                      <i class="bi bi-globe-americas"></i>
-                      <span class="my-nav-link__name link-item"
-                            data-module="geography" data-ttl="География">География</span>
-                  </a>
-              </li>
+              <?php foreach ($menu as $group_key => $group): ?>
+
+                  <?php if (!empty($group['single'])): ?>
+                      <?php $show = !isset($group['slug']) || fncCan($perms, $group['slug']); ?>
+                      <?php if ($show): ?>
+                          <li class="my-nav-item">
+                              <a class="my-nav-link head-link">
+                                  <i class="bi <?php echo $group['icon']; ?>"></i>
+                                  <span class="my-nav-link__name link-item"
+                                        data-module="<?php echo $group_key; ?>"
+                                        data-ttl="<?php echo $group['title']; ?>">
+                                      <?php echo $group['title']; ?>
+                                  </span>
+                              </a>
+                          </li>
+                      <?php endif; ?>
+
+                  <?php else: ?>
+                      <?php $visible = array_filter($group['items'], fn($item) => !isset($item['slug']) || fncCan($perms, $item['slug'])); ?>
+                      <?php if ($visible): ?>
+                          <li class="my-nav-item">
+                              <a class="my-nav-link head-item head-link" data-target="<?php echo $group_key; ?>" style="cursor: pointer;">
+                                  <i class="bi <?php echo $group['icon']; ?>"></i>
+                                  <span class="my-nav-link__name"><?php echo $group['title']; ?></span>
+                                  <i class="bi bi-chevron-down ms-auto small"></i>
+                              </a>
+                          </li>
+                          <?php foreach ($visible as $item): ?>
+                              <li class="my-nav-item_second_level d-none" data-target="<?php echo $group_key; ?>">
+                                  <a class="my-nav-link">
+                                      <i class="bi <?php echo $item['icon']; ?>"></i>
+                                      <span class="my-nav-link__name link-item"
+                                            data-module="<?php echo $item['slug']; ?>"
+                                            data-ttl="<?php echo $item['title']; ?>">
+                                          <?php echo $item['title']; ?>
+                                      </span>
+                                  </a>
+                              </li>
+                          <?php endforeach; ?>
+                      <?php endif; ?>
+
+                  <?php endif; ?>
+
+              <?php endforeach; ?>
           </ul>
-
       </nav>
-
       <!-- ФУТЕР -->
       <div class="my-menu-footer-wrapper px-3 py-2">
           <a class="my-nav-link" id="menuButtonProfile">

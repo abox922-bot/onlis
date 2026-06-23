@@ -2,6 +2,7 @@
 const url       = new URL("https://api.onlis.store/");
 const rqst_path = new URL("main_request_modules.php", url);
 const spnr_loading = `<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>`;
+window.user_perms = [];
 //==============================================================================
 $(function() {
     const offsetMinutes = new Date().getTimezoneOffset();
@@ -16,6 +17,7 @@ $(function() {
         fncMyAjax("in_cntrl", "main")
             .done(function(data) {
                 if (data.sccss) {
+                    window.user_perms = data.rules || [];
                     $("#mainContainer").load(new URL(data.path, url).href);
                 } else {
                     fncStartForm();
@@ -53,8 +55,7 @@ function fncStartForm() {
                 fncMyAjax("in", "main", crt_arr["params"])
                     .done(function(data) {
                         if (data.sccss) {
-                            fncSetupToken(data["cntrl"]);
-                            $("#mainContainer").load(new URL(data["path"], url).href);
+                            window.location.reload();
                         } else {
                             fncStartForm();
                         }
@@ -237,5 +238,15 @@ function fncCheckNewItem(callback) {
         localStorage.removeItem("new_item");
         callback(id);
     }
+}
+//==============================================================================
+function canDo(slug) {
+    if (window.user_perms.includes(slug)) return true;
+    let parts = slug.split('.');
+    for (let i = parts.length - 1; i > 0; i--) {
+        let parent = parts.slice(0, i).join('.');
+        if (window.user_perms.includes(parent)) return true;
+    }
+    return false;
 }
 //==============================================================================

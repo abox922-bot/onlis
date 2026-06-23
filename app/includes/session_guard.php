@@ -1,5 +1,6 @@
 <?php
 require_once(dirname(__FILE__) . '/request.php');
+require_once(dirname(__FILE__) . '/fncs.php');
 
 /**
  * @return array
