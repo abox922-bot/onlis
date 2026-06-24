@@ -1,5 +1,8 @@
 //==============================================================================
 $(function(){
+    if (!canDo('geography.edit')) {
+        $("#btnFastNew").hide();
+    }
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#slctCountry").change(function(){
         if (+$(this).val() > 0) {
@@ -20,6 +23,10 @@ $(function(){
         main_modal.show();
         let path = new URL("./_books_geo/regions_new.php", url);
         $("#mainModalBody").load(path.href, {country_name}, function(){
+          if (!canDo('geography.edit')) {
+              $("#btnSave").hide();
+              $("#formNew").off("submit");
+          } else {
             $("#formNew").submit(function(e){
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -45,6 +52,7 @@ $(function(){
                         });
                 }
             });
+          }
         });
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -69,6 +77,10 @@ function infoLoadFunction(item_id) {
     main_modal.show();
     let path = new URL("./_books_geo/regions_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
+      if (!canDo('geography.edit')) {
+          $("#btnSave").hide();
+          $("#formInfo").off("submit");
+      } else {
         $("#formInfo").submit(function(e){
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -90,6 +102,7 @@ function infoLoadFunction(item_id) {
                     });
             }
         });
+      }
     });
 }
 //==============================================================================

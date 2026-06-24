@@ -9,6 +9,9 @@
 
     $data   = array_merge($ses_info, ['action' => 'countries_list']);
     $result = send_request($data, 'geo');
+    if (!is_array($result) || isset($result['sccss'])) {
+        $result = [];
+    }
     ?>
     <div class="col-12">
         <?php if (empty($result)): ?>

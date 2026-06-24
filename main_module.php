@@ -3,6 +3,7 @@
     require_once('./modules_map.php');
 
     $result = fncRequireSession();
+    $perms  = $result['rules'] ?? [];
 
     $module = $_GET['module'] ?? '';
 
@@ -11,7 +12,10 @@
     }
 
     $module_data = $modules_map[$module];
-    $sections    = $module_data['sections'];
+    $sections = array_filter($module_data['sections'], function($section) use ($perms) {
+        return !isset($section['slug']) || fncCan($perms, $section['slug']);
+    });
+    $sections = array_values($sections);
 
     if (empty($sections)) {
         die('Для этого модуля не настроены разделы.');
@@ -32,7 +36,7 @@
     <?php if (count($sections) > 1): ?>
         <div class="module-tabs" role="tablist">
             <?php foreach ($sections as $section): ?>
-                <button class="module-tab <?php if (!empty($section['default'])) echo 'active'; ?>"
+                <button class="module-tab  <?php if ($section['key'] === $default_section['key']) echo 'active'; ?>"
                         type="button"
                         role="tab"
                         data-target="<?= htmlspecialchars($section['key'], ENT_QUOTES, 'UTF-8') ?>">

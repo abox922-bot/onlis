@@ -1,5 +1,8 @@
 //==============================================================================
 $(function(){
+    if (!canDo('geography.edit')) {
+      $("#btnFastNew").hide();
+    }
     listLoadFunction();
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#btnFastNew").click(function(){
@@ -8,6 +11,10 @@ $(function(){
         main_modal.show();
         let path = new URL("./_books_geo/countries_new.php", url);
         $("#mainModalBody").load(path.href, function(){
+          if (!canDo('geography.edit')) {
+              $("#btnSave").hide();
+              $("#formNew").off("submit");
+          } else {
             $("#formNew").submit(function(e){
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -31,6 +38,7 @@ $(function(){
                         });
                 }
             });
+          }
         });
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -55,6 +63,10 @@ function infoLoadFunction(item_id) {
     main_modal.show();
     let path = new URL("./_books_geo/countries_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
+      if (!canDo('geography.edit')) {
+          $("#btnSave").hide();
+          $("#formInfo").off("submit");
+      } else {
         $("#formInfo").submit(function(e){
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -76,6 +88,7 @@ function infoLoadFunction(item_id) {
                     });
             }
         });
+      }
     });
 }
 //==============================================================================

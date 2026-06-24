@@ -10,6 +10,9 @@
     $city  = $_POST['city'];
     $data  = array_merge($ses_info, ['action' => 'streets_list', 'city' => $city]);
     $result = send_request($data, 'geo');
+    if (!is_array($result) || isset($result['sccss'])) {
+        $result = [];
+    }
     ?>
     <div class="col-12">
         <?php if (empty($result)): ?>

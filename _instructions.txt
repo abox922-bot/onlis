@@ -1,46 +1,191 @@
 Проект ONL.IS — система управления кофейней/общепитом/ритейлом.
-
 Стек: MySQL, PHP 7.4, SSE, jQuery, HTML, CSS, Bootstrap.
-
 Архитектура: мультитенантная — каждый клиент на своём поддомене, своя БД, мастер-база для управления всеми клиентами. Одна БД клиента рассчитана на до 100 точек этого клиента (не 100 разных клиентов).
-Репозиторий: https://github.com/abox922-bot/onlis
-Текущая задача: полная разработка с нуля. Связь со старой системой/БД не рассматривается ни в каком виде (включая синхронизацию через триггеры) — эта идея уже была отклонена.
-Главная задача при создании интерфейсов — максимально возможный уровень UI и UX.
 
+Репозиторий: https://github.com/abox922-bot/onlis
+
+Текущая задача: полная разработка с нуля. Связь со старой системой/БД не рассматривается ни в каком виде (включая синхронизацию через триггеры) — эта идея уже была отклонена.
+
+Главная задача при создании интерфейсов — максимально возможный уровень UI и UX.
 Принципы БД
+
 utf8mb4 везде, TINYINT(1) для флагов, DECIMAL(10,2) для денег, created_at / created_by / updated_at / updated_by на каждой таблице (там где необходимо исходя из логики), полные имена без аббревиатур, файлы и изображения не хранятся в БД.
+
 updated_at и updated_by — NULL по умолчанию (NULL означает «запись ни разу не редактировалась»). FK для created_by / updated_by ссылаются на users.id.
+
 Таблица users + users_auth — разделение учётных данных и персональных данных.
 
+Поле is_active TINYINT(1) NOT NULL DEFAULT 1 в таблице users — флаг доступа пользователя в систему.
 Файлы фундамента
-
 app/includes/config.php — константы конфигурации клиента
+
 app/includes/db.php — PDO соединение с БД
-app/includes/fncs.php — fncQuery, fncLog, fncValFind
+
+app/includes/fncs.php — fncQuery, fncLog, fncValFind, fncLoadPermissions, fncCan
+
 app/includes/paths.php — маршруты API модулей
+
 app/includes/request.php — внутренние cURL запросы (send_request)
-app/includes/session_guard.php — проверка сессии (fncRequireSession)
+
+app/includes/session_guard.php — проверка сессии (fncRequireSession). Подключает fncs.php — fncCan доступна везде где подключён session_guard.php
+
 app/app.php — основной API (auth, sessions). in_cntrl возвращает {sccss, user, user_name, rules, today}
+
 index.php — точка входа SPA
+
 main_request_modules.php — прокси запросов с фронта
-modules_map.php — реестр модулей (folder, sections: key/title/file/default)
-main_module.php — универсальная оболочка модуля с табами
+
+modules_map.php — реестр модулей (folder, sections: key/title/file/default/slug)
+
+menu_map.php — реестр пунктов меню (группы и одиночные пункты с slug для проверки прав, module для загрузки)
+
+main_module.php — универсальная оболочка модуля с табами. Фильтрует разделы по правам, определяет default после фильтрации.
+
 sse.php — SSE соединение
-js/index.js — fncMyAjax, fncParamsCrt, fncItemCrt, fncNormalizeInp, fncSetupToken, fncBtnReset, fncCheckNewItem
-_main.php — каркас SPA после авторизации (содержит #divScrollArea, #divMainContent, #sectionHeader)
+
+js/index.js — fncMyAjax, fncParamsCrt, fncItemCrt, fncNormalizeInp, fncSetupToken, fncBtnReset, fncCheckNewItem, canDo
+
+_main.php — каркас SPA после авторизации (содержит #divScrollArea, #divMainContent, #sectionHeader). Меню строится динамически через menu_map.php с проверкой прав.
+
 js/_main.js — логика каркаса (fncChptLoad, fncBookNav, searchFunction)
+
 css/style.css — базовые стили и универсальные компоненты
+Система прав доступа (RBAC)
+Модель: Permission (slug) > Role (набор slug) > User (роль + опц. точка).
+Таблицы БД:
 
+permissions — справочник разрешений (slug, title). Заполняется при деплое и через миграции при добавлении новых модулей. created_by отсутствует — системная запись.
+roles — роли (name, is_system). is_system=1 защищает стандартные роли от удаления. created_by/updated_by nullable — системные роли создаются без пользователя.
+roles_permissions — связь роль > разрешения. ON DELETE CASCADE по обеим FK.
+users_roles — связь пользователь > роль. obj_id NULL = глобально (все точки), число = конкретная точка. ON DELETE RESTRICT для role_id — роль нельзя удалить пока назначена пользователям. created_by nullable.
 
+Стандартные роли (is_system=1): Владелец, Администратор, Управляющий, Кассир, Бухгалтер.
+Иерархия slug: geography покрывает geography.edit и geography.delete. Дочерний slug НЕ покрывает родительский — только сверху вниз. Назначать дочерний slug роли нужно только если хочешь ограничить доступ внутри модуля.
+Добавление прав нового модуля — рутина из двух шагов:
+
+INSERT в permissions (новые slug) — через migration-файл
+INSERT в roles_permissions (назначить slug нужным ролям)
+
+Функции в fncs.php:
+php// Загружает flat array slug для пользователя. $obj_id опционален.
+function fncLoadPermissions(int $user_id, ?int $obj_id = null): array
+
+// Проверяет право с учётом иерархии slug.
+function fncCan(array $perms, string $slug): bool
+Интеграция в app_X.php — после $user_id:
+php$user_id = (int)($ses_check['user'] ?? 0);
+$perms   = $ses_check['rules'] ?? [];
+Проверка в каждом case до выполнения логики:
+phpif (!fncCan($perms, 'geography.edit')) {
+    echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+    exit;
+}
+Два уровня прав в модуле (пример Geography):
+
+geography — просмотр (_list, _info actions)
+geography.edit — создание и редактирование (new_, upd_ actions)
+geography.delete — удаление (del_* actions) — добавляется когда реализуется UI удаления
+
+in_cntrl проверяет is_active до загрузки прав. Заблокированный пользователь получает sccss:false и вылетает из системы немедленно.
+Меню (_main.php + menu_map.php):
+php// menu_map.php — структура меню
+return [
+    'dashboard' => [           // одиночный пункт без прав (доступен всем)
+        'title'  => 'Главная',
+        'icon'   => 'bi-house',
+        'single' => true,
+        'module' => 'dashboard',
+    ],
+    'reference' => [           // группа с проверкой прав
+        'title' => 'Справочники',
+        'icon'  => 'bi-journal-bookmark',
+        'items' => [
+            ['slug' => 'users',     'module' => 'users',     'title' => 'Сотрудники', 'icon' => 'bi-people'],
+            ['slug' => 'geography', 'module' => 'geography', 'title' => 'География',  'icon' => 'bi-globe-americas'],
+        ]
+    ],
+];
+slug — для проверки прав. module — для загрузки раздела (data-module). Разделены намеренно: slug права не всегда совпадает с именем модуля.
+
+Группа скрывается если нет доступа ни к одному пункту внутри. Пункт без slug доступен всем. Новый модуль — одна строка в menu_map.php.
+Разделы модуля (modules_map.php + main_module.php):
+php// modules_map.php — slug на уровне раздела
+'geography' => [
+    'folder'   => '_books_geo',
+    'sections' => [
+        ['key' => 'countries', 'title' => 'Страны',  'file' => 'countries', 'slug' => 'geography', 'default' => true],
+        ['key' => 'regions',   'title' => 'Регионы', 'file' => 'regions',   'slug' => 'geography'],
+        ['key' => 'cities',    'title' => 'Города',  'file' => 'cities'],
+        ['key' => 'streets',   'title' => 'Улицы',   'file' => 'streets'],
+    ],
+],
+slug на разделе — минимальное право для показа таба. Без slug — раздел доступен всем у кого есть доступ к модулю. main_module.php фильтрует разделы через fncCan и определяет default после фильтрации — первый доступный если оригинальный default недоступен.
+Фронт (js/index.js):
+
+window.user_perms — глобальный массив slug, заполняется из data.rules после in_cntrl
+canDo(slug) — проверка права с учётом иерархии, аналог серверного fncCan
+После логина — window.location.reload() вместо прямой загрузки _main.php (браузер предлагает сохранить пароль + корректно заполняется user_perms)
+
+Сервер — единственная настоящая защита. Фронт — только UX (скрытие элементов).
+Чеклист для нового модуля:
+
+INSERT в permissions — новые slug (migration-файл)
+INSERT в roles_permissions — назначить slug нужным ролям
+Одна строка в menu_map.php (slug + module)
+$perms = $ses_check['rules'] и fncCan в каждом case app_X.php
+Проверка isset($result['sccss']) в каждом _list.php после send_request
+canDo в JS: скрытие #btnFastNew + обёртка click обработчика
+canDo в JS после .load(): formNew и formInfo — нет прав > hide #btnSave + off("submit"), есть права > submit обработчик
+
+Стандарт JS — проверки прав в разделе:
+js$(function(){
+    if (!canDo('module.edit')) {
+        $("#btnFastNew").hide();
+    }
+
+    if (canDo('module.edit')) {
+        $("#btnFastNew").click(function(){
+            // открытие модалки
+            $("#mainModalBody").load(path.href, function(){
+                if (!canDo('module.edit')) {
+                    $("#btnSave").hide();
+                    $("#formNew").off("submit");
+                } else {
+                    $("#formNew").submit(function(e){ ... });
+                }
+            });
+        });
+    }
+});
+
+function infoLoadFunction(item_id) {
+    // открытие модалки
+    $("#mainModalBody").load(path.href, {id: item_id}, function(){
+        if (!canDo('module.edit')) {
+            $("#btnSave").hide();
+            $("#formInfo").off("submit");
+        } else {
+            $("#formInfo").submit(function(e){ ... });
+        }
+    });
+}
+Стандарт _list.php — защита от ответа с ошибкой:
+php$result = send_request(array_merge($ses_info, ['action' => 'items_list']), 'module');
+if (!is_array($result) || isset($result['sccss'])) {
+    $result = [];
+}
 Архитектура загрузки модулей
+
 Единый main_module.php, реестр в modules_map.php. Пункты меню несут только data-module и data-ttl. Раздел по умолчанию — флаг 'default'.
+
 fncRequireSession() обязателен в каждом PHP-фрагменте, загружаемом через .load(). HTTP-статус всегда 200 — jQuery .load() вставляет тело только при 2xx.
-
 Навигация между разделами модуля
-Разделы переключаются через табы. В main_module.php генерируются кнопки .module-tab с data-target. fncBookNav() в _main.js обрабатывает клики: переключает класс active, скроллит таб в зону видимости (scrollIntoView), скроллит страницу вверх через #divScrollArea, загружает раздел через .load().
-При одном разделе в модуле табы не отображаются — раздел загружается сразу.
 
+Разделы переключаются через табы. В main_module.php генерируются кнопки .module-tab с data-target. fncBookNav() в _main.js обрабатывает клики: переключает класс active, скроллит таб в зону видимости (scrollIntoView), скроллит страницу вверх через #divScrollArea, загружает раздел через .load().
+
+При одном разделе в модуле табы не отображаются — раздел загружается сразу.
 Универсальные CSS-компоненты (css/style.css)
+
 .module-shell — оболочка модуля (белая карточка с тенью, overflow: hidden).
 
 .module-tabs — строка табов с горизонтальным скроллом на мобильной версии.
@@ -64,11 +209,11 @@ fncRequireSession() обязателен в каждом PHP-фрагменте, загружаемом через .load()
 .empty-hint__icon — иконка пустого состояния (Bootstrap Icons, font-size: 2rem).
 
 .empty-hint__text — текст подсказки.
-.form-context — блок контекстной информации над формой (хлебные крошки: Страна › Регион). Заменяет disabled-поля.
+.form-context — блок контекстной информации над формой (хлебные крошки: Страна › Регион). Левый бордер var(--accent-color), без фона, font-size: 1rem, font-weight: 700. Всегда выносится в отдельный col-12 перед полями формы. Заменяет disabled-поля.
 
 .form-group-label — метка смысловой группы полей внутри формы (мелкий uppercase текст).
-
 Tom Select — стандарт для полей с поиском по большому справочнику
+
 Tom Select используется вместо кастомных dropdown-решений. Подключается через CDN в index.php. Инициализируется на <select> элементе.
 jslet picker = new TomSelect("#slctElement", {
     placeholder: "Выберите...",
@@ -78,7 +223,6 @@ jslet picker = new TomSelect("#slctElement", {
     plugins: ["clear_button"],
     render: {
         item: function(data, escape) {
-            // короткое отображение после выбора если нужно
             return `<div class="item">${escape(data.text)}</div>`;
         }
     },
@@ -98,8 +242,7 @@ jslet picker = new TomSelect("#slctElement", {
 При динамической загрузке через .load() объявлять через window.picker чтобы избежать ошибки redeclaration:
 jsif (window.picker) window.picker.destroy();
 window.picker = new TomSelect("#slctElement", { ... });
-Стили Tom Select переопределены в css/style.css (секция 13) под дизайн-систему проекта.
-
+Стили Tom Select переопределены в css/style.css (секция 11) под дизайн-систему проекта.
 Стандарт главного файла раздела (_books_X/section.php)
 php<?php
 require_once('../app/includes/session_guard.php');
@@ -122,10 +265,12 @@ fncRequireSession();
 
 <script src="./_books_X/js/section.js?version"></script>
 divChptContent стартует без d-none если контент грузится сразу (нет фильтра). Стартует с d-none если нужен фильтр перед показом списка.
-divEmptyHint стартует видимым если нужен фильтр. Скрывается JS при выборе фильтра.
-Иконки в toolbar и empty-hint — Bootstrap Icons (bi bi-*). Inline SVG не использовать.
 
+divEmptyHint стартует видимым если нужен фильтр. Скрывается JS при выборе фильтра.
+
+Иконки в toolbar и empty-hint — Bootstrap Icons (bi bi-*). Inline SVG не использовать.
 Стандарт PHP-фрагментов (_books_X/)
+
 Каждый файл начинается:
 php<?php
 require_once('../app/includes/session_guard.php');
@@ -136,15 +281,20 @@ php$ses_info = [
     'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
 ];
 При выводе любых данных из БД или $_POST — обязателен htmlspecialchars().
-Теги <script> только в главном файле раздела (section.php) — никогда в _new и _info.
 
+Теги <script> только в главном файле раздела (section.php) — никогда в _new и _info.
 Стандарт форм — разметка
+
 Два типа форм: formNew (создание), formInfo (редактирование).
-Контекстная информация (страна, регион, город) — через .form-context, не через disabled-поля:
-html<div class="form-context">
-    Россия <span>›</span> Свердловская область
+
+Контекстная информация (страна, регион, город) — через .form-context в отдельном col-12 перед полями, не через disabled-поля:
+html<div class="col-12">
+    <div class="form-context">
+        Россия <span style="opacity:0.35;margin:0 6px">›</span> Свердловская область
+    </div>
 </div>
 Два типа полей:
+
 Управляемые (участвуют в fncParamsCrt):
 
 class="form-inp" — маркер для fncParamsCrt (обязателен)
@@ -164,29 +314,33 @@ html<input type="text"
     data-required="1"
     data-length="2">
 Классы: form-in для инпутов и селектов, my-input-label для label. Не использовать form-control, form-select, form-label.
+
 Первая опция select всегда value="0" с текстом-подсказкой.
+
 placeholder используется там где нужна подсказка по формату (например маска телефона, часовой пояс).
+
 Кнопка сохранения — всегда:
 html<button type="submit" class="btn-action-main" id="btnSave">
     <span id="btnSaveText">Сохранить</span>
     <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
 </button>
 Layout формы определяется контентом и контекстом — анализируется количество полей, их смысловые связи, приоритет визуального веса, поведение на мобильной версии. Bootstrap-сетка — инструмент, а не шаблон.
-
 Стандарт форм — data-type и валидация
+
 Правило валидации: required добавляет только проверку на пустоту. Правила формата применяются всегда когда в поле есть хоть что-то. Если поле не required и пустое — ошибки нет, передаётся пустое значение.
 data-typeНормализацияВалидацияtextУбирает HTML-тегиrequired + пустое > ошибкаdigits_onlyТолько цифрыrequired + пустое > ошибкаdigits_doubleЦифры и точка (запятая > точка)required + пустое > ошибкаwithout_lettersУбирает все буквы (рус/лат)required + пустое > ошибкаemailУбирает кириллицу и кавычкиДлина ? 5, есть @ и точка — всегда когда не пустоеeng_textТолько a-z0-9required + пустое > ошибкаselect—Значение ? 0 (всегда)check—Возвращает 1 или 0phoneТолько цифры, обрезает код страныДлина совпадает с маской — всегда когда не пустое
 При ошибке валидации поле получает класс is-invalid (стиль в style.css). Поле подсвечивается до следующей попытки отправки.
-
 Стандарт JS — файл раздела
+
 Структура файла:
 js// Глобальные переменные если нужны (Tom Select и т.п.)
 // Использовать window.picker вместо let picker для избежания redeclaration
 
 $(function(){
+    // Проверка прав — скрытие btnFastNew
     // Инициализация Tom Select если есть
     // Обработчики фильтров (change на селектах)
-    // Обработчик btnFastNew
+    // Обработчик btnFastNew (только если canDo)
     // Первичная загрузка списка если нет фильтра
 });
 
@@ -196,13 +350,14 @@ function infoLoadFunction(item_id) { ... }
 
 $(function(){ вместо $(document).ready(function(){
 $(this).data("id") вместо $(this).attr("data-id")
-`.itemName[data-id="${item_id}"]` — кавычки вокруг значения обязательны
+.itemName[data-id="${item_id}"] — кавычки вокруг значения обязательны
 fncMyAjax — не $.ajax напрямую
 confirm() — только при удалении записей, нигде больше
 fncCheckNewItem(infoLoadFunction) — в конце listLoadFunction
 .off("click").on("click", ...) — при повторной привязке обработчиков в listLoadFunction и searchFunction для предотвращения накопления
 
 infoLoadFunction — обязательный паттерн:
+
 Модальное окно открывается сразу со спиннером, не ждёт загрузки контента:
 jsfunction infoLoadFunction(item_id) {
     let item_name = $(`.itemName[data-id="${item_id}"]`).html();
@@ -211,7 +366,12 @@ jsfunction infoLoadFunction(item_id) {
     main_modal.show(); // < сразу, до загрузки
     let path = new URL("./_books_X/item_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
-        $("#formInfo").submit(function(e){ ... });
+        if (!canDo('module.edit')) {
+            $("#btnSave").hide();
+            $("#formInfo").off("submit");
+        } else {
+            $("#formInfo").submit(function(e){ ... });
+        }
     });
 }
 Обработчик submit — обязательный паттерн:
@@ -227,21 +387,43 @@ js$("#formNew").submit(function(e) {
         fncMyAjax("action_name", "module", crt_arr["params"], 1)
             .done(function(data) {
                 if (data.sccss) {
-                    // успех: обновить список, закрыть модалку
+                    localStorage.setItem("new_item", data["id"]);
                 } else {
                     fncBtnReset();
                 }
             })
             .fail(function() {
                 fncBtnReset();
+            })
+            .always(function() {
+                listLoadFunction();
             });
     }
 });
 e.preventDefault() + e.stopImmediatePropagation() — всегда оба. Критично для форм внутри модалок, загружаемых через .load() — без этого на мобильной версии и при повторном открытии обработчики накапливаются.
-return_data: 1 — JS ожидает данные в ответе. 0 — ответ не нужен.
 
+Паттерн для операций обновления (upd_*):
+
+return_data: 0 — тело ответа не возвращается, data.sccss не проверяется:
+jsfncMyAjax("upd_item", "module", crt_arr["params"], 0)
+    .done(function() {
+        main_modal.hide();
+    })
+    .fail(function() {
+        fncBtnReset();
+    })
+    .always(function() {
+        listLoadFunction();
+    });
+return_data: 1 — JS ожидает данные в ответе (нужен id или sccss). 0 — ответ не нужен, список перезагружается через .always().
 Стандарт _list.php файлов
-php<?php if (empty($result)): ?>
+php<?php
+$result = send_request(array_merge($ses_info, ['action' => 'items_list']), 'module');
+if (!is_array($result) || isset($result['sccss'])) {
+    $result = [];
+}
+?>
+<?php if (empty($result)): ?>
     <div class="empty-hint">
         <i class="bi bi-inbox empty-hint__icon"></i>
         <div class="empty-hint__text">Записей не найдено</div>
@@ -260,7 +442,6 @@ php<?php if (empty($result)): ?>
     </table>
 <?php endif; ?>
 Класс itemTr — курсор pointer (из style.css). Класс itemName с data-id — обязателен на <td>, JS использует его для заголовка модалки.
-
 Стандарт app_X.php (API модуля)
 php<?php
 require_once('./includes/fncs.php');
@@ -285,6 +466,7 @@ if (!$ses_check || empty($ses_check['sccss'])) {
 }
 
 $user_id = (int)($ses_check['user'] ?? 0);
+$perms   = $ses_check['rules'] ?? [];
 $action  = $_POST['action'] ?? '';
 $params  = isset($_POST['params']) ? json_decode($_POST['params'], true) : [];
 if (!is_array($params)) $params = [];
@@ -293,6 +475,10 @@ $result = [];
 
 switch ($action) {
     case 'action_name':
+        if (!fncCan($perms, 'module.action')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
         // логика
         break;
     default:
@@ -301,10 +487,9 @@ switch ($action) {
 }
 
 echo json_encode($result);
-HTTP 200 всегда. Content-Type: application/json. Валидация через fncValFind. htmlspecialchars при выводе. created_by / updated_by берутся из $ses_check['user'].
-
-Открытые задачи — модуль Geography
+HTTP 200 всегда. Content-Type: application/json. Валидация через fncValFind. htmlspecialchars при выводе. created_by / updated_by берутся из $ses_check['user']. $perms загружается из $ses_check['rules'] — не отдельным запросом к БД.
+Открытые задачи — система
 
 Определить и реализовать паттерн обратной связи при ошибке (Toast / зона в модалке) — применить как стандарт для всех модулей
-Доработать UI/UX форм _new и _info (замечания зафиксированы, разбор в следующей сессии)
-Проработать *_list.php — колонки таблицы под каждый раздел
+Реализовать паттерн подтверждения и UI при удалении записей
+Модуль управления ролями (UI назначения прав и ролей пользователям) — часть модуля Пользователи

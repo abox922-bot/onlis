@@ -3,18 +3,18 @@
       'users' => [
           'folder'   => '_books_users',
           'sections' => [
-              ['key' => 'users',  'title' => 'Пользователи',  'file' => 'users',  'default' => true],
-              ['key' => 'rules',  'title' => 'Права доступа', 'file' => 'rules'],
+              ['key' => 'users',  'slug' => 'geography',  'title' => 'Пользователи',  'file' => 'users',  'default' => true],
+              ['key' => 'rules',  'slug' => 'geography',  'title' => 'Права доступа', 'file' => 'rules'],
           ],
       ],
 
       'geography' => [
           'folder'   => '_books_geo',
           'sections' => [
-              ['key' => 'countries', 'title' => 'Страны',  'file' => 'countries', 'default' => true],
-              ['key' => 'regions',   'title' => 'Регионы', 'file' => 'regions'],
-              ['key' => 'cities',    'title' => 'Города',  'file' => 'cities'],
-              ['key' => 'streets',   'title' => 'Улицы',   'file' => 'streets'],
+              ['key' => 'countries',  'slug' => 'geography',  'title' => 'Страны',  'file' => 'countries', 'default' => true],
+              ['key' => 'regions',    'slug' => 'geography',  'title' => 'Регионы', 'file' => 'regions'],
+              ['key' => 'cities',     'slug' => 'geography',  'title' => 'Города',  'file' => 'cities'],
+              ['key' => 'streets',    'slug' => 'geography',  'title' => 'Улицы',   'file' => 'streets'],
           ],
       ],
   ];

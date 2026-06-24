@@ -82,7 +82,7 @@
                               <a class="my-nav-link head-link">
                                   <i class="bi <?php echo $group['icon']; ?>"></i>
                                   <span class="my-nav-link__name link-item"
-                                        data-module="<?php echo $group_key; ?>"
+                                        data-module="<?php echo $group['module']; ?>"
                                         data-ttl="<?php echo $group['title']; ?>">
                                       <?php echo $group['title']; ?>
                                   </span>
@@ -105,7 +105,7 @@
                                   <a class="my-nav-link">
                                       <i class="bi <?php echo $item['icon']; ?>"></i>
                                       <span class="my-nav-link__name link-item"
-                                            data-module="<?php echo $item['slug']; ?>"
+                                            data-module="<?php echo $item['module']; ?>"
                                             data-ttl="<?php echo $item['title']; ?>">
                                           <?php echo $item['title']; ?>
                                       </span>
@@ -133,4 +133,4 @@
 
     </div>
   </div>
-  <script src="./js/_main.js?2026062103ы"></script>
+  <script src="./js/_main.js?2026062400"></script>

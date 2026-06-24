@@ -1,5 +1,9 @@
 //==============================================================================
 $(function(){
+    if (!canDo('geography.edit')) {
+        $("#btnFastNew").hide();
+    }
+
     if (window.cityPicker) window.cityPicker.destroy();
     window.cityPicker = new TomSelect("#slctCity", {
         placeholder: "Выберите город",
@@ -38,6 +42,10 @@ $(function(){
         main_modal.show();
         let path = new URL("./_books_geo/streets_new.php", url);
         $("#mainModalBody").load(path.href, {city_name}, function(){
+          if (!canDo('geography.edit')) {
+              $("#btnSave").hide();
+              $("#formNew").off("submit");
+          } else {
             $("#formNew").submit(function(e){
                 e.preventDefault();
                 e.stopImmediatePropagation();
@@ -61,6 +69,7 @@ $(function(){
                         });
                 }
             });
+          }
         });
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -87,6 +96,10 @@ function infoLoadFunction(item_id) {
     main_modal.show();
     let path = new URL("./_books_geo/streets_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id, city_name}, function(){
+      if (!canDo('geography.edit')) {
+          $("#btnSave").hide();
+          $("#formInfo").off("submit");
+      } else {
         $("#formInfo").submit(function(e){
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -108,6 +121,7 @@ function infoLoadFunction(item_id) {
                     });
             }
         });
+      }
     });
 }
 //==============================================================================
