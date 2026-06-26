@@ -17,4 +17,16 @@
               ['key' => 'streets',    'slug' => 'geography',  'title' => 'Улицы',   'file' => 'streets'],
           ],
       ],
+
+      'organizations' => [
+          'folder'   => '_books_orgs',
+          'sections' => [
+              ['key' => 'my_organizations',   'slug' => 'organizations.manage.view', 'title' => 'Мои организации', 'file' => 'my_organizations',   'default' => true],
+              ['key' => 'contractors',        'slug' => 'organizations.manage.view', 'title' => 'Контрагенты',     'file' => 'contractors'],
+              ['key' => 'banks',              'slug' => 'organizations.manage.view', 'title' => 'Банки',           'file' => 'banks'],
+              ['key' => 'organization_types', 'slug' => 'organizations.manage.view', 'title' => 'ОПФ',             'file' => 'organization_types'],
+              ['key' => 'requisite_types',    'slug' => 'organizations.manage.view', 'title' => 'Реквизиты',       'file' => 'requisite_types'],
+          ],
+      ],
+
   ];

@@ -33,8 +33,9 @@ return [
         'title' => 'Справочники',
         'icon'  => 'bi-journal-bookmark',
         'items' => [
-            ['slug' => 'users',      'module' => 'users',      'title' => 'Сотрудники', 'icon' => 'bi-people'],
-            ['slug' => 'geography',  'module' => 'geography',  'title' => 'География',  'icon' => 'bi-globe-americas'],
+            ['slug' => 'users',                     'module' => 'users',          'title' => 'Сотрудники',    'icon' => 'bi-people'],
+            ['slug' => 'geography',                 'module' => 'geography',      'title' => 'География',     'icon' => 'bi-globe-americas'],
+            ['slug' => 'organizations.manage.view', 'module' => 'organizations',  'title' => 'Организации',   'icon' => 'bi-building'],
         ]
     ],
 ];
