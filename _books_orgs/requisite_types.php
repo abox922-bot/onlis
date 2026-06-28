@@ -7,7 +7,7 @@ $ses_info = [
     'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
 ];
 
-$countries = send_request(array_merge($ses_info, ['action' => 'countries_list']), 'organizations');
+$countries = send_request(array_merge($ses_info, ['action' => 'countries_list']), 'geo');
 if (!is_array($countries) || isset($countries['sccss'])) {
     $countries = [];
 }
@@ -43,4 +43,4 @@ if (!is_array($countries) || isset($countries['sccss'])) {
     <div class="empty-hint__text">Выберите страну для просмотра реквизитов</div>
 </div>
 
-<script src="./_books_orgs/js/requisite_types.js?2026062601"></script>
+<script src="./_books_orgs/js/requisite_types.js?2026062800"></script>
