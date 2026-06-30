@@ -17,12 +17,6 @@ $result = send_request(array_merge($ses_info, [
 if (!is_array($result) || isset($result['sccss'])) {
     $result = [];
 }
-
-$type_labels = [
-    'text'   => 'Текст',
-    'digits' => 'Цифры',
-    'date'   => 'Дата',
-];
 ?>
 
 <?php if (empty($result)): ?>
@@ -32,38 +26,11 @@ $type_labels = [
     </div>
 <?php else: ?>
     <table class="table table-sm table-hover mt-2">
-        <thead>
-            <tr>
-                <th>Название</th>
-                <th>Тип значения</th>
-                <th class="text-center">Длина</th>
-                <th class="text-center">Уникальный</th>
-                <th class="text-center">Только для банков</th>
-            </tr>
-        </thead>
         <tbody>
             <?php foreach ($result as $value): ?>
                 <tr class="itemTr" data-id="<?php echo $value['id']; ?>">
                     <td class="py-2 itemName" data-id="<?php echo $value['id']; ?>">
                         <?php echo htmlspecialchars($value['name']); ?>
-                    </td>
-                    <td class="py-2">
-                        <?php echo $type_labels[$value['value_type']] ?? $value['value_type']; ?>
-                    </td>
-                    <td class="py-2 text-center">
-                        <?php if ($value['has_length_control']): ?>
-                            <i class="bi bi-check-lg text-success"></i>
-                        <?php endif; ?>
-                    </td>
-                    <td class="py-2 text-center">
-                        <?php if ($value['is_unique']): ?>
-                            <i class="bi bi-check-lg text-success"></i>
-                        <?php endif; ?>
-                    </td>
-                    <td class="py-2 text-center">
-                        <?php if ($value['is_bank_only']): ?>
-                            <i class="bi bi-check-lg text-success"></i>
-                        <?php endif; ?>
                     </td>
                 </tr>
             <?php endforeach; ?>
