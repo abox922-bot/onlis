@@ -39,8 +39,8 @@ if (!is_array($countries) || isset($countries['sccss'])) {
 <div id="divChptContent" class="d-none"></div>
 
 <div class="empty-hint" id="divEmptyHint">
-    <i class="bi bi-card-list empty-hint__icon"></i>
-    <div class="empty-hint__text">Выберите страну для просмотра реквизитов</div>
+    <i class="bi bi-diagram-3 empty-hint__icon"></i>
+    <div class="empty-hint__text">Выберите страну для просмотра ОПФ</div>
 </div>
 
-<script src="./_books_orgs/js/requisite_types.js?2026063001"></script>
+<script src="./_books_orgs/js/organization_types.js?2026062604"></script>

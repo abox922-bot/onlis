@@ -85,17 +85,14 @@ switch ($action) {
             exit;
         }
 
+        global $pdo;
         $stmt = fncQuery(
             "INSERT INTO requisite_types
                 (country_id, name, value_type, has_length_control, is_unique, is_bank_only, sort_order, created_by)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [$country_id, $name, $value_type, $has_length_control, $is_unique, $is_bank_only, $sort_order, $user_id]
         );
-        if ($stmt) {
-            $result = ['sccss' => true, 'id' => fncLastId()];
-        } else {
-            $result = ['sccss' => false];
-        }
+        $result = $stmt ? ['sccss' => true, 'id' => $pdo->lastInsertId()] : ['sccss' => false];
         break;
 
     // -------------------------------------------------------------------------
@@ -128,6 +125,178 @@ switch ($action) {
         break;
 
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    case 'organization_types_list':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $country_id = (int)($_POST['country_id'] ?? 0);
+        if (!$country_id) { echo json_encode([]); exit; }
+        $stmt = fncQuery(
+            "SELECT id, name, abbreviation
+             FROM organization_types
+             WHERE country_id = ? AND is_active = 1
+             ORDER BY name",
+            [$country_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_type_info':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT ot.id, ot.name, ot.abbreviation, ot.can_have_bank_account,
+                    ot.is_individual, ot.is_active, c.name AS country_name
+             FROM organization_types ot
+             LEFT JOIN countries c ON c.id = ot.country_id
+             WHERE ot.id = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'new_organization_type':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $country_id            = (int)fncValFind('country-id',             $params);
+        $name                  = fncValFind('type-name',                   $params);
+        $abbreviation           = fncValFind('type-abbreviation',          $params);
+        $can_have_bank_account = (int)fncValFind('can-have-bank-account',  $params);
+        $is_individual          = (int)fncValFind('is-individual',         $params);
+
+        if (!$country_id || !$name || !$abbreviation) {
+            echo json_encode(['sccss' => false]);
+            exit;
+        }
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO organization_types
+                (country_id, name, abbreviation, can_have_bank_account, is_individual, created_by)
+             VALUES (?, ?, ?, ?, ?, ?)",
+            [$country_id, $name, $abbreviation, $can_have_bank_account, $is_individual, $user_id]
+        );
+        $result = $stmt ? ['sccss' => true, 'id' => $pdo->lastInsertId()] : ['sccss' => false];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'upd_organization_type':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id                     = (int)fncValFind('item-id',                $params);
+        $name                   = fncValFind('type-name',                   $params);
+        $abbreviation           = fncValFind('type-abbreviation',           $params);
+        $can_have_bank_account  = (int)fncValFind('can-have-bank-account',  $params);
+        $is_individual          = (int)fncValFind('is-individual',          $params);
+        $is_active              = (int)fncValFind('type-is-active',         $params);
+
+        if (!$id || !$name || !$abbreviation) {
+            echo json_encode(['sccss' => false]);
+            exit;
+        }
+        $stmt = fncQuery(
+            "UPDATE organization_types
+             SET name = ?, abbreviation = ?, can_have_bank_account = ?, is_individual = ?,
+                 updated_by = ?, updated_at = NOW()
+             WHERE id = ?",
+            [$name, $abbreviation, $can_have_bank_account, $is_individual, $user_id, $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_type_requisites_list':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $organization_type_id = (int)($_POST['organization_type_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT otr.id, rt.name, otr.exact_length, otr.is_required
+             FROM organization_type_requisites otr
+             LEFT JOIN requisite_types rt ON rt.id = otr.requisite_type_id
+             WHERE otr.organization_type_id = ?
+             ORDER BY otr.sort_order, rt.name",
+            [$organization_type_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_type_requisites_available':
+        // Реквизиты страны ОПФ, ещё не добавленные в набор
+        if (!fncCan($perms, 'organizations')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $organization_type_id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery("SELECT country_id FROM organization_types WHERE id = ?", [$organization_type_id]);
+        $type_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+        $country_id = $type_row['country_id'] ?? 0;
+
+        $stmt = fncQuery(
+            "SELECT id, name, has_length_control
+             FROM requisite_types
+             WHERE country_id = ?
+               AND id NOT IN (
+                   SELECT requisite_type_id FROM organization_type_requisites
+                   WHERE organization_type_id = ?
+               )
+             ORDER BY name",
+            [$country_id, $organization_type_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'new_organization_type_requisite':
+        if (!fncCan($perms, 'organizations')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $organization_type_id = (int)fncValFind('item-id',       $params);
+        $requisite_type_id    = (int)fncValFind('requisite-id',  $params);
+        $is_required          = (int)fncValFind('is-required',   $params);
+        $exact_length         = fncValFind('exact-length',       $params);
+        $exact_length         = $exact_length === '' ? null : (int)$exact_length;
+
+        if (!$organization_type_id || !$requisite_type_id) {
+            echo json_encode(['sccss' => false]);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "INSERT INTO organization_type_requisites
+                (organization_type_id, requisite_type_id, exact_length, is_required, created_by)
+             VALUES (?, ?, ?, ?, ?)",
+            [$organization_type_id, $requisite_type_id, $exact_length, $is_required, $user_id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'del_organization_type_requisite':
+        if (!fncCan($perms, 'organizations')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)fncValFind('id', $params);
+        if (!$id) { echo json_encode(['sccss' => false]); exit; }
+        $stmt = fncQuery("DELETE FROM organization_type_requisites WHERE id = ?", [$id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
         exit;

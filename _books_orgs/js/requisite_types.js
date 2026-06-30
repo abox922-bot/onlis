@@ -57,7 +57,6 @@ $(function(){
                             fncMyAjax("new_requisite_type", "orgs", crt_arr["params"], 1)
                                 .done(function(data){
                                     if (data.sccss) {
-                                        localStorage.setItem("new_item", data.id);
                                         main_modal.hide();
                                     } else {
                                         fncBtnReset();

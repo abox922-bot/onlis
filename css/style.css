@@ -319,7 +319,39 @@ button:disabled {
     color: #fff;
 }
 
-/* --- 9. TOOLBAR РАЗДЕЛОВ (универсальный) --- */
+/* --- 9. МОДАЛЬНОЕ ОКНО — ТАБЫ --- */
+.inline-tabs {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.inline-tabs::-webkit-scrollbar { display: none; }
+
+.inline-tab {
+    flex-shrink: 0;
+    padding: 7px 16px;
+    border: none;
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+    font-family: var(--bs-body-font-family);
+}
+.inline-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-main);
+}
+.inline-tab.active {
+    background: var(--accent-color);
+    color: #fff;
+}
+
+/* --- 10. TOOLBAR РАЗДЕЛОВ (универсальный) --- */
 .section-toolbar {
     display: flex;
     align-items: center;
@@ -362,7 +394,7 @@ button:disabled {
 }
 .btn-label { font-size: 0.85rem; }
 
-/* --- 10. ПУСТОЕ СОСТОЯНИЕ (универсальное) --- */
+/* --- 11. ПУСТОЕ СОСТОЯНИЕ (универсальное) --- */
 .empty-hint {
     text-align: center;
     padding: 48px 20px;
@@ -382,7 +414,8 @@ button:disabled {
     display: block;
     margin-bottom: 12px;
 }
-/* --- 11. TOM SELECT --- */
+
+/* --- 12. TOM SELECT --- */
 .ts-wrapper { width: 100%; }
 .ts-control {
     border: 1px solid #e0e0e0 !important;
@@ -432,7 +465,7 @@ button:disabled {
     max-width: calc(100% - 30px);
 }
 
-/* --- 12. МЕДИАЗАПРОСЫ --- */
+/* --- 13. МЕДИАЗАПРОСЫ --- */
 @media (min-width: 768px) {
     .auth-card { max-width: 400px; margin: 0 auto; }
 }
