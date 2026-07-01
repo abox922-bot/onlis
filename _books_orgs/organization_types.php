@@ -16,7 +16,7 @@ if (!is_array($countries) || isset($countries['sccss'])) {
 <div class="section-toolbar">
 
     <select class="toolbar-filter" id="slctCountry">
-        <option value="0">Выберите страну</option>
+        <option value="">Выберите страну</option>
         <?php foreach ($countries as $country): ?>
             <option value="<?php echo $country['id']; ?>">
                 <?php echo htmlspecialchars($country['name']); ?>
@@ -43,4 +43,4 @@ if (!is_array($countries) || isset($countries['sccss'])) {
     <div class="empty-hint__text">Выберите страну для просмотра ОПФ</div>
 </div>
 
-<script src="./_books_orgs/js/organization_types.js?2026062604"></script>
+<script src="./_books_orgs/js/organization_types.js?2026070100"></script>

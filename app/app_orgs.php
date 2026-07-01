@@ -297,6 +297,201 @@ switch ($action) {
         $stmt = fncQuery("DELETE FROM organization_type_requisites WHERE id = ?", [$id]);
         $result = ['sccss' => (bool)$stmt];
         break;
+
+    // -------------------------------------------------------------------------
+    case 'new_organization_info':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $org_type  = $_POST['org_type'] ?? 'my';
+        $countries = [];
+        $types     = [];
+
+        $stmt = fncQuery(
+            "SELECT id, name FROM countries ORDER BY name"
+        );
+        $countries = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        // Для банков — только ОПФ с can_have_bank_account = 1
+        if ($org_type === 'bank') {
+            $stmt = fncQuery(
+                "SELECT id, name, abbreviation, country_id
+                 FROM organization_types
+                 WHERE is_active = 1 AND can_have_bank_account = 1
+                 ORDER BY name"
+            );
+        } else {
+            $stmt = fncQuery(
+                "SELECT id, name, abbreviation, country_id
+                 FROM organization_types
+                 WHERE is_active = 1
+                 ORDER BY name"
+            );
+        }
+        $types  = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $result = ['countries' => $countries, 'types' => $types];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organizations_list':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $org_type = $_POST['org_type'] ?? 'my';
+
+        if ($org_type === 'my') {
+            $where = "o.is_contractor = 0 AND o.is_bank = 0";
+        } elseif ($org_type === 'contractor') {
+            $where = "o.is_contractor = 1";
+        } elseif ($org_type === 'bank') {
+            $where = "o.is_bank = 1";
+        } else {
+            $where = "o.is_contractor = 0 AND o.is_bank = 0";
+        }
+
+        $stmt = fncQuery(
+            "SELECT o.id, o.name, o.short_name, ot.abbreviation, ot.is_individual
+             FROM organizations o
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             WHERE {$where} AND o.is_active = 1
+             ORDER BY o.name"
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        foreach ($rows as &$row) {
+            if ($row['is_individual']) {
+                $row['display_name'] = $row['abbreviation'] . ' ' . $row['name'];
+            } else {
+                $row['display_name'] = $row['abbreviation'] . ' «' . $row['name'] . '»';
+            }
+        }
+        $result = $rows;
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_info':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT o.id, o.name, o.short_name, o.phone, o.email, o.website,
+                    o.is_contractor, o.is_bank, o.is_active,
+                    ot.id AS type_id, ot.name AS type_name, ot.abbreviation, ot.is_individual,
+                    c.id AS country_id, c.name AS country_name,
+                    c.phone_code, c.phone_mask
+             FROM organizations o
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             LEFT JOIN countries c ON c.id = o.country_id
+             WHERE o.id = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_type_requisites_new_form':
+        // Реквизиты ОПФ для формы создания организации
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $type_id  = (int)($_POST['type_id'] ?? 0);
+        $org_type = $_POST['org_type'] ?? 'my';
+
+        $stmt = fncQuery(
+            "SELECT otr.id, otr.requisite_type_id, otr.exact_length, otr.is_required,
+                    rt.name, rt.value_type, rt.has_length_control, rt.is_unique, rt.is_bank_only
+             FROM organization_type_requisites otr
+             LEFT JOIN requisite_types rt ON rt.id = otr.requisite_type_id
+             WHERE otr.organization_type_id = ?
+             ORDER BY otr.sort_order, rt.name",
+            [$type_id]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        // Если не банк — исключаем банковские реквизиты
+        if ($org_type !== 'bank') {
+            $rows = array_filter($rows, function($r) {
+                return !$r['is_bank_only'];
+            });
+        }
+        $result = array_values($rows);
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'new_organization':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $org_name      = fncValFind('org-name',          $params);
+        $type_id       = (int)fncValFind('org-type-id',  $params);
+        $country_id    = (int)fncValFind('org-country-id', $params);
+        $is_contractor = (int)fncValFind('org-is-contractor', $params);
+        $is_bank       = (int)fncValFind('org-is-bank',   $params);
+        $reqs_list     = fncValFind('reqs-list',          $params);
+
+        if (!$org_name || !$type_id || !$country_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        // Проверка уникальности реквизитов
+        if (is_array($reqs_list)) {
+            foreach ($reqs_list as $req) {
+                if (!empty($req['uniq']) && !empty($req['value'])) {
+                    $stmt = fncQuery(
+                        "SELECT id FROM organization_requisites
+                         WHERE requisite_type_id = ? AND value = ?",
+                        [(int)$req['id'], $req['value']]
+                    );
+                    if ($stmt && $stmt->fetch()) {
+                        echo json_encode([
+                            'sccss' => false,
+                            'msg'   => 'Реквизит уже используется другой организацией'
+                        ]);
+                        exit;
+                    }
+                }
+            }
+        }
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO organizations
+                (organization_type_id, country_id, name, is_contractor, is_bank, created_by)
+             VALUES (?, ?, ?, ?, ?, ?)",
+            [$type_id, $country_id, $org_name, $is_contractor, $is_bank, $user_id]
+        );
+
+        if (!$stmt) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка при создании организации']);
+            exit;
+        }
+
+        $org_id = (int)$pdo->lastInsertId();
+
+        // Сохраняем реквизиты
+        if (is_array($reqs_list)) {
+            foreach ($reqs_list as $req) {
+                if (!empty($req['value'])) {
+                    fncQuery(
+                        "INSERT INTO organization_requisites
+                            (organization_id, requisite_type_id, value, created_by)
+                         VALUES (?, ?, ?, ?)",
+                        [$org_id, (int)$req['id'], $req['value'], $user_id]
+                    );
+                }
+            }
+        }
+
+        $result = ['sccss' => true, 'id' => $org_id];
+        break;
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
         exit;

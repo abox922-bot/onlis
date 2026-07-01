@@ -35,7 +35,7 @@ $cntrl  = ($result && !empty($result['cntrl'])) ? $result['cntrl'] : null;
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
-        <link rel="stylesheet" href="./css/style.css?2026063000">
+        <link rel="stylesheet" href="./css/style.css?2026070101">
     </head>
     <body>
         <div class="section d-flex flex-column justify-content-start container auth-container" id="mainContainer">
@@ -52,6 +52,6 @@ $cntrl  = ($result && !empty($result['cntrl'])) ? $result['cntrl'] : null;
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.min.js" integrity="sha384-G/EV+4j2dNv+tEPo3++6LCgdCROaejBqfUeNjuKAiuXbjrxilcCdDz6ZAVfHWe1Y" crossorigin="anonymous"></script>
         <script src="https://cdn.jsdelivr.net/npm/tom-select@2.4.3/dist/js/tom-select.complete.min.js"></script>
         <script src="./min_js/jquery.mask.min.js"></script>
-        <script src="./js/index.js?2026062300"></script>
+        <script src="./js/index.js?2026070100"></script>
     </body>
 </html>

@@ -5,8 +5,6 @@ $(function(){
     }
 
     window.countryPicker = new TomSelect("#slctCountry", {
-        placeholder: "Выберите страну",
-        allowEmptyOption: true,
         maxOptions: null,
         wrapperClass: "ts-wrapper toolbar-filter",
         plugins: ["clear_button"],

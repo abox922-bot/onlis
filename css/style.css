@@ -25,6 +25,7 @@ body {
 /* --- 2. BOOTSTRAP OVERRIDES --- */
 .table { --bs-table-bg: var(--card-bg); color: var(--text-main); }
 .modal-content { background-color: var(--card-bg); color: var(--text-main); border: 1px solid var(--border-color); }
+.modal-body {min-height: 300px;}
 .card { --bs-card-bg: var(--card-bg); border-color: var(--border-color); }
 .list-group { --bs-list-group-bg: var(--card-bg); }
 
@@ -273,6 +274,14 @@ button:disabled {
     border-radius: 4px;
     flex-shrink: 0;
     display: inline-block;
+}
+.form-error-msg {
+    font-size: 0.85rem;
+    color: var(--bs-danger);
+    padding: 6px 10px;
+    border-left: 3px solid var(--bs-danger);
+    background: rgba(220, 53, 69, 0.05);
+    border-radius: 4px;
 }
 
 /* --- 8. МОДУЛЬ — ОБОЛОЧКА И ТАБЫ --- */

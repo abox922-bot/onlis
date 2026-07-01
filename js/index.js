@@ -250,3 +250,13 @@ function canDo(slug) {
     return false;
 }
 //==============================================================================
+function fncShowFormError(msg) {
+    $("#spnFormError").html(msg);
+    $("#divFormError").removeClass("d-none");
+}
+//==============================================================================
+function fncHideFormError() {
+    $("#divFormError").addClass("d-none");
+    $("#spnFormError").html("");
+}
+//==============================================================================
