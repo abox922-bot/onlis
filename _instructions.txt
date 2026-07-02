@@ -5,9 +5,9 @@
 Текущая задача: полная разработка с нуля. Связь со старой системой/БД не рассматривается ни в каком виде (включая синхронизацию через триггеры) — эта идея уже была отклонена.
 Главная задача при создании интерфейсов — максимально возможный уровень UI и UX.
 
-=======================================================================
+================================================================================
 Принципы БД
-=======================================================================
+================================================================================
 
 utf8mb4 везде, TINYINT(1) для флагов, DECIMAL(10,2) для денег, created_at / created_by / updated_at / updated_by на каждой таблице (там где необходимо исходя из логики), полные имена без аббревиатур, файлы и изображения не хранятся в БД.
 updated_at и updated_by — NULL по умолчанию (NULL означает «запись ни разу не редактировалась»). FK для created_by / updated_by ссылаются на users.id.
@@ -22,16 +22,16 @@ users.id = INT(10) UNSIGNED — все FK на users (created_by, updated_by, us
 countries.id = INT(10) UNSIGNED — все FK на countries (country_id и аналоги) должны быть INT(10) UNSIGNED.
 Несовпадение типов FK вызывает ошибку MySQL 1215 Cannot add foreign key constraint.
 
-=======================================================================
+================================================================================
 Файлы фундамента
-=======================================================================
+================================================================================
 
 app/includes/config.php — константы конфигурации клиента
 app/includes/db.php — PDO соединение с БД ($pdo создаётся в глобальной области)
 app/includes/fncs.php — fncQuery, fncLog, fncValFind, fncLoadPermissions, fncCan
 app/includes/paths.php — маршруты API модулей
 app/includes/request.php — внутренние cURL запросы (send_request)
-app/includes/session_guard.php — проверка сессии (fncRequireSession). Подключает fncs.php — fncCan доступна везде где подключён session_guard.php
+app/includes/session_guard.php — проверка сессии (fncRequireSession). Подключает request.php и fncs.php — send_request и fncCan доступны везде где подключён session_guard.php
 app/app.php — основной API (auth, sessions). in_cntrl возвращает {sccss, user, user_name, rules, today}
 index.php — точка входа SPA
 main_request_modules.php — прокси запросов с фронта
@@ -39,14 +39,14 @@ modules_map.php — реестр модулей (folder, sections: key/title/fil
 menu_map.php — реестр пунктов меню (группы и одиночные пункты с slug для проверки прав, module для загрузки)
 main_module.php — универсальная оболочка модуля с табами. Фильтрует разделы по правам, определяет default после фильтрации.
 sse.php — SSE соединение
-js/index.js — fncMyAjax, fncParamsCrt, fncItemCrt, fncNormalizeInp, fncSetupToken, fncBtnReset, fncCheckNewItem, canDo
+js/index.js — fncMyAjax, fncParamsCrt, fncItemCrt, fncNormalizeInp, fncSetupToken, fncBtnReset, fncCheckNewItem, canDo, fncShowFormError, fncHideFormError
 _main.php — каркас SPA после авторизации (содержит #divScrollArea, #divMainContent, #sectionHeader, #mainModal, #modalOffcanvas, #myOffcanvas). Меню строится динамически через menu_map.php с проверкой прав.
 js/_main.js — логика каркаса (fncChptLoad, fncBookNav, searchFunction). Инстансы: main_modal, modalOffcanvas, myOffcanvas (все через bootstrap.Modal/Offcanvas).
 css/style.css — базовые стили и универсальные компоненты
 
-=======================================================================
+================================================================================
 Реальные функции fncs.php (важно — не выдумывать несуществующие)
-=======================================================================
+================================================================================
 
 fncValFind(string $search_name, array $params) — поиск значения параметра по имени
 fncLog(string $text) — запись в лог
@@ -62,9 +62,9 @@ $result = $stmt ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()] : ['sccss
 
 global $pdo; нужно объявлять в каждом case/блоке где используется $pdo->lastInsertId() — $pdo создан в глобальной области db.php, доступ из функции/блока требует global.
 
-=======================================================================
+================================================================================
 Система прав доступа (RBAC)
-=======================================================================
+================================================================================
 
 Модель: Permission (slug) → Role (набор slug) → User (роль + опц. точка).
 
@@ -134,13 +134,13 @@ in_cntrl проверяет is_active до загрузки прав. Забло
 
 // menu_map.php — структура меню
 return [
-    'dashboard' => [           // одиночный пункт без прав (доступен всем)
+    'dashboard' => [
         'title'  => 'Главная',
         'icon'   => 'bi-house',
         'single' => true,
         'module' => 'main',
     ],
-    'reference' => [           // группа с проверкой прав
+    'reference' => [
         'title' => 'Справочники',
         'icon'  => 'bi-journal-bookmark',
         'items' => [
@@ -156,7 +156,6 @@ slug — для проверки прав. module — для загрузки р
 
 Разделы модуля (modules_map.php + main_module.php):
 
-// modules_map.php — slug на уровне раздела
 'geography' => [
     'folder'   => '_books_geo',
     'sections' => [
@@ -206,7 +205,6 @@ $(function(){
 
     if (canDo('module.edit')) {
         $("#btnFastNew").click(function(){
-            // открытие модалки
             $("#mainModalBody").load(path.href, function(){
                 if (!canDo('module.edit')) {
                     $("#btnSave").hide();
@@ -220,7 +218,6 @@ $(function(){
 });
 
 function infoLoadFunction(item_id) {
-    // открытие модалки
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
         if (!canDo('module.edit')) {
             $("#btnSave").hide();
@@ -238,9 +235,9 @@ if (!is_array($result) || isset($result['sccss'])) {
     $result = [];
 }
 
-=======================================================================
+================================================================================
 Архитектура загрузки модулей
-=======================================================================
+================================================================================
 
 Единый main_module.php, реестр в modules_map.php. Пункты меню несут только data-module и data-ttl. Раздел по умолчанию — флаг 'default'.
 fncRequireSession() обязателен в каждом PHP-фрагменте, загружаемом через .load(). HTTP-статус всегда 200 — jQuery .load() вставляет тело только при 2xx.
@@ -250,58 +247,96 @@ fncRequireSession() обязателен в каждом PHP-фрагменте,
 Разделы переключаются через табы. В main_module.php генерируются кнопки .module-tab с data-target. fncBookNav() в _main.js обрабатывает клики: переключает класс active, скроллит таб в зону видимости (scrollIntoView), скроллит страницу вверх через #divScrollArea, загружает раздел через .load().
 При одном разделе в модуле табы не отображаются — раздел загружается сразу.
 
-=======================================================================
+================================================================================
 Модальные окна и Offcanvas
-=======================================================================
+================================================================================
 
-#mainModal — основная модалка (bootstrap.Modal, инстанс main_modal). Заголовок #mainModalLabel, тело #mainModalBody. Открывается через main_modal.show() сразу после установки спиннера, до .load().
+#mainModal — основная модалка (bootstrap.Modal, инстанс main_modal). Заголовок #mainModalLabel, тело #mainModalBody. Открывается через main_modal.show() сразу после установки спиннера, до .load(). min-height модалки задан через .modal-body { min-height: 300px; } в style.css.
 
-#modalOffcanvas — выезжающая панель ВНУТРИ #mainModal (bootstrap.Offcanvas, инстанс modalOffcanvas). Заголовок #modalOffcanvasLabel, тело #modalOffcanvasBody. Используется для вложенных мини-форм поверх уже открытой карточки (например — добавление реквизита в набор ОПФ, не закрывая карточку ОПФ). Паттерн открытия идентичен главной модалке: установить спиннер в body, заголовок, modalOffcanvas.show(), затем .load(). Закрывается своим штатным крестиком (data-bs-dismiss="offcanvas") — отдельная кнопка закрытия в разметке не нужна. Скрывать через modalOffcanvas.hide() после успешного сохранения.
+#modalOffcanvas — выезжающая панель ВНУТРИ #mainModal (bootstrap.Offcanvas, инстанс modalOffcanvas). Заголовок #modalOffcanvasLabel, тело #modalOffcanvasBody. Используется для вложенных мини-форм поверх уже открытой карточки. Паттерн открытия: установить спиннер в body, заголовок, modalOffcanvas.show(), затем .load(). Закрывается своим штатным крестиком — отдельная кнопка закрытия не нужна. Скрывать через modalOffcanvas.hide() после успешного сохранения.
 
 #myOffcanvas — боковое меню навигации (bootstrap.Offcanvas, инстанс myOffcanvas). Не используется в логике модулей напрямую.
 
-=======================================================================
+================================================================================
+Паттерн обратной связи при ошибке
+================================================================================
+
+Стандарт для всех форм — зона ошибки внутри формы + подсветка конкретного поля.
+
+Разметка (добавляется перед кнопкой сохранения в каждой форме):
+
+<div class="col-12 mt-2 d-none" id="divFormError">
+    <div class="form-error-msg" id="spnFormError"></div>
+</div>
+
+CSS в style.css:
+
+.form-error-msg {
+    font-size: 0.85rem;
+    color: var(--bs-danger);
+    padding: 6px 10px;
+    border-left: 3px solid var(--bs-danger);
+    background: rgba(220, 53, 69, 0.05);
+    border-radius: 4px;
+}
+
+Глобальные JS-утилиты в js/index.js:
+
+function fncShowFormError(msg) {
+    $("#spnFormError").html(msg);
+    $("#divFormError").removeClass("d-none");
+}
+
+function fncHideFormError() {
+    $("#divFormError").addClass("d-none");
+    $("#spnFormError").html("");
+}
+
+Использование: fncHideFormError() вызывается перед main_modal.show() (не внутри .load() колбэка). fncShowFormError(data.msg) вызывается в .done() при data.sccss === false. Сервер возвращает { sccss: false, msg: 'Текст ошибки' }.
+
+================================================================================
 Универсальные CSS-компоненты (css/style.css)
-=======================================================================
+================================================================================
 
 .module-shell — оболочка модуля (белая карточка с тенью, overflow: hidden).
 .module-tabs — строка табов с горизонтальным скроллом на мобильной версии.
-.module-tab — кнопка таба РАЗДЕЛОВ МОДУЛЯ. .module-tab.active — активный таб (чёрный фон). Обрабатывается ГЛОБАЛЬНО через fncBookNav() в _main.js (переключение разделов модуля через AJAX .load()). НЕ использовать этот класс для табов внутри модалок/карточек — будет конфликт с глобальным обработчиком.
+.module-tab — кнопка таба РАЗДЕЛОВ МОДУЛЯ. Обрабатывается ГЛОБАЛЬНО через fncBookNav() в _main.js. НЕ использовать для табов внутри модалок/карточек — конфликт с глобальным обработчиком.
 .section-toolbar — универсальный toolbar раздела (flex, flex-wrap для адаптивности).
-.toolbar-filter — селект-фильтр в toolbar. Используется БЕЗ класса form-in. Tom Select инициализируется на нём в JS.
+.toolbar-filter — селект-фильтр в toolbar. БЕЗ класса form-in. Tom Select инициализируется на нём в JS.
 .toolbar-search — обёртка поля поиска с иконкой лупы.
 .toolbar-search__icon — иконка лупы внутри поля.
-.toolbar-add — кнопка добавления записи. ВСЕГДА используется вместе с btn-action-main: class="btn-action-main toolbar-add".
-.btn-label — текст кнопки, скрывается на мобильной версии (display: none при max-width: 767px).
-.custom-dropdown — обёртка кастомного dropdown (поиск по большому справочнику). Используется Tom Select.
-.empty-hint — блок пустого состояния (нет данных / не выбран фильтр).
-.empty-hint__icon — иконка пустого состояния (Bootstrap Icons, font-size: 2rem).
+.toolbar-add — кнопка добавления. ВСЕГДА вместе с btn-action-main: class="btn-action-main toolbar-add".
+.btn-label — текст кнопки, скрывается на мобильной версии.
+.custom-dropdown — обёртка Tom Select для поиска по большому справочнику.
+.empty-hint — блок пустого состояния.
+.empty-hint__icon — иконка (Bootstrap Icons, font-size: 2rem).
 .empty-hint__text — текст подсказки.
-.form-context — блок контекстной информации над формой (хлебные крошки: Страна › Регион). Левый бордер var(--accent-color), без фона, font-size: 1rem, font-weight: 700. Всегда выносится в отдельный col-12 перед полями формы. Заменяет disabled-поля.
-.form-group-label — метка смысловой группы полей внутри формы (мелкий uppercase текст).
+.form-context — контекстная информация над формой (левый бордер var(--accent-color), без фона, font-size: 1rem, font-weight: 700). Заменяет disabled-поля. Всегда в отдельном col-12.
+.form-group-label — метка смысловой группы полей (мелкий uppercase текст).
+.form-error-msg — зона отображения ошибки формы (см. раздел «Паттерн обратной связи при ошибке»).
+.modal-body { min-height: 300px; } — минимальная высота модалки, чтобы dropdown Tom Select не обрезался.
+.input-group > .form-in { flex: 1 1 auto; width: 1% !important; border-left: none !important; margin: 0 !important; } — корректное поведение form-in внутри input-group (например поле названия с префиксом ОПФ).
 
-.inline-tabs / .inline-tab / .inline-tab-pane — универсальный паттерн вкладок ВНУТРИ модалки/карточки (для сущностей с несколькими блоками информации — Общая/Реквизиты/Адрес/Счета и т.п.). Визуально идентичен .module-tab (тот же чёрный active-фон через var(--accent-color)), но НЕ использует .module-tab класс и не завязан на fncBookNav() — простой локальный JS-обработчик клика (toggle active + d-none на .inline-tab-pane), без Bootstrap nav-tabs JS, без AJAX-подгрузки. Применять каждый раз когда карточка сущности содержит несколько смысловых блоков.
+.inline-tabs / .inline-tab / .inline-tab-pane — вкладки ВНУТРИ модалки/карточки. Визуально идентичны .module-tab (чёрный active-фон через var(--accent-color)). Переключение через локальный JS-обработчик + .load() при каждом клике (контент подгружается динамически, не скрывается/показывается). НЕ использовать .module-tab.
 
-Пример разметки .inline-tabs:
+Пример разметки .inline-tabs (карточка организации):
 
 <div class="inline-tabs mb-3">
-    <button type="button" class="inline-tab active" data-target="#info">Общая</button>
-    <button type="button" class="inline-tab" data-target="#reqs">Реквизиты</button>
+    <button type="button" class="inline-tab active" data-target="main">Основная</button>
+    <button type="button" class="inline-tab" data-target="address">Адрес</button>
 </div>
+<div id="divOrgInfoContent"></div>
 
-<div id="info" class="inline-tab-pane">...</div>
-<div id="reqs" class="inline-tab-pane d-none">...</div>
-
-Пример JS-переключателя (внутри infoLoadFunction, после .load()):
+Пример JS-переключателя с подгрузкой контента:
 
 $(".inline-tab").off("click").on("click", function(){
     $(".inline-tab").removeClass("active");
     $(this).addClass("active");
-    $(".inline-tab-pane").addClass("d-none");
-    $($(this).data("target")).removeClass("d-none");
+    fncOrgTabLoad(item_id, org_type, $(this).data("target"));
 });
+fncOrgTabLoad(item_id, org_type, "main"); // загружаем первую вкладку сразу
 
-Эталонный пример toolbar без фильтра (раздел без предварительного выбора):
+Эталонный пример toolbar без фильтра:
 
 <div class="section-toolbar">
     <div class="toolbar-search">
@@ -314,7 +349,7 @@ $(".inline-tab").off("click").on("click", function(){
     </button>
 </div>
 
-Эталонный пример toolbar с фильтром по стране (Tom Select, список до выбора скрыт):
+Эталонный пример toolbar с фильтром по стране:
 
 <div class="section-toolbar">
     <select class="toolbar-filter" id="slctCountry">
@@ -342,32 +377,33 @@ $(".inline-tab").off("click").on("click", function(){
     <div class="empty-hint__text">Подсказка что делать</div>
 </div>
 
-Иконки в toolbar и empty-hint — Bootstrap Icons (bi bi-*). Inline SVG не использовать.
+Иконки — Bootstrap Icons (bi bi-*). Inline SVG не использовать.
 
-=======================================================================
+================================================================================
 Tom Select — стандарт для полей с поиском по большому справочнику
-=======================================================================
+================================================================================
 
-Tom Select используется вместо кастомных dropdown-решений. Подключается через CDN в index.php. Инициализируется на <select> элементе.
-В toolbar фильтр страны всегда через Tom Select (не обычный select).
+Tom Select используется вместо кастомных dropdown-решений. Подключается через CDN в index.php.
 
-let picker = new TomSelect("#slctElement", {
-    placeholder: "Выберите...",
-    allowEmptyOption: false,
+ВАЖНО: НЕ использовать параметры placeholder: и allowEmptyOption: в конфиге Tom Select.
+Для placeholder достаточно первого пустого option в разметке:
+<option value="">Выберите страну</option>
+Tom Select сам подхватывает его как placeholder.
+
+ВАЖНО: НЕ добавлять класс form-inp на <select> который инициализируется через Tom Select — Tom Select копирует классы на свой .ts-wrapper, и fncParamsCrt захватит обёртку вместо поля. Значение Tom Select передавать вручную через params_arr.push({name: "...", value: picker.getValue()}).
+
+Пример инициализации в toolbar (фильтр по стране):
+
+window.countryPicker = new TomSelect("#slctCountry", {
     maxOptions: null,
     wrapperClass: "ts-wrapper toolbar-filter",
     plugins: ["clear_button"],
-    render: {
-        item: function(data, escape) {
-            return `<div class="item">${escape(data.text)}</div>`;
-        }
-    },
     onChange: function(value) {
         if (value) {
             $("#divEmptyHint").addClass("d-none");
             $("#btnFastNew").prop("disabled", false);
             listLoadFunction(value);
-            picker.blur();
+            window.countryPicker.blur();
         } else {
             $("#divChptContent").addClass("d-none").html("");
             $("#divEmptyHint").removeClass("d-none");
@@ -376,47 +412,36 @@ let picker = new TomSelect("#slctElement", {
     }
 });
 
-При динамической загрузке через .load() объявлять через window.picker чтобы избежать ошибки redeclaration:
+При динамической загрузке через .load() — window.picker чтобы избежать redeclaration:
 
 if (window.picker) window.picker.destroy();
 window.picker = new TomSelect("#slctElement", { ... });
 
-Стили Tom Select переопределены в css/style.css (секция 11) под дизайн-систему проекта.
+Стили Tom Select переопределены в css/style.css под дизайн-систему проекта.
 
-=======================================================================
+================================================================================
 Стандарт главного файла раздела (_books_X/section.php)
-=======================================================================
+================================================================================
 
 <?php
 require_once('../app/includes/session_guard.php');
 fncRequireSession();
-// $ses_info + send_request только если нужны данные для toolbar (селекты фильтров)
-// Данные других модулей запрашиваются через соответствующий модуль:
+// $ses_info + send_request только если нужны данные для toolbar
+// Данные других модулей — через соответствующий модуль:
 // список стран → send_request(..., 'geo')
 // список организаций → send_request(..., 'orgs')
 ?>
-<div class="section-toolbar">
-    <!-- .toolbar-filter селекты если есть (без form-in) -->
-    <!-- Tom Select если нужен поиск по большому справочнику -->
-    <!-- .toolbar-search с иконкой bi-search -->
-    <!-- .btn-action-main .toolbar-add кнопка с bi-plus-lg + .btn-label -->
-</div>
-
+<div class="section-toolbar">...</div>
 <div id="divChptContent"></div>
-
-<div class="empty-hint" id="divEmptyHint">
-    <i class="bi bi-[icon] empty-hint__icon"></i>
-    <div class="empty-hint__text">Подсказка что делать</div>
-</div>
-
+<div class="empty-hint" id="divEmptyHint">...</div>
 <script src="./_books_X/js/section.js?version"></script>
 
-divChptContent стартует без d-none если контент грузится сразу (нет фильтра). Стартует с d-none если нужен фильтр перед показом списка.
+divChptContent стартует без d-none если контент грузится сразу. Стартует с d-none если нужен фильтр.
 divEmptyHint стартует видимым если нужен фильтр. Скрывается JS при выборе фильтра.
 
-=======================================================================
+================================================================================
 Стандарт PHP-фрагментов (_books_X/)
-=======================================================================
+================================================================================
 
 Каждый файл начинается:
 
@@ -432,15 +457,19 @@ $ses_info = [
 ];
 
 При выводе любых данных из БД или $_POST — обязателен htmlspecialchars().
-Теги <script> только в главном файле раздела (section.php) — никогда в _new и _info.
-_new.php и _info.php НЕ дублируют логику send_request с проверкой cookie вручную — используют общий паттерн $ses_info + send_request как в section.php.
 
-=======================================================================
+Теги <script> — правило и исключение:
+- ОБЩЕЕ ПРАВИЛО: <script> только в главном файле раздела (section.php) — никогда в _new и _info.
+- ИСКЛЮЧЕНИЕ: вкладки карточки сложных сущностей (например organization_info_*.php) могут иметь собственный <script> с JS-файлом вкладки, если логика вкладки достаточно объёмна чтобы не раздувать основной JS-файл раздела до нечитаемого размера. Каждый такой файл имеет свой JS: organization_info_main.js, organization_info_address.js, organization_info_accs.js и т.д.
+
+_new.php и _info.php НЕ дублируют логику проверки сессии вручную — используют fncRequireSession().
+
+================================================================================
 Стандарт форм — разметка
-=======================================================================
+================================================================================
 
 Два типа форм: formNew (создание), formInfo (редактирование).
-Контекстная информация (страна, регион, город) — через .form-context в отдельном col-12 перед полями, не через disabled-поля:
+Контекстная информация — через .form-context в отдельном col-12, не через disabled-поля:
 
 <div class="col-12">
     <div class="form-context">
@@ -456,21 +485,12 @@ data-name="..." — ключ параметра на сервер
 data-type="..." — тип валидации
 data-required="1" — если поле обязательное
 data-length="N" — если значение должно быть ровно N символов
-data-phone-code="..." — для типа phone, код страны для обрезки
-data-phone-mask="..." — для типа phone, маска для подсчёта ожидаемой длины
 
-Пример:
-
-<input type="text"
-    class="form-in form-inp"
-    data-name="reg-code"
-    data-type="digits_only"
-    data-required="1"
-    data-length="2">
-
-Классы: form-in для инпутов и селектов, my-input-label для label. Не использовать form-control, form-select, form-label.
+Классы: form-in для инпутов и селектов, my-input-label для label.
+Не использовать: form-control, form-select, form-label.
 Первая опция select всегда value="0" с текстом-подсказкой.
-placeholder используется там где нужна подсказка по формату (например маска телефона, часовой пояс).
+Поля Tom Select — БЕЗ form-inp на <select>, значение передаётся вручную через params_arr.
+
 Кнопка сохранения — всегда:
 
 <button type="submit" class="btn-action-main" id="btnSave">
@@ -478,15 +498,19 @@ placeholder используется там где нужна подсказка
     <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
 </button>
 
-Layout формы определяется контентом и контекстом — анализируется количество полей, их смысловые связи, приоритет визуального веса, поведение на мобильной версии. Bootstrap-сетка — инструмент, а не шаблон.
+Зона ошибки — всегда перед кнопкой сохранения:
 
-Условное отображение/доступность поля в зависимости от выбора в другом поле (например select меняет видимость блока) — решается на стороне PHP при первичном рендере (через классы d-none / disabled на основе данных из БД), чтобы избежать визуального мигания при .load(). JS-обработчик (change) добавляется отдельно только для живой реакции при ручном изменении поля пользователем уже после загрузки формы — без автоматического вызова при открытии (без trigger("change") на старте), если не оговорено иное.
+<div class="col-12 mt-2 d-none" id="divFormError">
+    <div class="form-error-msg" id="spnFormError"></div>
+</div>
 
-=======================================================================
+Layout определяется контентом — анализируется группировка полей по смыслу, визуальные отступы (mb-3 между смысловыми блоками), поведение на мобильной версии.
+
+Условное отображение поля в зависимости от другого поля — решается PHP при рендере (d-none / disabled на основе данных из БД), чтобы избежать мигания. JS-обработчик (change) — только для живой реакции при ручном изменении, без trigger("change") при загрузке.
+
+================================================================================
 Стандарт форм — data-type и валидация
-=======================================================================
-
-Правило валидации: required добавляет только проверку на пустоту. Правила формата применяются всегда когда в поле есть хоть что-то. Если поле не required и пустое — ошибки нет, передаётся пустое значение.
+================================================================================
 
 text — убирает HTML-теги. required + пустое → ошибка.
 digits_only — только цифры. required + пустое → ошибка.
@@ -498,23 +522,22 @@ select — значение ≠ 0 (всегда).
 check — возвращает 1 или 0.
 phone — только цифры, обрезает код страны. Длина совпадает с маской — всегда когда не пустое.
 
-При ошибке валидации поле получает класс is-invalid (стиль в style.css). Поле подсвечивается до следующей попытки отправки.
+При ошибке валидации поле получает класс is-invalid.
 
-=======================================================================
+================================================================================
 Стандарт JS — файл раздела
-=======================================================================
+================================================================================
 
 Структура файла:
 
-// Глобальные переменные если нужны (Tom Select и т.п.)
-// Использовать window.picker вместо let picker для избежания redeclaration
+// window.picker — глобальные Tom Select инстансы
 
 $(function(){
     // Проверка прав — скрытие btnFastNew
-    // Инициализация Tom Select если есть
-    // Обработчики фильтров (change на селектах)
-    // Обработчик btnFastNew (только если canDo)
-    // Первичная загрузка списка если нет фильтра
+    // Инициализация Tom Select
+    // Обработчики фильтров
+    // Обработчик btnFastNew
+    // Первичная загрузка списка
 });
 
 function listLoadFunction(...args) { ... }
@@ -526,17 +549,18 @@ $(function(){ вместо $(document).ready(function(){
 $(this).data("id") вместо $(this).attr("data-id")
 .itemName[data-id="${item_id}"] — кавычки вокруг значения обязательны
 fncMyAjax — не $.ajax напрямую
-confirm() — только при удалении записей, нигде больше
-fncCheckNewItem(infoLoadFunction) — в конце listLoadFunction (если нужен auto-open новой записи; если решено не открывать новую запись автоматически — не добавлять)
-.off("click").on("click", ...) — при повторной привязке обработчиков в listLoadFunction и searchFunction для предотвращения накопления
+confirm() — только при удалении записей
+fncCheckNewItem(infoLoadFunction) — только если нужен auto-open новой записи
+.off("click").on("click", ...) — при повторной привязке обработчиков
 
-infoLoadFunction — обязательный паттерн. Модальное окно открывается сразу со спиннером, не ждёт загрузки контента:
+infoLoadFunction — обязательный паттерн:
 
 function infoLoadFunction(item_id) {
     let item_name = $(`.itemName[data-id="${item_id}"]`).html();
     $("#mainModalBody").html(spnr_loading);
-    $("#mainModalLabel").html(`...${item_name}`);
-    main_modal.show(); // ← сразу, до загрузки
+    $("#mainModalLabel").html(item_name);
+    fncHideFormError(); // ← до show()
+    main_modal.show();  // ← сразу, до загрузки
     let path = new URL("./_books_X/item_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
         if (!canDo('module.edit')) {
@@ -554,7 +578,6 @@ $("#formNew").submit(function(e) {
     e.preventDefault();
     e.stopImmediatePropagation();
     let params_arr = [];
-    params_arr.push({name: "key", value: value});
     let crt_arr = fncParamsCrt(".form-inp", params_arr);
     if (crt_arr["all_good"]) {
         $("#btnSave").prop("disabled", true);
@@ -565,37 +588,26 @@ $("#formNew").submit(function(e) {
                     main_modal.hide();
                 } else {
                     fncBtnReset();
+                    fncShowFormError(data.msg ?? "Проверьте введённые данные");
                 }
             })
-            .fail(function() {
-                fncBtnReset();
-            })
-            .always(function() {
-                listLoadFunction();
-            });
+            .fail(function() { fncBtnReset(); })
+            .always(function() { listLoadFunction(); });
     }
 });
 
-e.preventDefault() + e.stopImmediatePropagation() — всегда оба. Критично для форм внутри модалок, загружаемых через .load() — без этого на мобильной версии и при повторном открытии обработчики накапливаются.
+e.preventDefault() + e.stopImmediatePropagation() — всегда оба.
 
-Паттерн для операций обновления (upd_*), return_data: 0 — тело ответа не возвращается:
+Паттерн для upd_* (return_data: 0):
 
 fncMyAjax("upd_item", "module", crt_arr["params"], 0)
-    .done(function() {
-        main_modal.hide();
-    })
-    .fail(function() {
-        fncBtnReset();
-    })
-    .always(function() {
-        listLoadFunction();
-    });
+    .done(function() { main_modal.hide(); })
+    .fail(function() { fncBtnReset(); })
+    .always(function() { listLoadFunction(); });
 
-return_data: 1 — JS ожидает данные в ответе (нужен id или sccss). 0 — ответ не нужен, список перезагружается через .always().
-
-=======================================================================
+================================================================================
 Стандарт _list.php файлов
-=======================================================================
+================================================================================
 
 <?php
 $result = send_request(array_merge($ses_info, ['action' => 'items_list']), 'module');
@@ -622,12 +634,20 @@ if (!is_array($result) || isset($result['sccss'])) {
     </table>
 <?php endif; ?>
 
-Класс itemTr — курсор pointer (из style.css). Класс itemName с data-id — обязателен на <td>, JS использует его для заголовка модалки.
-Список должен содержать только данные, необходимые для опознания/сканирования записи глазами (название + минимум контекста, например краткая подпись курсивом снизу). Технические/служебные атрибуты записи (типы, флаги, счётчики) — НЕ выводятся в список, только в карточку _info. Перед версткой списка — обязательно оценивать, действительно ли каждое поле помогает пользователю опознать запись, а не нагружает список лишней информацией.
+itemTr — курсор pointer (из style.css). itemName с data-id — обязателен, JS использует для заголовка модалки.
+Список содержит только данные для опознания записи. Технические атрибуты — только в _info.
 
-=======================================================================
+Цикл с модификацией массива — использовать индекс, не ссылку:
+
+foreach ($rows as $key => $row) {
+    $rows[$key]['display_name'] = ...;
+}
+$result = $rows;
+// НЕ использовать foreach ($rows as &$row) без unset($row) после цикла.
+
+================================================================================
 Стандарт app_X.php (API модуля)
-=======================================================================
+================================================================================
 
 <?php
 require_once('./includes/fncs.php');
@@ -665,7 +685,6 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        // логика
         break;
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
@@ -674,22 +693,24 @@ switch ($action) {
 
 echo json_encode($result);
 
-HTTP 200 всегда. Content-Type: application/json. Валидация через fncValFind. htmlspecialchars при выводе. created_by / updated_by берутся из $ses_check['user']. $perms загружается из $ses_check['rules'] — не отдельным запросом к БД.
+HTTP 200 всегда. Content-Type: application/json. Валидация через fncValFind.
+created_by / updated_by берутся из $ses_check['user'].
+$perms загружается из $ses_check['rules'] — не отдельным запросом к БД.
 
-Любой параметр, отправленный через params (массив, упакованный через fncParamsCrt и отправленный через fncMyAjax), читается на сервере через fncValFind('имя-параметра', $params) — НЕ напрямую через $_POST['имя']. $_POST используется только для параметров, отправленных напрямую вторым аргументом в fncMyAjax/.load() (например country_id, organization_type_id, id при простой загрузке через .load()), не через params_arr/fncParamsCrt.
+Параметры из params (через fncParamsCrt/fncMyAjax) → читать через fncValFind('имя', $params).
+Параметры переданные напрямую (через .load() или send_request без params_arr) → читать через $_POST['имя'].
 
-=======================================================================
+================================================================================
 Подход к работе с кодом
-=======================================================================
+================================================================================
 
-При правках существующего кода Claude показывает только изменяемый фрагмент (было/стало или новый кусок целиком, если добавляется новый блок) — НЕ файл целиком, если не запрошено явно. Алексей вносит изменения в код вручную и держит в голове контекст всего файла.
+При правках — только изменяемый фрагмент, не файл целиком (если не запрошено явно).
 
-Перед любой вёрсткой (форма, список, toolbar, любой новый UI-элемент) — обязательный шаг анализа UI/UX: группировка полей по смыслу, визуальные отступы между смысловыми блоками, понятность подписей и подсказок, логические связи между полями (например — поясняющий текст под чекбоксом, если связанное значение задаётся в другом месте интерфейса). Это не опциональный шаг, он выполняется каждый раз перед написанием разметки, а не только когда явно попросили.
+Перед любой вёрсткой — обязательный анализ UI/UX: группировка полей по смыслу, отступы между блоками (mb-3), понятность подписей, логические связи между полями. Это не опциональный шаг.
 
-=======================================================================
+================================================================================
 Открытые задачи — система
-=======================================================================
+================================================================================
 
-Определить и реализовать паттерн обратной связи при ошибке (Toast / зона в модалке) — применить как стандарт для всех модулей
-Реализовать паттерн подтверждения и UI при удалении записей (где удаление — физическое, через confirm())
-Модуль управления ролями (UI назначения прав и ролей пользователями) — часть модуля Пользователи
+Реализовать паттерн подтверждения и UI при удалении записей (где удаление физическое, через confirm())
+Модуль управления ролями (UI назначения прав и ролей) — часть модуля Пользователи

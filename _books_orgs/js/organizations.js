@@ -16,6 +16,7 @@ $(function(){
             main_modal.show();
             let path = new URL("./_books_orgs/organization_new.php", url);
             $("#mainModalBody").load(path.href, {org_type}, function(){
+                let types_arr = [];
 
                 // Tom Select для выбора страны
                 if (window.orgCountryPicker) window.orgCountryPicker.destroy();
@@ -38,12 +39,12 @@ $(function(){
                             $("#divNewOrgName").addClass("d-none");
                             $("#spnOPF").html("");
                             $("#divOrgReqs").html("");
+                            $("#divBtnSave").addClass("d-none");
                         }
                     }
                 });
 
                 // Собираем все ОПФ из select до очистки — фильтрация по стране на фронте
-                let types_arr = [];
                 $("#slctType option[value!='0']").each(function(){
                     types_arr.push({
                         id:      +$(this).val(),
@@ -61,13 +62,16 @@ $(function(){
                     if (type_id > 0) {
                         $("#spnOPF").html($(this).find("option:selected").data("abbr"));
                         $("#divNewOrgName").removeClass("d-none");
-                        $("#divOrgReqs").html(spnr_loading);
+                        $("#divOrgReqs").html(`<div class="col-12">${spnr_loading}</div>`);
                         let path = new URL("./_books_orgs/organization_new_requisites.php", url);
-                        $("#divOrgReqs").load(path.href, {type_id, org_type});
+                        $("#divOrgReqs").load(path.href, {type_id, org_type}, function(){
+                          $("#divBtnSave").removeClass("d-none");
+                        });
                     } else {
                         $("#divNewOrgName").addClass("d-none");
                         $("#spnOPF").html("");
                         $("#divOrgReqs").html("");
+                        $("#divBtnSave").addClass("d-none");
                     }
                 });
 
@@ -110,6 +114,7 @@ $(function(){
                         let params_arr = [];
                         params_arr.push({name: "reqs-list", value: reqs_arr});
                         params_arr.push({name: "org-type",  value: org_type});
+                        params_arr.push({name: "org-country-id", value: window.orgCountryPicker.getValue()});
                         let crt_arr = fncParamsCrt(".form-inp", params_arr);
 
                         if (all_good && crt_arr["all_good"]) {

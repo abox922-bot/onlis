@@ -41,7 +41,7 @@ $today = date('Y-m-d');
         }
         $field_id = 'reqInp' . $req['requisite_type_id'];
     ?>
-    <div class="col-12 col-md-6">
+    <div class="col-12 col-md-6 mt-2">
         <label for="<?php echo $field_id; ?>" class="my-input-label">
             <?php echo htmlspecialchars($req['name']); ?>
             <?php if (!$req['is_required']): ?>

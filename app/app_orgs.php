@@ -360,11 +360,11 @@ switch ($action) {
         );
         $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
-        foreach ($rows as &$row) {
+        foreach ($rows as $key => $row) {
             if ($row['is_individual']) {
-                $row['display_name'] = $row['abbreviation'] . ' ' . $row['name'];
+                $rows[$key]['display_name'] = $row['abbreviation'] . ' ' . $row['name'];
             } else {
-                $row['display_name'] = $row['abbreviation'] . ' «' . $row['name'] . '»';
+                $rows[$key]['display_name'] = $row['abbreviation'] . ' «' . $row['name'] . '»';
             }
         }
         $result = $rows;
@@ -391,6 +391,19 @@ switch ($action) {
             [$id]
         );
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        $stmt_reqs = fncQuery(
+            "SELECT orq.requisite_type_id AS id, rt.name, orq.value,
+                    rt.value_type, rt.is_unique, rt.has_length_control,
+                    otr.exact_length, otr.is_required
+             FROM organization_requisites orq
+             LEFT JOIN requisite_types rt ON rt.id = orq.requisite_type_id
+             LEFT JOIN organization_type_requisites otr
+                   ON otr.requisite_type_id = orq.requisite_type_id
+                  AND otr.organization_type_id = ?
+             WHERE orq.organization_id = ?",
+            [(int)$result['type_id'], $id]
+        );
+        $result['reqs'] = $stmt_reqs ? $stmt_reqs->fetchAll(PDO::FETCH_ASSOC) : [];
         break;
 
     // -------------------------------------------------------------------------

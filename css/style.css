@@ -193,8 +193,8 @@ textarea.form-in { min-height: 100px; resize: vertical; }
 .input-group { display: flex; border-radius: 10px; overflow: hidden; }
 .input-group > .form-in {
     flex: 1 1 auto; width: 1% !important;
-    border-right: none !important;
-    border-radius: 10px 0 0 10px !important;
+    border-left: none !important;
+    /*border-radius: 10px 10px 10px 10px !important;*/
     margin: 0 !important;
 }
 .input-group > .btn-generate {
@@ -250,8 +250,9 @@ textarea.form-in { min-height: 100px; resize: vertical; }
     border-top: 1px solid #f2f2f2 !important;
     border-bottom: 1px solid #f2f2f2 !important;
 }
-.table td:first-child { border-left: 1px solid #f2f2f2; border-radius: 10px 0 0 10px; }
-.table td:last-child { border-right: 1px solid #f2f2f2; border-radius: 0 10px 10px 0; }
+.table td { border-left: 1px solid #f2f2f2; border-right: 1px solid #f2f2f2; border-radius: 5px 5px 5px 5px; }
+/*.table td:first-child { border-left: 1px solid #f2f2f2; border-radius: 10px 0 0 10px; }
+.table td:last-child { border-right: 1px solid #f2f2f2; border-radius: 0 10px 10px 0; }*/
 .table-hover tbody tr:hover td { background-color: var(--bg-hover) !important; color: var(--accent-color); }
 .itemTr { cursor: pointer; }
 

@@ -45,9 +45,9 @@ $type_label = $type_labels[$org_type] ?? null;
         <input type="hidden" class="form-inp" data-name="org-is-contractor" data-type="check" value="<?php echo $is_contractor; ?>">
         <input type="hidden" class="form-inp" data-name="org-is-bank" data-type="check" value="<?php echo $is_bank; ?>">
 
-        <div class="col-12 col-md-6">
+        <div class="col-12 col-md-7 mb-3">
             <label class="my-input-label" for="slctCountry">Страна</label>
-            <select class="form-inp" id="slctCountry" data-name="org-country-id" data-type="select" data-required="1">
+            <select id="slctCountry" data-name="org-country-id" data-type="select" data-required="1">
                 <option value="">Выберите страну</option>
                 <?php foreach ($result['countries'] as $country): ?>
                     <option value="<?php echo $country['id']; ?>">
@@ -57,10 +57,12 @@ $type_label = $type_labels[$org_type] ?? null;
             </select>
         </div>
 
-        <div class="col-12 col-md-6">
-            <label class="my-input-label" for="slctType">ОПФ</label>
+        <div class="col-12 col-md-5 mb-3">
+            <label class="my-input-label" for="slctType">
+                Организационно-правовая форма
+            </label>
             <select class="form-in form-inp" id="slctType" data-name="org-type-id" data-type="select" data-required="1" disabled>
-                <option value="0">Выберите ОПФ</option>
+                <option value="0">Выберите</option>
                 <?php foreach ($result['types'] as $type): ?>
                     <option value="<?php echo $type['id']; ?>"
                         data-abbr="<?php echo htmlspecialchars($type['abbreviation']); ?>"
@@ -72,29 +74,38 @@ $type_label = $type_labels[$org_type] ?? null;
         </div>
 
         <div class="col-12 d-none" id="divNewOrgName">
+
             <div class="row">
-                <div class="col-12">
-                    <label for="inpName" class="my-input-label">Название <span class="text-muted" style="font-weight:400;">(без ОПФ)</span></label>
-                    <div class="input-group">
-                        <span class="input-group-text" id="spnOPF"></span>
-                        <input type="text"
-                            class="form-in form-inp"
-                            id="inpName"
-                            data-name="org-name"
-                            data-type="text"
-                            data-required="1"
-                            autocomplete="off">
-                    </div>
-                </div>
-                <div class="col-12" id="divOrgReqs"></div>
+
+              <div class="col-12 mb-3">
+                  <label for="inpName" class="my-input-label">
+                      Название
+                      <span class="text-muted" style="font-weight: 400; font-size: 0.8rem;">без указания ОПФ</span>
+                  </label>
+                  <div class="input-group w-100">
+                      <span class="input-group-text" id="spnOPF" style="font-weight: 600; background: var(--bg-hover); border-color: var(--border-color); color: var(--text-main);"></span>
+                      <input type="text"
+                          class="form-in form-inp"
+                          id="inpName"
+                          data-name="org-name"
+                          data-type="text"
+                          data-required="1"
+                          autocomplete="off"
+                          placeholder="Название организации">
+                  </div>
+              </div>
+
             </div>
+
+            <div class="row mt-1" id="divOrgReqs"></div>
+
         </div>
 
-        <div class="col-12 d-none" id="divFormError">
+        <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>
 
-        <div class="col-12 mt-3">
+        <div class="col-12 mt-3 d-none" id="divBtnSave">
             <button type="submit" class="btn-action-main" id="btnSave">
                 <span id="btnSaveText">Сохранить</span>
                 <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
