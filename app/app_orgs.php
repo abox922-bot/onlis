@@ -125,7 +125,6 @@ switch ($action) {
         break;
 
     // -------------------------------------------------------------------------
-    // -------------------------------------------------------------------------
     case 'organization_types_list':
         if (!fncCan($perms, 'organizations.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -505,9 +504,353 @@ switch ($action) {
 
         $result = ['sccss' => true, 'id' => $org_id];
         break;
-    default:
-        echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
-        exit;
+
+    // -------------------------------------------------------------------------
+    case 'upd_organization_main':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id       = (int)fncValFind('item-id',  $params);
+        $org_name = fncValFind('org-name',       $params);
+        $phone    = fncValFind('org-phone',       $params);
+        $email    = fncValFind('org-email',       $params);
+        $website  = fncValFind('org-website',     $params);
+        $reqs_list = fncValFind('reqs-list',      $params);
+
+        if (!$id || !$org_name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        // Проверка уникальности реквизитов
+        if (is_array($reqs_list)) {
+            foreach ($reqs_list as $req) {
+                if (!empty($req['uniq']) && !empty($req['value'])) {
+                    $stmt = fncQuery(
+                        "SELECT id FROM organization_requisites
+                         WHERE requisite_type_id = ? AND value = ? AND organization_id != ?",
+                        [(int)$req['id'], $req['value'], $id]
+                    );
+                    if ($stmt && $stmt->fetch()) {
+                        echo json_encode([
+                            'sccss' => false,
+                            'msg'   => 'Реквизит уже используется другой организацией'
+                        ]);
+                        exit;
+                    }
+                }
+            }
+        }
+
+        // Получаем abbreviation и is_individual для обновления short_name
+        $stmt_type = fncQuery(
+            "SELECT ot.abbreviation, ot.is_individual
+             FROM organizations o
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             WHERE o.id = ?",
+            [$id]
+        );
+        $type_row   = $stmt_type ? $stmt_type->fetch(PDO::FETCH_ASSOC) : null;
+        $short_name = null;
+        if ($type_row) {
+            $short_name = $type_row['is_individual']
+                ? $type_row['abbreviation'] . ' ' . $org_name
+                : $type_row['abbreviation'] . ' «' . $org_name . '»';
+        }
+
+        $stmt = fncQuery(
+            "UPDATE organizations
+             SET name = ?, short_name = ?, phone = ?, email = ?, website = ?,
+                 updated_by = ?, updated_at = NOW()
+             WHERE id = ?",
+            [$org_name, $short_name, $phone ?: null, $email ?: null, $website ?: null, $user_id, $id]
+        );
+
+        if (!$stmt) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка при сохранении']);
+            exit;
+        }
+
+        // Обновляем реквизиты
+        if (is_array($reqs_list)) {
+            foreach ($reqs_list as $req) {
+                if (empty($req['value'])) continue;
+                // Upsert: обновить если есть, вставить если нет
+                $stmt_check = fncQuery(
+                    "SELECT id FROM organization_requisites
+                     WHERE organization_id = ? AND requisite_type_id = ?",
+                    [$id, (int)$req['id']]
+                );
+                if ($stmt_check && $stmt_check->fetch()) {
+                    fncQuery(
+                        "UPDATE organization_requisites
+                         SET value = ?, updated_by = ?, updated_at = NOW()
+                         WHERE organization_id = ? AND requisite_type_id = ?",
+                        [$req['value'], $user_id, $id, (int)$req['id']]
+                    );
+                } else {
+                    fncQuery(
+                        "INSERT INTO organization_requisites
+                            (organization_id, requisite_type_id, value, created_by)
+                         VALUES (?, ?, ?, ?)",
+                        [$id, (int)$req['id'], $req['value'], $user_id]
+                    );
+                }
+            }
+        }
+
+        $result = ['sccss' => true];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_info_address':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        // Данные организации + страна
+        $stmt = fncQuery(
+            "SELECT o.region_id, o.city_id, o.street_id, o.house, o.office,
+                    c.id AS country_id, c.name AS country_name
+             FROM organizations o
+             LEFT JOIN countries c ON c.id = o.country_id
+             WHERE o.id = ?",
+            [$id]
+        );
+        $org = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        $country_id = (int)($org['country_id'] ?? 0);
+
+        // Все регионы страны
+        $stmt = fncQuery(
+            "SELECT id, name FROM regions WHERE country = ? ORDER BY name",
+            [$country_id]
+        );
+        $regions = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        // Все города всех регионов страны
+        $cities = [];
+        foreach ($regions as $region) {
+            $stmt = fncQuery(
+                "SELECT id, name FROM cities WHERE region = ? ORDER BY name",
+                [(int)$region['id']]
+            );
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            foreach ($rows as $city) {
+                $cities[] = ['id' => $city['id'], 'name' => $city['name'], 'region' => $region['id']];
+            }
+        }
+
+        // Все улицы всех городов страны
+        $streets = [];
+        foreach ($cities as $city) {
+            $stmt = fncQuery(
+                "SELECT s.id, CONCAT_WS(' ', st.name, s.name) AS name
+                 FROM streets s
+                 LEFT JOIN streets_types st ON st.id = s.type
+                 WHERE s.city = ?
+                 ORDER BY s.name",
+                [(int)$city['id']]
+            );
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            foreach ($rows as $street) {
+                $streets[] = ['id' => $street['id'], 'name' => $street['name'], 'city' => $city['id']];
+            }
+        }
+
+        $result = [
+            'country_name' => $org['country_name'] ?? '',
+            'region_id'    => $org['region_id'],
+            'city_id'      => $org['city_id'],
+            'street_id'    => $org['street_id'],
+            'house'        => $org['house'],
+            'office'       => $org['office'],
+            'regions'      => $regions,
+            'cities'       => $cities,
+            'streets'      => $streets,
+        ];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'upd_organization_address':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id        = (int)fncValFind('item-id',   $params);
+        $region_id = (int)fncValFind('adr-reg',   $params);
+        $city_id   = (int)fncValFind('adr-city',  $params);
+        $street_id = (int)fncValFind('adr-str',   $params);
+        $house     = fncValFind('adr-house',       $params);
+        $office    = fncValFind('adr-office',      $params);
+
+        if (!$id) { echo json_encode(['sccss' => false]); exit; }
+
+        $stmt = fncQuery(
+            "UPDATE organizations
+             SET region_id = ?, city_id = ?, street_id = ?, house = ?, office = ?,
+                 updated_by = ?, updated_at = NOW()
+             WHERE id = ?",
+            [
+                $region_id ?: null,
+                $city_id   ?: null,
+                $street_id ?: null,
+                $house     ?: null,
+                $office    ?: null,
+                $user_id,
+                $id
+            ]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_bank_accounts_list':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $org_id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT oba.id, oba.account_number, oba.is_active,
+                    o.name AS bank_name, ot.abbreviation
+             FROM organization_bank_accounts oba
+             LEFT JOIN organizations o  ON o.id  = oba.bank_id
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             WHERE oba.organization_id = ?
+             ORDER BY oba.is_active DESC, o.name, oba.account_number",
+            [$org_id]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        // Для каждого банка подгружаем его банковские реквизиты (БИК, корсчёт)
+        foreach ($rows as $key => $row) {
+            $stmt_reqs = fncQuery(
+                "SELECT rt.name, orq.value
+                 FROM organization_requisites orq
+                 LEFT JOIN requisite_types rt ON rt.id = orq.requisite_type_id
+                 WHERE orq.organization_id = ? AND rt.is_bank_only = 1",
+                [(int)$row['id'] /* bank_id нужен */]
+            );
+            // Исправляем — берём bank_id
+        }
+
+        // Правильный запрос с bank_id для реквизитов
+        $result = [];
+        foreach ($rows as $row) {
+            $stmt_reqs = fncQuery(
+                "SELECT rt.name, orq.value
+                 FROM organization_requisites orq
+                 LEFT JOIN requisite_types rt ON rt.id = orq.requisite_type_id
+                 WHERE orq.organization_id = ? AND rt.is_bank_only = 1",
+                [(int)$row['id']]
+            );
+            // bank_id берём из oba
+            $result[] = $row;
+        }
+
+        // Переписываю правильно одним запросом
+        $stmt = fncQuery(
+            "SELECT oba.id, oba.account_number, oba.is_active, oba.bank_id,
+                    o.name AS bank_name, ot.abbreviation
+             FROM organization_bank_accounts oba
+             LEFT JOIN organizations o  ON o.id  = oba.bank_id
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             WHERE oba.organization_id = ?
+             ORDER BY oba.is_active DESC, o.name, oba.account_number",
+            [$org_id]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        foreach ($rows as $key => $row) {
+            $stmt_reqs = fncQuery(
+                "SELECT rt.name, orq.value
+                 FROM organization_requisites orq
+                 LEFT JOIN requisite_types rt ON rt.id = orq.requisite_type_id
+                 WHERE orq.organization_id = ? AND rt.is_bank_only = 1",
+                [(int)$row['bank_id']]
+            );
+            $rows[$key]['reqs'] = $stmt_reqs ? $stmt_reqs->fetchAll(PDO::FETCH_ASSOC) : [];
+        }
+        $result = $rows;
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'toggle_bank_account_active':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $acc_id   = (int)fncValFind('acc-id',    $params);
+        $is_active = (int)fncValFind('is-active', $params);
+        if (!$acc_id) { echo json_encode(['sccss' => false]); exit; }
+        $stmt  = fncQuery(
+            "UPDATE organization_bank_accounts
+             SET is_active = ?, updated_by = ?, updated_at = NOW()
+             WHERE id = ?",
+            [$is_active, $user_id, $acc_id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'new_organization_bank_account':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $org_id        = (int)fncValFind('org-id',     $params);
+        $bank_id       = (int)fncValFind('acc-bank',   $params);
+        $account_number = fncValFind('acc-number',     $params);
+
+        if (!$org_id || !$bank_id || !$account_number) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните все поля']);
+            exit;
+        }
+
+        // Проверка уникальности номера счёта
+        $stmt = fncQuery(
+            "SELECT id FROM organization_bank_accounts WHERE account_number = ?",
+            [$account_number]
+        );
+        if ($stmt && $stmt->fetch()) {
+            echo json_encode(['sccss' => false, 'msg' => 'Номер счёта уже существует']);
+            exit;
+        }
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO organization_bank_accounts
+                (organization_id, bank_id, account_number, created_by)
+             VALUES (?, ?, ?, ?)",
+            [$org_id, $bank_id, $account_number, $user_id]
+        );
+        $result = $stmt ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()] : ['sccss' => false];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_info_accs':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $stmt = fncQuery(
+            "SELECT o.id, o.name, ot.abbreviation
+             FROM organizations o
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             WHERE o.is_bank = 1 AND o.is_active = 1
+             ORDER BY o.name"
+        );
+        $result = ['banks' => $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : []];
+        break;
+
+      // -------------------------------------------------------------------------
+      default:
+      echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
+      exit;
 }
 
 echo json_encode($result);

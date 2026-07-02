@@ -20,6 +20,9 @@ if (!is_array($result) || isset($result['sccss'])) {
 }
 ?>
 
+<input type="hidden" id="hdnOrgId"   value="<?php echo $id; ?>">
+<input type="hidden" id="hdnOrgType" value="<?php echo htmlspecialchars($org_type); ?>">
+
 <form id="formInfo">
     <div class="row">
 
@@ -146,3 +149,4 @@ if (!is_array($result) || isset($result['sccss'])) {
 
     </div>
 </form>
+<script src="./_books_orgs/js/organization_info_main.js?2026070202"></script>
