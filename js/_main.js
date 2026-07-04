@@ -9,12 +9,21 @@ $(function(){
         fncChptLoad($startItem.data("module"), $startItem.data("ttl"));
     }
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    $("#modalOffcanvas").on("shown.bs.offcanvas", function(){
+        main_modal._config.keyboard = false;
+    });
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    $("#modalOffcanvas").on("hidden.bs.offcanvas", function(){
+        main_modal._config.keyboard = true;
+    });
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#mainModal").on("shown.bs.modal", function(){
         $("html").css("overflow-y", "hidden");
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#mainModal").on("hidden.bs.modal", function(){
         main_modal._config.backdrop = true;
+        main_modal._config.keyboard = true;
         $("html").css("overflow-y", "auto");
         $("#mainModal").addClass("modal-xl");
         $(".modal-dialog").addClass("modal-dialog-centered");

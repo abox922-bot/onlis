@@ -1,0 +1,96 @@
+<?php
+require_once('../app/includes/session_guard.php');
+fncRequireSession();
+
+$ses_info = [
+    '_onlis_id' => $_COOKIE['_onlis_id'],
+    'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
+];
+
+$st_id = (int)($_POST['st_id'] ?? 0);
+
+$result = send_request(array_merge($ses_info, [
+    'action' => 'organization_staff_info_person',
+    'st_id'  => $st_id,
+]), 'orgs');
+
+if (!is_array($result) || isset($result['sccss'])) {
+    $result = [];
+}
+?>
+
+<form id="formStaffPerson">
+    <div class="row">
+
+        <div class="col-12 col-md-4 mb-3">
+            <label for="inpLastName" class="my-input-label">Фамилия</label>
+            <input type="text" class="form-in form-inp" id="inpLastName"
+                data-name="staff-last" data-type="text" data-required="1"
+                value="<?php echo htmlspecialchars($result['last_name'] ?? ''); ?>"
+                autocomplete="off">
+        </div>
+
+        <div class="col-12 col-md-4 mb-3">
+            <label for="inpFirstName" class="my-input-label">Имя</label>
+            <input type="text" class="form-in form-inp" id="inpFirstName"
+                data-name="staff-name" data-type="text" data-required="1"
+                value="<?php echo htmlspecialchars($result['name'] ?? ''); ?>"
+                autocomplete="off">
+        </div>
+
+        <div class="col-12 col-md-4 mb-3">
+            <label for="inpMdName" class="my-input-label">Отчество</label>
+            <input type="text" class="form-in form-inp" id="inpMdName"
+                data-name="staff-md" data-type="text"
+                value="<?php echo htmlspecialchars($result['md_name'] ?? ''); ?>"
+                autocomplete="off">
+        </div>
+
+        <div class="col-12 col-md-6 mb-3">
+            <label for="inpBDate" class="my-input-label">Дата рождения</label>
+            <input type="date" class="form-in form-inp" id="inpBDate"
+                data-name="staff-bdate"
+                value="<?php echo htmlspecialchars($result['b_date'] ?? ''); ?>">
+        </div>
+
+        <div class="col-12 col-md-6 mb-3">
+            <label for="inpTimeZone" class="my-input-label">Часовой пояс</label>
+            <input type="text" class="form-in form-inp" id="inpTimeZone"
+                data-name="staff-time-zone" data-type="text"
+                value="<?php echo htmlspecialchars($result['time_zone'] ?? ''); ?>"
+                placeholder="например: +5">
+        </div>
+
+        <div class="col-12 col-md-6 mb-3">
+            <label for="inpPhone" class="my-input-label">Личный телефон</label>
+            <input type="text" class="form-in form-inp" id="inpPhone"
+                data-name="staff-phone" data-type="phone"
+                data-phone-code="<?php echo htmlspecialchars($result['phone_code'] ?? ''); ?>"
+                data-phone-mask="<?php echo htmlspecialchars($result['phone_mask'] ?? ''); ?>"
+                value="<?php echo htmlspecialchars($result['phone'] ?? ''); ?>"
+                autocomplete="off">
+        </div>
+
+        <div class="col-12 col-md-6 mb-3">
+            <label for="inpEmail" class="my-input-label">Личный email</label>
+            <input type="text" class="form-in form-inp" id="inpEmail"
+                data-name="staff-email" data-type="email"
+                value="<?php echo htmlspecialchars($result['email'] ?? ''); ?>"
+                autocomplete="off">
+        </div>
+
+        <div class="col-12 mt-2 d-none" id="divFormError">
+            <div class="form-error-msg" id="spnFormError"></div>
+        </div>
+
+        <div class="col-12">
+            <button type="submit" class="btn-action-main" id="btnSave">
+                <span id="btnSaveText">Сохранить</span>
+                <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
+            </button>
+        </div>
+
+    </div>
+</form>
+
+<script src="./_books_orgs/js/organization_info_staff_person.js?2026070402"></script>

@@ -163,6 +163,24 @@ body {
 }
 .btn-action-outline:hover { border-color: var(--accent-color); background-color: var(--bg-hover); }
 
+.btn-danger-action {
+    padding: 8px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #dc3545;
+    background: transparent;
+    color: #dc3545;
+    font-family: var(--bs-body-font-family);
+}
+.btn-danger-action:hover {
+    background: #dc3545;
+    color: #fff;
+}
+
 .form-in {
     width: 100%; display: block;
     border: 1px solid #e0e0e0;
@@ -338,7 +356,7 @@ button:disabled {
 }
 .inline-tabs::-webkit-scrollbar { display: none; }
 
-.inline-tab {
+.inline-tab, .inline-tab-info {
     flex-shrink: 0;
     padding: 7px 16px;
     border: none;
@@ -352,11 +370,11 @@ button:disabled {
     white-space: nowrap;
     font-family: var(--bs-body-font-family);
 }
-.inline-tab:hover {
+.inline-tab:hover, .inline-tab-info:hover {
     background: var(--bg-hover);
     color: var(--text-main);
 }
-.inline-tab.active {
+.inline-tab.active, .inline-tab-info.active {
     background: var(--accent-color);
     color: #fff;
 }
@@ -475,12 +493,20 @@ button:disabled {
     max-width: calc(100% - 30px);
 }
 
-/* --- 13. МЕДИАЗАПРОСЫ --- */
+/* --- 13. MODAL OFFCANVAS --- */
+#modalOffcanvas {
+    --bs-offcanvas-width: 700px;
+}
+
+/* --- 14. МЕДИАЗАПРОСЫ --- */
 @media (min-width: 768px) {
     .auth-card { max-width: 400px; margin: 0 auto; }
 }
 
 @media (max-width: 767px) {
+    #modalOffcanvas {
+      --bs-offcanvas-width: 100%;
+    }
     .toolbar-filter {
         flex: 1 0 100%;
         max-width: 100%;
