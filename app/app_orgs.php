@@ -1362,39 +1362,25 @@ switch ($action) {
             }
         }
 
+        $password = fncValFind('password', $params);
+
+        // Если пароль передан — хешируем и сохраняем
+        if ($password) {
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = fncQuery("SELECT id FROM users_auth WHERE user = ?", [$usr_id]);
+            if ($stmt && $stmt->fetch()) {
+                fncQuery("UPDATE users_auth SET login = ?, password = ? WHERE user = ?",
+                    [$login, $hashed, $usr_id]);
+            } else {
+                fncQuery("INSERT INTO users_auth (user, login, password) VALUES (?, ?, ?)",
+                    [$usr_id, $login, $hashed]);
+            }
+        }
+
         $result = ['sccss' => true];
         break;
 
     // -------------------------------------------------------------------------
-    case 'reset_staff_password':
-        if (!fncCan($perms, 'organizations.manage')) {
-            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
-            exit;
-        }
-        $st_id = (int)fncValFind('st-id', $params);
-        if (!$st_id) { echo json_encode(['sccss' => false]); exit; }
-
-        $stmt = fncQuery("SELECT user_id FROM organization_staff WHERE id = ?", [$st_id]);
-        $st_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
-        if (!$st_row) { echo json_encode(['sccss' => false]); exit; }
-        $usr_id = (int)$st_row['user_id'];
-
-        // Генерируем новый пароль
-        $new_password = strtoupper(bin2hex(random_bytes(4)));
-        $hashed = password_hash($new_password, PASSWORD_DEFAULT);
-
-        $stmt = fncQuery("SELECT id FROM users_auth WHERE user = ?", [$usr_id]);
-        if ($stmt && $stmt->fetch()) {
-            fncQuery("UPDATE users_auth SET password = ? WHERE user = ?", [$hashed, $usr_id]);
-        } else {
-            echo json_encode(['sccss' => false, 'msg' => 'У сотрудника нет учётных данных']);
-            exit;
-        }
-
-        $result = ['sccss' => true, 'password' => $new_password];
-        break;
-
-      // -------------------------------------------------------------------------
       default:
       echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
       exit;

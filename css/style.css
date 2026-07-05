@@ -25,7 +25,7 @@ body {
 /* --- 2. BOOTSTRAP OVERRIDES --- */
 .table { --bs-table-bg: var(--card-bg); color: var(--text-main); }
 .modal-content { background-color: var(--card-bg); color: var(--text-main); border: 1px solid var(--border-color); }
-.modal-body {min-height: 300px;}
+.modal-body {min-height: 500px; overflow-x: hidden;}
 .card { --bs-card-bg: var(--card-bg); border-color: var(--border-color); }
 .list-group { --bs-list-group-bg: var(--card-bg); }
 

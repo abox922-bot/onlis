@@ -43,44 +43,46 @@ $has_login = !empty($result['login']);
             <div class="form-group-label">Учётные данные</div>
         </div>
 
-        <div class="col-12 mb-3">
-            <label for="inpLogin" class="my-input-label">Логин</label>
-            <input type="text"
-                class="form-in form-inp"
-                id="inpLogin"
-                data-name="login"
-                data-type="eng_text"
-                value="<?php echo htmlspecialchars($result['login'] ?? ''); ?>"
-                autocomplete="off"
-                placeholder="латиница и цифры">
+        <div class="col-12 col-md-6 mb-3">
+            <label class="my-input-label">Логин для входа</label>
+            <div class="input-group">
+                <input type="text" class="form-in form-inp" id="inpLogin"
+                    data-name="login" data-type="digits_only"
+                    data-length="5"
+                    placeholder="Сгенерируйте логин"
+                    value="<?php echo htmlspecialchars($result['login'] ?? ''); ?>" disabled>
+                <button type="button" class="btn btn-generate" id="btnGenLogin" title="Сгенерировать логин">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="col-12 col-md-6 mb-3">
+            <label class="my-input-label">Пароль</label>
+            <div class="input-group">
+                <input type="text" class="form-in form-inp" id="inpPassword"
+                    data-name="password" data-type="digits_only"
+                    data-length="4"
+                    placeholder="Сгенерируйте пароль"
+                    value="" disabled>
+                <button type="button" class="btn btn-generate border-start" id="btnGenPass" title="Сгенерировать пароль">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                </button>
+            </div>
         </div>
 
         <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>
 
-        <div class="col-12 mb-3">
+        <div class="col-12">
             <button type="submit" class="btn-action-main" id="btnSave">
                 <span id="btnSaveText">Сохранить</span>
                 <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
             </button>
-
-            <?php if ($has_login): ?>
-            <button type="button" class="btn-danger-action ms-2" id="btnResetPass">
-                Сбросить пароль
-            </button>
-            <?php endif; ?>
-        </div>
-
-        <div class="col-12 d-none" id="divNewPassword">
-            <div class="form-group-label mb-2">Новый пароль</div>
-            <div class="form-context" id="spnNewPassword" style="font-size: 1.4rem; letter-spacing: 0.1em;"></div>
-            <div class="text-muted mt-1" style="font-size: 0.8rem;">
-                Сохраните пароль — он больше не будет показан
-            </div>
         </div>
 
     </div>
 </form>
 
-<script src="./_books_orgs/js/organization_info_staff_access.js?2026070401"></script>
+<script src="./_books_orgs/js/organization_info_staff_access.js?2026070500"></script>
