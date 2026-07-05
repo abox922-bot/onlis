@@ -29,4 +29,12 @@
           ],
       ],
 
+      'objects' => [
+          'folder'   => '_books_objs',
+          'sections' => [
+              ['key' => 'objects',      'slug' => 'objects.manage.view', 'title' => 'Объекты',        'file' => 'objects',      'default' => true],
+              ['key' => 'object_types', 'slug' => 'objects.manage.view', 'title' => 'Типы объектов',  'file' => 'object_types'],
+          ],
+      ],
+
   ];

@@ -36,6 +36,7 @@ return [
             ['slug' => 'users',                     'module' => 'users',          'title' => 'Сотрудники',    'icon' => 'bi-people'],
             ['slug' => 'geography',                 'module' => 'geography',      'title' => 'География',     'icon' => 'bi-globe-americas'],
             ['slug' => 'organizations.manage.view', 'module' => 'organizations',  'title' => 'Организации',   'icon' => 'bi-building'],
+            ['slug' => 'objects.manage.view',       'module' => 'objects',        'title' => 'Объекты',       'icon' => 'bi-shop'],
         ]
     ],
 ];
