@@ -12,8 +12,8 @@ if (!is_array($organizations) || isset($organizations['sccss'])) {
 ?>
 <form id="formNew">
     <div class="row">
-        <div class="col-12 col-md-6 mb-3">
-            <label for="inpName" class="my-input-label">Название типа</label>
+        <div class="col-12 mb-3">
+            <label for="inpName" class="my-input-label">Название</label>
             <input type="text"
                 class="form-in form-inp"
                 id="inpName"
@@ -22,7 +22,7 @@ if (!is_array($organizations) || isset($organizations['sccss'])) {
                 data-required="1"
                 autocomplete="off">
         </div>
-        <div class="col-12 col-md-6 mb-3" id="rowOrganization">
+        <div class="col-12 mb-3" id="rowOrganization">
             <label for="slctOrganization" class="my-input-label">Организация</label>
             <select class="form-in form-inp" id="slctOrganization" data-name="organization_id" data-type="select" data-required="1">
                 <option value="0">Выберите организацию</option>

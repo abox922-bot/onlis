@@ -29,9 +29,20 @@ countries.id = INT(10) UNSIGNED — все FK на countries (country_id и ан
 app/includes/config.php — константы конфигурации клиента
 app/includes/db.php — PDO соединение с БД ($pdo создаётся в глобальной области)
 app/includes/fncs.php — fncQuery, fncLog, fncValFind, fncLoadPermissions, fncCan
-app/includes/paths.php — маршруты API модулей
+app/includes/paths.php — маршруты API модулей. В paths.php — ключи сознательно НЕ совпадают с ключами modules_map.php/menu_map.php и с именем файла API на диске. Это осознанная мера — по коду фронта нельзя угадать путь к управляющему файлу модуля. Пример: modules_map ключ 'objects', menu_map module 'objects', но paths.php ключ 'objs' → app/app_objs.php. Разные имена в разных слоях для одного модуля — норма, не ошибка синхронизации.
 app/includes/request.php — внутренние cURL запросы (send_request)
 app/includes/session_guard.php — проверка сессии (fncRequireSession). Подключает request.php и fncs.php — send_request и fncCan доступны везде где подключён session_guard.php
+fncRequireSession() возвращает массив:
+{
+    'sccss'     => true,
+    'user'      => $session['usr_id'],
+    'user_name' => $session['usr_name'],
+    'rules'     => $perms,
+    'path'      => '_main.php',
+    'today'     => $session['today'],
+}
+Значит права пользователя (rules) доступны во фронтенд-фрагментах (_new.php, _info.php, section.php) напрямую через $result = fncRequireSession(); fncCan($result['rules'], 'slug'), без отдельного send_request(..., 'in_cntrl'). Второй запрос нужен только внутри app_X.php, где сессия проверяется через полноценный in_cntrl.
+
 app/app.php — основной API (auth, sessions). in_cntrl возвращает {sccss, user, user_name, rules, today}
 index.php — точка входа SPA
 main_request_modules.php — прокси запросов с фронта

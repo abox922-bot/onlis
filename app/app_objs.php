@@ -150,19 +150,34 @@ switch ($action) {
 
         $check = fncQuery("SELECT `organization_id` FROM `object_types` WHERE `id` = ?", [$id]);
         $row = $check ? $check->fetch(PDO::FETCH_ASSOC) : null;
-        if (!$row || $row['organization_id'] === null) {
-            echo json_encode(['sccss' => false, 'msg' => 'Системный тип нельзя редактировать']);
+        if (!$row) {
+            echo json_encode(['sccss' => false, 'msg' => 'Запись не найдена']);
             exit;
         }
 
-        $name      = fncValFind('name', $params);
-        $is_active = fncValFind('is_active', $params);
+        $name = fncValFind('name', $params);
 
-        $stmt = fncQuery(
-            "UPDATE `object_types` SET `name` = ?, `is_active` = ?, `updated_at` = NOW(), `updated_by` = ?
-             WHERE `id` = ?",
-            [$name, $is_active, $user_id, $id]
-        );
+        if (fncCan($perms, 'objects')) {
+            $organization_id = fncValFind('organization_id', $params);
+            $organization_id = $organization_id ?: null;
+
+            $stmt = fncQuery(
+                "UPDATE `object_types` SET `name` = ?, `organization_id` = ?, `updated_at` = NOW(), `updated_by` = ?
+                 WHERE `id` = ?",
+                [$name, $organization_id, $user_id, $id]
+            );
+        } else {
+            if ($row['organization_id'] === null) {
+                echo json_encode(['sccss' => false, 'msg' => 'Системный тип нельзя редактировать']);
+                exit;
+            }
+            $stmt = fncQuery(
+                "UPDATE `object_types` SET `name` = ?, `updated_at` = NOW(), `updated_by` = ?
+                 WHERE `id` = ?",
+                [$name, $user_id, $id]
+            );
+        }
+
         $result = ['sccss' => (bool)$stmt];
         break;
 

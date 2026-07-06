@@ -8,6 +8,7 @@ $(function(){
         $("#btnFastNew").click(function(){
             $("#mainModalBody").html(spnr_loading);
             $("#mainModalLabel").html("Добавление типа объектов");
+            $("#mainModal").removeClass("modal-xl");
             fncHideFormError();
             main_modal.show();
             let path = new URL("./_books_objs/object_types_new.php", url);
@@ -77,10 +78,23 @@ function infoLoadFunction(item_id) {
     let item_name = $(`.itemName[data-id="${item_id}"]`).html();
     $("#mainModalBody").html(spnr_loading);
     $("#mainModalLabel").html(item_name);
+    $("#mainModal").removeClass("modal-xl");
     fncHideFormError();
     main_modal.show();
     let path = new URL("./_books_objs/object_types_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
+        $("#chckIsSystem").off("change").on("change", function(){
+            if ($(this).prop("checked")) {
+                $("#rowOrganization").addClass("d-none");
+                $("#slctOrganization").removeClass("form-inp");
+            } else {
+                $("#rowOrganization").removeClass("d-none");
+                if (!$("#slctOrganization").hasClass("form-inp")) {
+                    $("#slctOrganization").addClass("form-inp");
+                }
+            }
+        });
+
         if (!canDo('objects.manage')) {
             $("#btnSave").hide();
             $("#formInfo").off("submit");
