@@ -12,10 +12,25 @@ $(function(){
             main_modal.show();
             let path = new URL("./_books_objs/object_types_new.php", url);
             $("#mainModalBody").load(path.href, function(){
-                if (!canDo('objects.manage')) {
-                    $("#btnSave").hide();
-                    $("#formNew").off("submit");
-                } else {
+              if (canDo('objects')) {
+                  $("#rowIsSystem").removeClass("d-none");
+                  $("#chckIsSystem").off("change").on("change", function(){
+                      if ($(this).prop("checked")) {
+                          $("#rowOrganization").addClass("d-none");
+                          $("#slctOrganization").removeClass("form-inp")
+                      } else {
+                          $("#rowOrganization").removeClass("d-none");
+                          if (!$("#slctOrganization").hasClass("form-inp")) {
+                            $("#slctOrganization").addClass("form-inp");
+                          }
+                      }
+                  });
+              }
+
+              if (!canDo('objects.manage')) {
+                  $("#btnSave").hide();
+                  $("#formNew").off("submit");
+              } else {
                     $("#formNew").submit(function(e){
                         e.preventDefault();
                         e.stopImmediatePropagation();

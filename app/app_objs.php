@@ -78,15 +78,15 @@ switch ($action) {
             exit;
         }
         $stmt = fncQuery(
-            "SELECT `object_types`.`id`, `object_types`.`name`, `object_types`.`is_system`,
+            "SELECT `object_types`.`id`, `object_types`.`name`, `object_types`.`organization_id`,
                     `object_types`.`is_active`, `organizations`.`short_name`, `organizations`.`name` AS `org_name`
              FROM `object_types`
              LEFT JOIN `organizations` ON `organizations`.`id` = `object_types`.`organization_id`
-             ORDER BY `object_types`.`is_system` DESC, `object_types`.`is_active` DESC, `object_types`.`name`"
+             ORDER BY `object_types`.`organization_id` IS NULL DESC, `object_types`.`is_active` DESC, `object_types`.`name`"
         );
         if ($stmt) {
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $row['org_display'] = $row['is_system'] ? 'Системный' : ($row['short_name'] ?: $row['org_name']);
+                $row['org_display'] = $row['organization_id'] ? ($row['short_name'] ?: $row['org_name']) : 'Системный';
                 $result[] = $row;
             }
         }
@@ -97,13 +97,22 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        $organization_id = fncValFind('organization_id', $params);
+
         $name            = fncValFind('name', $params);
+        $organization_id = fncValFind('organization_id', $params);
+
+        if (!$organization_id) {
+            if (!fncCan($perms, 'objects')) {
+                echo json_encode(['sccss' => false, 'msg' => 'Выберите организацию']);
+                exit;
+            }
+            $organization_id = null;
+        }
 
         global $pdo;
         $stmt = fncQuery(
-            "INSERT INTO `object_types` (`organization_id`, `name`, `is_system`, `created_by`)
-             VALUES (?, ?, 0, ?)",
+            "INSERT INTO `object_types` (`organization_id`, `name`, `created_by`)
+             VALUES (?, ?, ?)",
             [$organization_id, $name, $user_id]
         );
         $result = $stmt
@@ -118,9 +127,8 @@ switch ($action) {
         }
         $id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `object_types`.`id`, `object_types`.`name`, `object_types`.`is_system`,
-                    `object_types`.`is_active`, `object_types`.`organization_id`,
-                    `organizations`.`short_name`, `organizations`.`name` AS `org_name`
+            "SELECT `object_types`.`id`, `object_types`.`name`, `object_types`.`is_active`,
+                    `object_types`.`organization_id`, `organizations`.`short_name`, `organizations`.`name` AS `org_name`
              FROM `object_types`
              LEFT JOIN `organizations` ON `organizations`.`id` = `object_types`.`organization_id`
              WHERE `object_types`.`id` = ?",
@@ -128,7 +136,7 @@ switch ($action) {
         );
         $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
         if ($row) {
-            $row['org_display'] = $row['is_system'] ? null : ($row['short_name'] ?: $row['org_name']);
+            $row['org_display'] = $row['organization_id'] ? ($row['short_name'] ?: $row['org_name']) : null;
             $result = $row;
         }
         break;
@@ -140,9 +148,9 @@ switch ($action) {
         }
         $id = (int)fncValFind('id', $params);
 
-        $check = fncQuery("SELECT `is_system` FROM `object_types` WHERE `id` = ?", [$id]);
+        $check = fncQuery("SELECT `organization_id` FROM `object_types` WHERE `id` = ?", [$id]);
         $row = $check ? $check->fetch(PDO::FETCH_ASSOC) : null;
-        if (!$row || $row['is_system']) {
+        if (!$row || $row['organization_id'] === null) {
             echo json_encode(['sccss' => false, 'msg' => 'Системный тип нельзя редактировать']);
             exit;
         }
