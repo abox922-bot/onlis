@@ -29,7 +29,7 @@ if (!is_array($params)) $params = [];
 $result = [];
 
 switch ($action) {
-
+    //--------------------------------------------------------------------------
     case 'objects_list':
         if (!fncCan($perms, 'objects.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -52,6 +52,7 @@ switch ($action) {
         }
         break;
 
+    //--------------------------------------------------------------------------
     case 'new_object':
         if (!fncCan($perms, 'objects.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -72,6 +73,7 @@ switch ($action) {
             : ['sccss' => false, 'msg' => 'Не удалось создать объект'];
         break;
 
+    //--------------------------------------------------------------------------
     case 'object_types_list':
         if (!fncCan($perms, 'objects.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -92,6 +94,7 @@ switch ($action) {
         }
         break;
 
+    //--------------------------------------------------------------------------
     case 'new_object_type':
         if (!fncCan($perms, 'objects.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -120,6 +123,7 @@ switch ($action) {
             : ['sccss' => false, 'msg' => 'Не удалось создать тип'];
         break;
 
+    //--------------------------------------------------------------------------
     case 'object_type_info':
         if (!fncCan($perms, 'objects.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -141,6 +145,7 @@ switch ($action) {
         }
         break;
 
+    //--------------------------------------------------------------------------
     case 'upd_object_type':
         if (!fncCan($perms, 'objects.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -181,6 +186,67 @@ switch ($action) {
         $result = ['sccss' => (bool)$stmt];
         break;
 
+    //--------------------------------------------------------------------------
+    case 'object_main_info':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `objects`.`name`, `objects`.`type_id`, `objects`.`area`, `objects`.`is_stock`,
+                    `objects`.`is_active`, `objects`.`organization_id`,
+                    `organizations`.`short_name`, `organizations`.`name` AS `org_name`
+             FROM `objects`
+             LEFT JOIN `organizations` ON `organizations`.`id` = `objects`.`organization_id`
+             WHERE `objects`.`id` = ?",
+            [$id]
+        );
+        $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+        if ($row) {
+            $row['org_display'] = $row['short_name'] ?: $row['org_name'];
+            $result = $row;
+        }
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'upd_object_main':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)fncValFind('id', $params);
+
+        $name      = fncValFind('name', $params);
+        $type_id   = fncValFind('type_id', $params);
+        $area      = fncValFind('area', $params);
+        $is_stock  = fncValFind('is_stock', $params);
+        $is_active = fncValFind('is_active', $params);
+
+        if (fncCan($perms, 'objects')) {
+            $organization_id = fncValFind('organization_id', $params);
+
+            $stmt = fncQuery(
+                "UPDATE `objects`
+                 SET `name` = ?, `type_id` = ?, `area` = ?, `is_stock` = ?, `is_active` = ?,
+                     `organization_id` = ?, `updated_at` = NOW(), `updated_by` = ?
+                 WHERE `id` = ?",
+                [$name, $type_id, $area, $is_stock, $is_active, $organization_id, $user_id, $id]
+            );
+        } else {
+            $stmt = fncQuery(
+                "UPDATE `objects`
+                 SET `name` = ?, `type_id` = ?, `area` = ?, `is_stock` = ?, `is_active` = ?,
+                     `updated_at` = NOW(), `updated_by` = ?
+                 WHERE `id` = ?",
+                [$name, $type_id, $area, $is_stock, $is_active, $user_id, $id]
+            );
+        }
+
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
         exit;
