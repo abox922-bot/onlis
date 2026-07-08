@@ -247,6 +247,51 @@ switch ($action) {
         break;
 
     //--------------------------------------------------------------------------
+    case 'object_info_address':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id   = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `country_id`, `region_id`, `city_id`, `street_id`, `house`, `office`
+             FROM `objects` WHERE `id` = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'upd_object_address':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)fncValFind('id', $params);
+
+        $country_id = (int)fncValFind('country_id', $params);
+        $region_id  = (int)fncValFind('region_id', $params);
+        $city_id    = (int)fncValFind('city_id', $params);
+        $street_id  = (int)fncValFind('street_id', $params);
+        $house      = fncValFind('house', $params);
+        $office     = fncValFind('office', $params);
+
+        if (!$country_id || !$region_id || !$city_id || !$street_id || !$house) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните адрес полностью']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "UPDATE `objects`
+             SET `country_id` = ?, `region_id` = ?, `city_id` = ?, `street_id` = ?, `house` = ?, `office` = ?,
+                 `updated_at` = NOW(), `updated_by` = ?
+             WHERE `id` = ?",
+            [$country_id, $region_id, $city_id, $street_id, $house, $office, $user_id, $id]
+        );
+
+        $result = ['sccss' => (bool)$stmt];
+        break;
+    //--------------------------------------------------------------------------
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
         exit;

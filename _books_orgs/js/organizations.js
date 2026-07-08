@@ -183,7 +183,10 @@ function infoLoadFunction(item_id, org_type) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function fncOrgTabLoad(id, org_type, target) {
+    $(".inline-tab").prop("disabled", true);
     $("#divOrgInfoContent").html(spnr_loading);
     let path = new URL(`./_books_orgs/organization_info_${target}.php`, url);
-    $("#divOrgInfoContent").load(path.href, {id, org_type});
+    $("#divOrgInfoContent").load(path.href, {id, org_type}, function(){
+      $(".inline-tab").prop("disabled", false);
+    });
 }

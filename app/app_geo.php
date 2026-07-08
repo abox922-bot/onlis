@@ -135,7 +135,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        $country = (int)($_POST['country'] ?? 0);
+        $country = (int)(fncValFind('country', $params) ?? ($_POST['country'] ?? 0));
         $stmt    = fncQuery(
             "SELECT id, name FROM regions WHERE country = ? ORDER BY name",
             [$country]
@@ -240,8 +240,8 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        $country = (int)($_POST['country'] ?? 0);
-        $region  = (int)($_POST['region']  ?? 0);
+        $country = (int)(fncValFind('country', $params) ?? ($_POST['country'] ?? 0));
+        $region  = (int)(fncValFind('region',  $params) ?? ($_POST['region']  ?? 0));
 
         $stmt   = fncQuery(
             "SELECT id, name FROM cities WHERE country = ? AND region = ? ORDER BY name",
@@ -338,7 +338,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        $city   = (int)($_POST['city'] ?? 0);
+        $city   = (int)(fncValFind('city', $params) ?? ($_POST['city'] ?? 0));
         $stmt   = fncQuery(
             "SELECT s.id, CONCAT(st.short_name, ' ', s.name) AS name
              FROM streets s
@@ -349,7 +349,7 @@ switch ($action) {
         );
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         break;
-
+        
     // -------------------------------------------------------------------------
 
     case 'streets_types_list':

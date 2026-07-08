@@ -378,6 +378,20 @@ button:disabled {
     background: var(--accent-color);
     color: #fff;
 }
+.inline-tab-sub {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 4px 12px;
+    font-size: 0.9rem;
+    color: var(--bs-secondary-color, #6c757d);
+    cursor: pointer;
+}
+.inline-tab-sub.active {
+    border-bottom-color: var(--accent-color);
+    color: var(--bs-body-color);
+    font-weight: 600;
+}
 
 /* --- 10. TOOLBAR РАЗДЕЛОВ (универсальный) --- */
 .section-toolbar {

@@ -16,4 +16,4 @@ fncRequireSession();
 
 <div id="divChptContent"></div>
 
-<script src="./_books_orgs/js/organizations.js?2026070401" id="scrOrgs" data-type="contractor"></script>
+<script src="./_books_orgs/js/organizations.js?2026070800" id="scrOrgs" data-type="contractor"></script>

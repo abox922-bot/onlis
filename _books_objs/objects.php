@@ -17,4 +17,4 @@ fncRequireSession();
     <i class="bi bi-shop empty-hint__icon"></i>
     <div class="empty-hint__text">Объекты не найдены</div>
 </div>
-<script src="./_books_objs/js/objects.js?2026070704"></script>
+<script src="./_books_objs/js/objects.js?2026070800"></script>

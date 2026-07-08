@@ -93,7 +93,10 @@ function infoLoadFunction(item_id) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function fncObjectTabLoad(id, target) {
+    $(".inline-tab").prop("disabled", true);
     $("#divObjectInfoContent").html(spnr_loading);
     let path = new URL(`./_books_objs/object_info_${target}.php`, url);
-    $("#divObjectInfoContent").load(path.href, {id});
+    $("#divObjectInfoContent").load(path.href, {id}, function(){
+      $(".inline-tab").prop("disabled", false);
+    });
 }
