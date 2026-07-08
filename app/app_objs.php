@@ -292,6 +292,177 @@ switch ($action) {
         $result = ['sccss' => (bool)$stmt];
         break;
     //--------------------------------------------------------------------------
+    case 'object_info_rent':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id   = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `is_own_property`, `owner_organization_id`, `rent_amount`, `rent_day_of_month`
+             FROM `objects` WHERE `id` = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'upd_object_rent':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)fncValFind('id', $params);
+
+        $owner_organization_id = fncValFind('owner_organization_id', $params);
+        $rent_amount            = fncValFind('rent_amount', $params);
+        $rent_day_of_month      = fncValFind('rent_day_of_month', $params);
+
+        $is_own_property = $owner_organization_id ? 0 : 1;
+
+        if (!$is_own_property && (!$rent_amount || !$rent_day_of_month)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните условия аренды полностью']);
+            exit;
+        }
+
+        if ($is_own_property) {
+            $owner_organization_id = null;
+            $rent_amount           = null;
+            $rent_day_of_month     = null;
+        }
+
+        $stmt = fncQuery(
+            "UPDATE `objects`
+             SET `is_own_property` = ?, `owner_organization_id` = ?, `rent_amount` = ?, `rent_day_of_month` = ?,
+                 `updated_at` = NOW(), `updated_by` = ?
+             WHERE `id` = ?",
+            [$is_own_property, $owner_organization_id, $rent_amount, $rent_day_of_month, $user_id, $id]
+        );
+
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'object_utility_types_list':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $object_id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `id`, `name`, `is_active` FROM `object_utility_types`
+             WHERE `object_id` = ? ORDER BY `is_active` DESC, `name`",
+            [$object_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'new_object_utility_type':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $object_id = fncValFind('object_id', $params);
+        $name      = fncValFind('name', $params);
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO `object_utility_types` (`object_id`, `name`, `created_by`) VALUES (?, ?, ?)",
+            [$object_id, $name, $user_id]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось создать счётчик'];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'object_utility_type_info':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `name`, `current_tariff`, `is_active` FROM `object_utility_types` WHERE `id` = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'upd_object_utility_type':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id             = (int)fncValFind('id', $params);
+        $name           = fncValFind('name', $params);
+        $current_tariff = fncValFind('current_tariff', $params);
+        $is_active      = fncValFind('is_active', $params);
+
+        $stmt = fncQuery(
+            "UPDATE `object_utility_types`
+             SET `name` = ?, `current_tariff` = ?, `is_active` = ?, `updated_at` = NOW(), `updated_by` = ?
+             WHERE `id` = ?",
+            [$name, $current_tariff, $is_active, $user_id, $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'object_utility_readings_list':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $utility_type_id = (int)($_POST['utility_type_id'] ?? 0);
+        $start_date       = $_POST['start_date'] ?? '';
+        $end_date         = $_POST['end_date'] ?? '';
+
+        $stmt = fncQuery(
+            "SELECT `reading_date`, `reading_value`, `tariff`
+             FROM `object_utility_readings`
+             WHERE `utility_type_id` = ? AND `reading_date` BETWEEN ? AND ?
+             ORDER BY `reading_date` DESC",
+            [$utility_type_id, $start_date, $end_date]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'new_object_utility_reading':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $utility_type_id = fncValFind('utility_type_id', $params);
+        $reading_date    = fncValFind('reading_date', $params);
+        $reading_value   = fncValFind('reading_value', $params);
+        $tariff          = fncValFind('tariff', $params);
+
+        $check = fncQuery(
+            "SELECT `id` FROM `object_utility_readings` WHERE `utility_type_id` = ? AND `reading_date` = ?",
+            [$utility_type_id, $reading_date]
+        );
+        $existing = $check ? $check->fetch(PDO::FETCH_ASSOC) : null;
+
+        if ($existing) {
+            $stmt = fncQuery(
+                "UPDATE `object_utility_readings` SET `reading_value` = ?, `tariff` = ? WHERE `id` = ?",
+                [$reading_value, $tariff, $existing['id']]
+            );
+        } else {
+            $stmt = fncQuery(
+                "INSERT INTO `object_utility_readings` (`utility_type_id`, `reading_value`, `tariff`, `reading_date`, `created_by`)
+                 VALUES (?, ?, ?, ?, ?)",
+                [$utility_type_id, $reading_value, $tariff, $reading_date, $user_id]
+            );
+        }
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
         exit;
