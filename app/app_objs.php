@@ -463,6 +463,200 @@ switch ($action) {
         break;
 
     //--------------------------------------------------------------------------
+    case 'object_schedule_day_info':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $object_id = (int)($_POST['id'] ?? 0);
+        $dow       = (int)($_POST['dow'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT `id`, `start_time`, `end_time`, `is_all_day`, `is_day_off`
+             FROM `object_schedule` WHERE `object_id` = ? AND `day_of_week` = ?",
+            [$object_id, $dow]
+        );
+        $schedule = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+
+        $breaks = [];
+        if (!empty($schedule['id'])) {
+            $b_stmt = fncQuery(
+                "SELECT `id`, `start_time`, `end_time` FROM `object_schedule_breaks`
+                 WHERE `schedule_id` = ? ORDER BY `start_time`",
+                [$schedule['id']]
+            );
+            $breaks = $b_stmt ? $b_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        }
+
+        $result = array_merge($schedule, ['breaks' => $breaks]);
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'upd_object_schedule_day':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $object_id  = (int)fncValFind('object_id', $params);
+        $dow        = (int)fncValFind('dow', $params);
+        $start_time = fncValFind('start_time', $params);
+        $end_time   = fncValFind('end_time', $params);
+        $is_all_day = fncValFind('is_all_day', $params);
+        $is_day_off = fncValFind('is_day_off', $params);
+
+        $check = fncQuery(
+            "SELECT `id` FROM `object_schedule` WHERE `object_id` = ? AND `day_of_week` = ?",
+            [$object_id, $dow]
+        );
+        $existing = $check ? $check->fetch(PDO::FETCH_ASSOC) : null;
+
+        if ($existing) {
+            $stmt = fncQuery(
+                "UPDATE `object_schedule`
+                 SET `start_time` = ?, `end_time` = ?, `is_all_day` = ?, `is_day_off` = ?,
+                     `updated_at` = NOW(), `updated_by` = ?
+                 WHERE `id` = ?",
+                [$start_time, $end_time, $is_all_day, $is_day_off, $user_id, $existing['id']]
+            );
+            $schedule_id = $existing['id'];
+        } else {
+            global $pdo;
+            $stmt = fncQuery(
+                "INSERT INTO `object_schedule` (`object_id`, `day_of_week`, `start_time`, `end_time`, `is_all_day`, `is_day_off`, `created_by`)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)",
+                [$object_id, $dow, $start_time, $end_time, $is_all_day, $is_day_off, $user_id]
+            );
+            $schedule_id = $stmt ? (int)$pdo->lastInsertId() : null;
+        }
+
+        $result = ['sccss' => (bool)$stmt, 'schedule_id' => $schedule_id];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'new_object_schedule_break':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $schedule_id = fncValFind('schedule_id', $params);
+        $start_time  = fncValFind('start_time', $params);
+        $end_time    = fncValFind('end_time', $params);
+
+        $stmt = fncQuery(
+            "INSERT INTO `object_schedule_breaks` (`schedule_id`, `start_time`, `end_time`, `created_by`)
+             VALUES (?, ?, ?, ?)",
+            [$schedule_id, $start_time, $end_time, $user_id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'del_object_schedule_break':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id   = (int)(fncValFind('id', $params) ?? 0);
+        $stmt = fncQuery("DELETE FROM `object_schedule_breaks` WHERE `id` = ?", [$id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'object_schedule_temporary_list':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $object_id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `id`, `valid_from`, `valid_to`, `start_time`, `end_time`, `is_all_day`, `is_day_off`
+             FROM `object_schedule_temporary`
+             WHERE `object_id` = ? AND `valid_to` >= CURDATE()
+             ORDER BY `valid_from`",
+            [$object_id]
+        );
+        $periods = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        foreach ($periods as $key => $period) {
+            $b_stmt = fncQuery(
+                "SELECT `id`, `start_time`, `end_time` FROM `object_schedule_temporary_breaks`
+                 WHERE `schedule_temporary_id` = ? ORDER BY `start_time`",
+                [$period['id']]
+            );
+            $periods[$key]['breaks'] = $b_stmt ? $b_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        }
+
+        $result = $periods;
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'new_object_schedule_temporary':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $object_id  = fncValFind('object_id', $params);
+        $valid_from = fncValFind('valid_from', $params);
+        $valid_to   = fncValFind('valid_to', $params);
+        $start_time = fncValFind('start_time', $params);
+        $end_time   = fncValFind('end_time', $params);
+        $is_all_day = fncValFind('is_all_day', $params);
+        $is_day_off = fncValFind('is_day_off', $params);
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO `object_schedule_temporary`
+             (`object_id`, `valid_from`, `valid_to`, `start_time`, `end_time`, `is_all_day`, `is_day_off`, `created_by`)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [$object_id, $valid_from, $valid_to, $start_time, $end_time, $is_all_day, $is_day_off, $user_id]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось создать период'];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'del_object_schedule_temporary':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? 0);
+        fncQuery("DELETE FROM `object_schedule_temporary_breaks` WHERE `schedule_temporary_id` = ?", [$id]);
+        $stmt = fncQuery("DELETE FROM `object_schedule_temporary` WHERE `id` = ?", [$id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'new_object_schedule_temporary_break':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $schedule_temporary_id = fncValFind('schedule_temporary_id', $params);
+        $start_time = fncValFind('start_time', $params);
+        $end_time   = fncValFind('end_time', $params);
+
+        $stmt = fncQuery(
+            "INSERT INTO `object_schedule_temporary_breaks` (`schedule_temporary_id`, `start_time`, `end_time`, `created_by`)
+             VALUES (?, ?, ?, ?)",
+            [$schedule_temporary_id, $start_time, $end_time, $user_id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'del_object_schedule_temporary_break':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id   = (int)(fncValFind('id', $params) ?? 0);
+        $stmt = fncQuery("DELETE FROM `object_schedule_temporary_breaks` WHERE `id` = ?", [$id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
+    //--------------------------------------------------------------------------
+
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
         exit;

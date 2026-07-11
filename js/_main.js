@@ -1,9 +1,11 @@
 //==============================================================================
-const main_modal    = new bootstrap.Modal('#mainModal');
-const myOffcanvas   = new bootstrap.Offcanvas('#myOffcanvas');
-const modalOffcanvas = new bootstrap.Offcanvas('#modalOffcanvas');
+const main_modal      = new bootstrap.Modal('#mainModal');
+const confirm_modal   = new bootstrap.Modal('#confirmModal');
+const myOffcanvas     = new bootstrap.Offcanvas('#myOffcanvas');
+const modalOffcanvas  = new bootstrap.Offcanvas('#modalOffcanvas');
 //==============================================================================
 $(function(){
+    $('body, html').animate({scrollTop: 0}, 100, "linear");
     const $startItem = $(".link-item[data-onload=1]");
     if ($startItem.length) {
         fncChptLoad($startItem.data("module"), $startItem.data("ttl"));
@@ -53,6 +55,14 @@ $(function(){
                     });
             }
         }
+    });
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    $(document).on('show.bs.modal', '.modal', function () {
+        let z = 1050 + (10 * $('.modal.show').length);
+        $(this).css('z-index', z);
+        setTimeout(function () {
+            $('.modal-backdrop').not('.modal-stacked').last().css('z-index', z - 1).addClass('modal-stacked');
+        });
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#menuButtonProfile").click(function(){
@@ -132,7 +142,8 @@ function fncBookNav() {
             $tabs.removeClass("active");
             $(this).addClass("active");
             this.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-            $("#divScrollArea").animate({ scrollTop: 0 }, 150, "linear");
+            //$("#divScrollArea").animate({ scrollTop: 0 }, 150, "linear");
+            $('body, html').animate({scrollTop: 0}, 100, "linear");
             let chpt = $(this).data("target");
             $("#rowContent").html(`<div class="col-12 p-3">${spnr_loading}</div>`);
             let path = new URL(`./${folder}/${chpt}.php`, url);
@@ -152,7 +163,8 @@ function fncChptLoad(module_key, chpt_header) {
     $("#sectionHeader").html(chpt_header);
     let path = new URL(`main_module.php?module=${module_key}`, url);
     $("#divMainContent").load(path.href, function(){
-        $("#divScrollArea").animate({ scrollTop: 0 }, 150, "linear");
+        //$("#divScrollArea").animate({ scrollTop: 0 }, 150, "linear");
+        $('body, html').animate({scrollTop: 0}, 100, "linear");
         fncBookNav();
     });
 }
@@ -176,5 +188,23 @@ function searchFunction() {
 //==============================================================================
 function getRandomCode(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+//==============================================================================
+function fncConfirm(message) {
+    return new Promise(function(resolve){
+        let confirmed = false;
+        $("#confirmModalText").html(message);
+
+        $("#btnConfirmOk").off("click").on("click", function(){
+            confirmed = true;
+            confirm_modal.hide();
+        });
+
+        $("#confirmModal").off("hidden.bs.modal").one("hidden.bs.modal", function(){
+            resolve(confirmed);
+        });
+
+        confirm_modal.show();
+    });
 }
 //==============================================================================

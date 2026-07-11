@@ -23,8 +23,8 @@ if (!is_array($result) || isset($result['sccss'])) {
     <table class="table table-sm table-hover mt-2">
         <tbody>
             <?php foreach ($result as $value): ?>
-                <tr class="itemTr <?php echo empty($value['is_active']) ? 'text-muted' : ''; ?>" data-id="<?php echo (int)$value['id']; ?>">
-                    <td class="py-2 itemName" data-id="<?php echo (int)$value['id']; ?>">
+                <tr class="utlTr <?php echo empty($value['is_active']) ? 'text-muted' : ''; ?>" data-id="<?php echo (int)$value['id']; ?>">
+                    <td class="py-2 utlName" data-id="<?php echo (int)$value['id']; ?>">
                         <?php echo htmlspecialchars($value['name']); ?>
                     </td>
                 </tr>

@@ -31,16 +31,16 @@ if (!is_array($result) || isset($result['sccss'])) {
         <thead>
             <tr>
                 <th>Дата</th>
-                <th>Значение</th>
-                <th>Тариф</th>
+                <th class="text-center">Значение</th>
+                <th class="text-center">Тариф</th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($result as $value): ?>
                 <tr>
-                    <td><?php echo htmlspecialchars($value['reading_date']); ?></td>
-                    <td><?php echo htmlspecialchars($value['reading_value']); ?></td>
-                    <td><?php echo htmlspecialchars($value['tariff']); ?></td>
+                    <td><?php echo htmlspecialchars(date("d.m.Y", strtotime($value['reading_date']))); ?></td>
+                    <td class="text-center"><?php echo htmlspecialchars($value['reading_value']); ?></td>
+                    <td class="text-center"><?php echo htmlspecialchars($value['tariff']); ?></td>
                 </tr>
             <?php endforeach; ?>
         </tbody>

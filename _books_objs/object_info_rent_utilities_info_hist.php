@@ -54,11 +54,11 @@ if (!is_array($utility) || isset($utility['sccss'])) {
     <?php endif; ?>
 
     <div class="col-6 mb-3">
-        <label class="my-input-label" for="inpHistStartDate">Начало периода</label>
+        <label class="my-input-label" for="inpHistStartDate">Начало</label>
         <input type="date" class="form-in" id="inpHistStartDate">
     </div>
     <div class="col-6 mb-3">
-        <label class="my-input-label" for="inpHistEndDate">Окончание периода</label>
+        <label class="my-input-label" for="inpHistEndDate">Окончание</label>
         <input type="date" class="form-in" id="inpHistEndDate">
     </div>
 

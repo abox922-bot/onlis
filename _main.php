@@ -59,6 +59,21 @@
       </div>
     </div>
   </div>
+
+  <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content confirm-modal-content">
+              <div class="confirm-modal-body text-center py-4">
+                  <div id="confirmModalText" class="mb-3"></div>
+                  <div class="d-flex justify-content-center gap-2">
+                      <button type="button" class="btn-action-outline" id="btnConfirmCancel" data-bs-dismiss="modal">Отмена</button>
+                      <button type="button" class="btn-action-main" id="btnConfirmOk">Да</button>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
+
   <div class="offcanvas offcanvas-start" tabindex="-1" id="myOffcanvas">
 
     <div class="offcanvas-header">
@@ -133,4 +148,4 @@
 
     </div>
   </div>
-  <script src="./js/_main.js?2026070401"></script>
+  <script src="./js/_main.js?2026071003"></script>

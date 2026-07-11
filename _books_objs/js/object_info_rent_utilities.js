@@ -42,14 +42,14 @@ function listUtilitiesLoad() {
     $("#divUtilitiesList").html(spnr_loading);
     let path = new URL("./_books_objs/object_info_rent_utilities_list.php", url);
     $("#divUtilitiesList").load(path.href, {id: object_id}, function(){
-        $(".itemTr").off("click").on("click", function(){
+        $(".utlTr").off("click").on("click", function(){
             utilityInfoLoad($(this).data("id"));
         });
     });
 }
 //==============================================================================
 function utilityInfoLoad(item_id) {
-    let item_name = $(`.itemName[data-id="${item_id}"]`).html();
+    let item_name = $(`.utlName[data-id="${item_id}"]`).html();
     $("#modalOffcanvasBody").html(spnr_loading);
     $("#modalOffcanvasLabel").html(item_name);
     modalOffcanvas.show();

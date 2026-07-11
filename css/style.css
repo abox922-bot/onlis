@@ -28,6 +28,11 @@ body {
 .modal-body {min-height: 500px; overflow-x: hidden;}
 .card { --bs-card-bg: var(--card-bg); border-color: var(--border-color); }
 .list-group { --bs-list-group-bg: var(--card-bg); }
+.confirm-modal-content {
+    max-width: 360px;
+    width: 100%;
+    margin: 0 auto;
+}
 
 .form-control, .form-select {
     background-color: var(--input-bg);
@@ -183,12 +188,23 @@ body {
 
 .form-in {
     width: 100%; display: block;
+    min-width: 0;
     border: 1px solid #e0e0e0;
     border-radius: 10px !important;
     padding: 8px 15px; font-size: 0.95rem;
     background-color: #fff;
     transition: all 0.2s ease-in-out;
     font-family: var(--bs-body-font-family);
+}
+input[type="date"].form-in, input[type="time"].form-in {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 42px;
+    line-height: 26px;
+    padding-left: 10px;
+    padding-right: 6px;
+    font-size: 0.85rem;
+    color: #212529;
 }
 .form-in.is-invalid {
     border-color: #dc3545 !important;
