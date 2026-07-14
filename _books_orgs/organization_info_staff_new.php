@@ -1,6 +1,8 @@
 <?php
 require_once('../app/includes/session_guard.php');
-fncRequireSession();
+$ses_result = fncRequireSession();
+
+$today = $ses_result["today"];
 
 $ses_info = [
     '_onlis_id' => $_COOKIE['_onlis_id'],
@@ -45,14 +47,14 @@ if (!is_array($result) || isset($result['sccss'])) {
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpBDate" class="my-input-label">Дата рождения</label>
                 <input type="date" class="form-in form-inp" id="inpBDate"
-                    data-name="staff-bdate">
+                    data-name="staff-bdate" value="<?= $today; ?>">
             </div>
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpPhone" class="my-input-label">Телефон</label>
                 <input type="text" class="form-in form-inp" id="inpPhone"
                     data-name="staff-phone" data-type="phone"
-                    data-phone-code="<?php echo htmlspecialchars($result['ph_code']); ?>"
-                    data-phone-mask="<?php echo htmlspecialchars($result['ph_mask']); ?>"
+                    data-phone-code="<?php echo htmlspecialchars($result['phone_code']); ?>"
+                    data-phone-mask="<?php echo htmlspecialchars($result['phone_mask']); ?>"
                     autocomplete="off">
             </div>
             <div class="col-12 col-md-4 mb-3">

@@ -388,6 +388,7 @@ function fncHideFormError() {
 .toolbar-filter — селект-фильтр в toolbar. БЕЗ класса form-in. Tom Select инициализируется на нём в JS.
 .toolbar-search — обёртка поля поиска с иконкой лупы.
 .toolbar-search__icon — иконка лупы внутри поля.
+.toolbar-search — поле поиска всегда имеет id="inpSearchVal" — именно этот id слушает глобальная функция searchFunction() в js/_main.js.
 .toolbar-add — кнопка добавления. ВСЕГДА вместе с btn-action-main: class="btn-action-main toolbar-add".
 .btn-label — текст кнопки, скрывается на мобильной версии.
 .custom-dropdown — обёртка Tom Select для поиска по большому справочнику.

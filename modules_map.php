@@ -1,20 +1,27 @@
 <?php
   $modules_map = [
+      'main' => [
+          'folder'   => '_main',
+          'sections' => [
+              ['key' => 'main',  'title' => 'Главная',  'file' => 'main',  'default' => true],
+          ],
+      ],
+
       'users' => [
           'folder'   => '_books_users',
           'sections' => [
-              ['key' => 'users',  'slug' => 'geography',  'title' => 'Пользователи',  'file' => 'users',  'default' => true],
-              ['key' => 'rules',  'slug' => 'geography',  'title' => 'Права доступа', 'file' => 'rules'],
+              ['key' => 'users',  'slug' => 'users.manage.view',  'title' => 'Пользователи',  'file' => 'users',  'default' => true],
           ],
       ],
+
 
       'geography' => [
           'folder'   => '_books_geo',
           'sections' => [
-              ['key' => 'countries',  'slug' => 'geography',  'title' => 'Страны',  'file' => 'countries', 'default' => true],
-              ['key' => 'regions',    'slug' => 'geography',  'title' => 'Регионы', 'file' => 'regions'],
-              ['key' => 'cities',     'slug' => 'geography',  'title' => 'Города',  'file' => 'cities'],
-              ['key' => 'streets',    'slug' => 'geography',  'title' => 'Улицы',   'file' => 'streets'],
+              ['key' => 'countries',  'slug' => 'geography.manage.view',  'title' => 'Страны',  'file' => 'countries', 'default' => true],
+              ['key' => 'regions',    'slug' => 'geography.manage.view',  'title' => 'Регионы', 'file' => 'regions'],
+              ['key' => 'cities',     'slug' => 'geography.manage.view',  'title' => 'Города',  'file' => 'cities'],
+              ['key' => 'streets',    'slug' => 'geography.manage.view',  'title' => 'Улицы',   'file' => 'streets'],
           ],
       ],
 

@@ -1,6 +1,6 @@
 //==============================================================================
 $(function(){
-    if (!canDo('geography.edit')) {
+    if (!canDo('geography.manage')) {
         $("#btnFastNew").hide();
     }
 
@@ -42,7 +42,7 @@ $(function(){
         main_modal.show();
         let path = new URL("./_books_geo/streets_new.php", url);
         $("#mainModalBody").load(path.href, {city_name}, function(){
-          if (!canDo('geography.edit')) {
+          if (!canDo('geography.manage')) {
               $("#btnSave").hide();
               $("#formNew").off("submit");
           } else {
@@ -96,7 +96,7 @@ function infoLoadFunction(item_id) {
     main_modal.show();
     let path = new URL("./_books_geo/streets_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id, city_name}, function(){
-      if (!canDo('geography.edit')) {
+      if (!canDo('geography.manage')) {
           $("#btnSave").hide();
           $("#formInfo").off("submit");
       } else {

@@ -71,7 +71,7 @@ if ($action === 'in') {
 //==============================================================================
 } elseif ($action === 'in_cntrl') {
 
-  $qu = "SELECT s.id AS ses_id, s.user AS usr_id,
+  $qu = "SELECT s.id AS ses_id, s.user AS usr_id, u.name AS onl_name,
                 CONCAT_WS(' ', u.name, u.last_name) AS usr_name,
                 u.is_active,
                 CURDATE() AS today
@@ -91,6 +91,7 @@ if ($action === 'in') {
           $out_array = [
               'sccss'     => true,
               'user'      => $session['usr_id'],
+              'onl_name' => $session['onl_name'],
               'user_name' => $session['usr_name'],
               'rules'     => $perms,
               'path'      => '_main.php',

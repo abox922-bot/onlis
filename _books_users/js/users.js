@@ -1,51 +1,112 @@
-//==============================================================================
-$(document).ready(function(){
-  listLoadFunction();
-  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  $("#btnFastNew").click(function(){
-    $("#mainModalBody").html(spnr_loading);
-    $("#mainModalLabel").html("Добавление сотрудника");
-    let path = new URL("./_books_users/users_new.php", url);
-    $("#mainModalBody").load(path.href, function(){
-      main_modal.show();
-      $("#formNew").submit(function(e){
-        e.preventDefault();
-        let crt_arr = fncParamsCrt(".form-inp");
-        if (crt_arr["all_good"] && confirm("Сохранить?")) {
-          $("#btnSave, #divSaveLoading").toggleClass("d-none");
-          $.ajax({type: "POST",	url: rqst_path.href, data: {params: JSON.stringify(crt_arr["params"]), action: "new_user", module: "users", return_data: 0},	success: function(){
-            listLoadFunction();
-            main_modal.hide();
-          }});
+$(function(){
+
+    if (window.orgFilterPicker) window.orgFilterPicker.destroy();
+    window.orgFilterPicker = new TomSelect("#slctOrgFilter", {
+        maxOptions: null,
+        wrapperClass: "ts-wrapper toolbar-filter",
+        plugins: ["clear_button"],
+        onChange: function(value){
+            listLoadFunction(value);
+            window.orgFilterPicker.blur();
         }
-      });
     });
-  });
-  //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-});
-//==============================================================================
-function listLoadFunction() {
-	$("#divChptContent").html(spnr_loading);
-	let path = new URL("./_books_users/users_list.php", url);
-	$("#divChptContent").load(path.href, function(){
-		searchFunction();
-    $(".itemTr").click(function(){
-      infoLoadFunction(+$(this).attr("data-id"));
-    });
-    if (localStorage.getItem('new_item') !== null) {
-      infoLoadFunction(localStorage.getItem('new_item'));
-      localStorage.removeItem('new_item');
+
+    if (!canDo('users.manage')) {
+        $("#btnFastNew").hide();
     }
-	});
+
+    listLoadFunction("");
+
+    if (canDo('users.manage')) {
+        $("#btnFastNew").off("click").on("click", function(){
+            $("#mainModalLabel").html("Новый сотрудник");
+            $("#mainModalBody").html(spnr_loading);
+            fncHideFormError();
+            main_modal.show();
+            let path = new URL("./_books_users/users_new.php", url);
+            $("#mainModalBody").load(path.href, function(){
+
+                if (window.countryPicker) window.countryPicker.destroy();
+                window.countryPicker = new TomSelect("#slctCountry", {
+                    maxOptions: null
+                });
+
+                if (window.phoneCountryPicker) window.phoneCountryPicker.destroy();
+                window.phoneCountryPicker = new TomSelect("#slctPhoneCountry", {
+                    maxOptions: null,
+                    onChange: function(value){
+                        if (!value) {
+                            $("#inpPhone").prop("disabled", true).val("").unmask();
+                            return;
+                        }
+                        let opt  = $(`#slctPhoneCountry option[value="${value}"]`);
+                        let mask = opt.data("mask");
+                        $("#inpPhone").prop("disabled", false);
+                        if (mask) $("#inpPhone").mask(mask);
+                    }
+                });
+
+                if (!canDo('users.manage')) {
+                    $("#btnSave").hide();
+                    $("#formNew").off("submit");
+                    return;
+                }
+
+                $("#formNew").submit(function(e){
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+
+                    let params_arr = [];
+                    params_arr.push({name: "user-country-id",  value: window.countryPicker.getValue()});
+                    params_arr.push({name: "phone-country-id", value: window.phoneCountryPicker.getValue()});
+
+                    let crt_arr = fncParamsCrt(".form-inp", params_arr);
+                    if (crt_arr["all_good"]) {
+                        $("#btnSave").prop("disabled", true);
+                        $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
+                        fncMyAjax("new_user", "users", crt_arr["params"], 1)
+                            .done(function(data){
+                                if (data.sccss) {
+                                    main_modal.hide();
+                                    listLoadFunction(window.orgFilterPicker.getValue());
+                                } else {
+                                    fncBtnReset();
+                                    fncShowFormError(data.msg ?? "Проверьте введённые данные");
+                                }
+                            })
+                            .fail(function(){ fncBtnReset(); });
+                    }
+                });
+
+            });
+        });
+    }
+
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function listLoadFunction(organization_id) {
+    $("#divChptContent").html(spnr_loading);
+    let path = new URL("./_books_users/users_list.php", url);
+    $("#divChptContent").load(path.href, {organization_id: organization_id || ""}, function(){
+        searchFunction();
+        $(".itemTr").off("click").on("click", function(){
+            infoLoadFunction(+$(this).data("id"));
+        });
+    });
 }
-//==============================================================================
-function infoLoadFunction(item_id) {
-  let item_name = $(`.itemName[data-id=${item_id}]`).html();
-  $("#mainModalBody").html(spnr_loading);
-  $("#mainModalLabel").html(`<small class="fw-normal">Информация о сотруднике</small><br>${item_name}`);
-  let path = new URL("./_books_org/orgs_info_staff_info.php", url);
-  $("#mainModalBody").load(path.href, {st_id: item_id}, function(){
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function infoLoadFunction(user_id) {
+    let user_name = $(`.itemName[data-id="${user_id}"]`).first()
+        .clone().children().remove().end().text().trim();
+
+    $("#mainModalLabel").html(user_name);
+    $("#mainModalBody").html(spnr_loading);
+    fncHideFormError();
     main_modal.show();
-  });
+    let path = new URL("./_books_users/users_info.php", url);
+    $("#mainModalBody").load(path.href, {user_id: user_id});
 }
-//==============================================================================

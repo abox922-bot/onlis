@@ -1,10 +1,11 @@
 <?php
 return [
-    'dashboard' => [
+    'main' => [
         'title'  => 'Главная',
         'icon'   => 'bi-house',
         'single' => true,
         'module' => 'main',
+        'onload' => 1,
     ],
     'orders' => [
         'title'  => 'Заказы',
@@ -33,8 +34,8 @@ return [
         'title' => 'Справочники',
         'icon'  => 'bi-journal-bookmark',
         'items' => [
-            ['slug' => 'users',                     'module' => 'users',          'title' => 'Сотрудники',    'icon' => 'bi-people'],
-            ['slug' => 'geography',                 'module' => 'geography',      'title' => 'География',     'icon' => 'bi-globe-americas'],
+            ['slug' => 'users.manage.view',         'module' => 'users',          'title' => 'Сотрудники',    'icon' => 'bi-people'],
+            ['slug' => 'geography.manage.view',     'module' => 'geography',      'title' => 'География',     'icon' => 'bi-globe-americas'],
             ['slug' => 'organizations.manage.view', 'module' => 'organizations',  'title' => 'Организации',   'icon' => 'bi-building'],
             ['slug' => 'objects.manage.view',       'module' => 'objects',        'title' => 'Объекты',       'icon' => 'bi-shop'],
         ]

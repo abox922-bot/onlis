@@ -715,49 +715,10 @@ switch ($action) {
         $org_id = (int)($_POST['id'] ?? 0);
 
         $stmt = fncQuery(
-            "SELECT oba.id, oba.account_number, oba.is_active,
-                    o.name AS bank_name, ot.abbreviation
-             FROM organization_bank_accounts oba
-             LEFT JOIN organizations o  ON o.id  = oba.bank_id
-             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
-             WHERE oba.organization_id = ?
-             ORDER BY oba.is_active DESC, o.name, oba.account_number",
-            [$org_id]
-        );
-        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-
-        // Для каждого банка подгружаем его банковские реквизиты (БИК, корсчёт)
-        foreach ($rows as $key => $row) {
-            $stmt_reqs = fncQuery(
-                "SELECT rt.name, orq.value
-                 FROM organization_requisites orq
-                 LEFT JOIN requisite_types rt ON rt.id = orq.requisite_type_id
-                 WHERE orq.organization_id = ? AND rt.is_bank_only = 1",
-                [(int)$row['id'] /* bank_id нужен */]
-            );
-            // Исправляем — берём bank_id
-        }
-
-        // Правильный запрос с bank_id для реквизитов
-        $result = [];
-        foreach ($rows as $row) {
-            $stmt_reqs = fncQuery(
-                "SELECT rt.name, orq.value
-                 FROM organization_requisites orq
-                 LEFT JOIN requisite_types rt ON rt.id = orq.requisite_type_id
-                 WHERE orq.organization_id = ? AND rt.is_bank_only = 1",
-                [(int)$row['id']]
-            );
-            // bank_id берём из oba
-            $result[] = $row;
-        }
-
-        // Переписываю правильно одним запросом
-        $stmt = fncQuery(
             "SELECT oba.id, oba.account_number, oba.is_active, oba.bank_id,
                     o.name AS bank_name, ot.abbreviation
              FROM organization_bank_accounts oba
-             LEFT JOIN organizations o  ON o.id  = oba.bank_id
+             LEFT JOIN organizations o ON o.id = oba.bank_id
              LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
              WHERE oba.organization_id = ?
              ORDER BY oba.is_active DESC, o.name, oba.account_number",
@@ -777,7 +738,6 @@ switch ($action) {
         }
         $result = $rows;
         break;
-
     // -------------------------------------------------------------------------
     case 'toggle_bank_account_active':
         if (!fncCan($perms, 'organizations.manage')) {

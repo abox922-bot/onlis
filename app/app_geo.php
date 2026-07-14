@@ -47,7 +47,7 @@ switch ($action) {
     // =========================================================================
 
     case 'countries_list':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -58,7 +58,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'country_info':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -75,7 +75,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'new_country':
-        if (!fncCan($perms, 'geography.edit')) {
+        if (!fncCan($perms, 'geography.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -103,7 +103,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'upd_country':
-        if (!fncCan($perms, 'geography.edit')) {
+        if (!fncCan($perms, 'geography.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -131,7 +131,7 @@ switch ($action) {
     // =========================================================================
 
     case 'regions_list':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -146,7 +146,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'region_info':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -164,7 +164,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'new_region':
-        if (!fncCan($perms, 'geography.edit')) {
+        if (!fncCan($perms, 'geography.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -193,7 +193,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'upd_region':
-        if (!fncCan($perms, 'geography.edit')) {
+        if (!fncCan($perms, 'geography.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -220,7 +220,7 @@ switch ($action) {
     // =========================================================================
 
     case 'countries_regs_list':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -236,7 +236,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'cities_list':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -253,7 +253,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'city_info':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -272,7 +272,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'new_city':
-        if (!fncCan($perms, 'geography.edit')) {
+        if (!fncCan($perms, 'geography.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -296,7 +296,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'upd_city':
-        if (!fncCan($perms, 'geography.edit')) {
+        if (!fncCan($perms, 'geography.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -318,7 +318,7 @@ switch ($action) {
     // =========================================================================
 
     case 'cities_list_for_streets':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -334,7 +334,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'streets_list':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -349,11 +349,11 @@ switch ($action) {
         );
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         break;
-        
+
     // -------------------------------------------------------------------------
 
     case 'streets_types_list':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -364,7 +364,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'street_info':
-        if (!fncCan($perms, 'geography')) {
+        if (!fncCan($perms, 'geography.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -379,7 +379,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'new_street':
-        if (!fncCan($perms, 'geography.edit')) {
+        if (!fncCan($perms, 'geography.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -405,7 +405,7 @@ switch ($action) {
     // -------------------------------------------------------------------------
 
     case 'upd_street':
-        if (!fncCan($perms, 'geography.edit')) {
+        if (!fncCan($perms, 'geography.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }

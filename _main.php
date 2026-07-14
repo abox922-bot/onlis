@@ -98,7 +98,8 @@
                                   <i class="bi <?php echo $group['icon']; ?>"></i>
                                   <span class="my-nav-link__name link-item"
                                         data-module="<?php echo $group['module']; ?>"
-                                        data-ttl="<?php echo $group['title']; ?>">
+                                        data-ttl="<?php echo $group['title']; ?>"
+                                        data-onload="<?php echo $group['onload'] ?? 0; ?>">
                                       <?php echo $group['title']; ?>
                                   </span>
                               </a>
@@ -121,7 +122,8 @@
                                       <i class="bi <?php echo $item['icon']; ?>"></i>
                                       <span class="my-nav-link__name link-item"
                                             data-module="<?php echo $item['module']; ?>"
-                                            data-ttl="<?php echo $item['title']; ?>">
+                                            data-ttl="<?php echo $group['title']; ?>"
+                                            data-onload="<?php echo $group['onload'] ?? 0; ?>">
                                           <?php echo $item['title']; ?>
                                       </span>
                                   </a>

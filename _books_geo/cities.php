@@ -40,4 +40,4 @@
         <div class="empty-hint__text">Выберите страну и регион для просмотра городов</div>
     </div>
 
-    <script src="./_books_geo/js/cities.js?2026062400"></script>
+    <script src="./_books_geo/js/cities.js?2026071300"></script>

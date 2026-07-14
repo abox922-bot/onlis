@@ -6,7 +6,7 @@ fncRequireSession();
 <div class="section-toolbar">
     <div class="toolbar-search">
         <i class="bi bi-search toolbar-search__icon"></i>
-        <input type="text" class="form-in" id="inpSearch" placeholder="Поиск">
+        <input type="text" class="form-in" id="inpSearchVal" placeholder="Поиск">
     </div>
     <button type="button" class="btn-action-main toolbar-add" id="btnFastNew">
         <i class="bi bi-plus-lg"></i>

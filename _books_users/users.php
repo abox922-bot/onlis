@@ -1,25 +1,54 @@
 <?php
-    require_once('../app/includes/session_guard.php');
-    $result = fncRequireSession();
+require_once('../app/includes/session_guard.php');
+fncRequireSession();
 
-    $ses_info = [
-        '_onlis_id' => $_COOKIE['_onlis_id'],
-        'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
-    ];
-    
-    ?>
-    <div class="col-12 mt-3">
-      <div class="row">
-        <div class="col-12 d-flex">
-          <button type="button" class="btn btn-sm btn-success mx-1" id="btnFastNew">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-circle" style="vertical-align: sub;" viewBox="0 0 16 16">
-              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
-              <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
-            </svg>
-          </button>
-          <input type="text" class="form-control form-control-sm" id="inpSearchVal" value="" placeholder="поиск" style="max-width: 250px; background-color: #fff;">
-        </div>
-        <div class="col-12 mt-3" id="divChptContent"></div>
-      </div>
+$ses_info = [
+    '_onlis_id' => $_COOKIE['_onlis_id'],
+    'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
+];
+
+$orgs_result = send_request(array_merge($ses_info, [
+    'action' => 'users_organizations_filter',
+]), 'users');
+
+if (!is_array($orgs_result) || isset($orgs_result['sccss'])) {
+    $orgs_result = [];
+}
+
+$own_orgs   = array_filter($orgs_result, fn($o) => !$o['is_contractor']);
+$other_orgs = array_filter($orgs_result, fn($o) => $o['is_contractor']);
+?>
+<div class="section-toolbar">
+    <select class="toolbar-filter" id="slctOrgFilter">
+        <option value="">Все сотрудники</option>
+        <option value="none">Без организации</option>
+        <?php if (!empty($own_orgs)): ?>
+            <optgroup label="Наши организации">
+                <?php foreach ($own_orgs as $o): ?>
+                    <option value="<?php echo $o['id']; ?>">
+                        <?php echo htmlspecialchars($o['display_name']); ?>
+                    </option>
+                <?php endforeach; ?>
+            </optgroup>
+        <?php endif; ?>
+        <?php if (!empty($other_orgs)): ?>
+            <optgroup label="Контрагенты и банки">
+                <?php foreach ($other_orgs as $o): ?>
+                    <option value="<?php echo $o['id']; ?>">
+                        <?php echo htmlspecialchars($o['display_name']); ?>
+                    </option>
+                <?php endforeach; ?>
+            </optgroup>
+        <?php endif; ?>
+    </select>
+    <div class="toolbar-search">
+        <i class="bi bi-search toolbar-search__icon"></i>
+        <input type="text" class="form-in" id="inpSearchVal" placeholder="Поиск...">
     </div>
-    <script src="./_books_users/js/users.js?2025033000"></script>
+    <button type="button" class="btn-action-main toolbar-add" id="btnFastNew">
+        <i class="bi bi-plus-lg"></i>
+        <span class="btn-label">Добавить</span>
+    </button>
+</div>
+<div id="divChptContent"></div>
+<script src="./_books_users/js/users.js?2026071403"></script>
