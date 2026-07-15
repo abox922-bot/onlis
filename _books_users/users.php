@@ -8,8 +8,9 @@ $ses_info = [
 ];
 
 $orgs_result = send_request(array_merge($ses_info, [
-    'action' => 'users_organizations_filter',
-]), 'users');
+    'action'   => 'organizations_list',
+    'org_type' => 'all',
+]), 'orgs');
 
 if (!is_array($orgs_result) || isset($orgs_result['sccss'])) {
     $orgs_result = [];
@@ -51,4 +52,4 @@ $other_orgs = array_filter($orgs_result, fn($o) => $o['is_contractor']);
     </button>
 </div>
 <div id="divChptContent"></div>
-<script src="./_books_users/js/users.js?2026071403"></script>
+<script src="./_books_users/js/users.js?2026071400"></script>

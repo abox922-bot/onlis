@@ -341,20 +341,20 @@ switch ($action) {
         $org_type = $_POST['org_type'] ?? 'my';
 
         if ($org_type === 'my') {
-            $where = "o.is_contractor = 0 AND o.is_bank = 0";
+            $where = "o.is_contractor = 0 AND o.is_bank = 0 AND";
         } elseif ($org_type === 'contractor') {
-            $where = "o.is_contractor = 1";
+            $where = "o.is_contractor = 1 AND";
         } elseif ($org_type === 'bank') {
-            $where = "o.is_bank = 1";
+            $where = "o.is_bank = 1 AND";
         } else {
-            $where = "o.is_contractor = 0 AND o.is_bank = 0";
+            $where = "";
         }
 
         $stmt = fncQuery(
-            "SELECT o.id, o.name, o.short_name, ot.abbreviation, ot.is_individual
+            "SELECT o.id, o.name, o.short_name, ot.abbreviation, ot.is_individual, o.is_contractor, o.is_bank
              FROM organizations o
              LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
-             WHERE {$where} AND o.is_active = 1
+             WHERE {$where} o.is_active = 1
              ORDER BY o.name"
         );
         $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
