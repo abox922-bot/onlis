@@ -8,10 +8,12 @@ $ses_info = [
 ];
 
 $organization_id = $_POST['organization_id'] ?? '';
+$status           = $_POST['status'] ?? 'actual';
 
 $result = send_request(array_merge($ses_info, [
     'action'          => 'users_list',
     'organization_id' => $organization_id,
+    'status'          => $status,
 ]), 'users');
 
 if (!is_array($result) || isset($result['sccss'])) {
@@ -28,9 +30,9 @@ if (!is_array($result) || isset($result['sccss'])) {
         <tbody>
             <?php foreach ($result as $u): ?>
                 <tr class="itemTr" data-id="<?php echo $u['user_id']; ?>">
-                    <td class="py-2 itemName" data-id="<?php echo $u['user_id']; ?>"
+                    <td class="py-2"
                         style="line-height: 1.2em;">
-                        <?php echo htmlspecialchars($u['full_name']); ?>
+                        <span class="itemName" data-id="<?php echo $u['user_id']; ?>"><?php echo htmlspecialchars($u['full_name']); ?></span>
                         <?php if (!empty($u['orgs_display'])): ?>
                             <div class="text-muted">
                                 <small><?php echo htmlspecialchars($u['orgs_display']); ?></small>

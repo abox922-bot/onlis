@@ -1,12 +1,24 @@
 $(function(){
 
+    $("#btnToggleFilters").off("click").on("click", function(){
+        $("#divFiltersGroup").toggleClass("show");
+    });
+
+    window.currentStatus = "actual";
+
+    $(".dropdown-item[data-status]").off("click").on("click", function(e){
+        e.preventDefault();
+        window.currentStatus = $(this).data("status");
+        $("#btnStatusFilter").html($(this).text());
+        listLoadFunction();
+    });
+
     if (window.orgFilterPicker) window.orgFilterPicker.destroy();
     window.orgFilterPicker = new TomSelect("#slctOrgFilter", {
         maxOptions: null,
-        wrapperClass: "ts-wrapper toolbar-filter",
         plugins: ["clear_button"],
         onChange: function(value){
-            listLoadFunction(value);
+            listLoadFunction();
             window.orgFilterPicker.blur();
         }
     });
@@ -15,7 +27,7 @@ $(function(){
         $("#btnFastNew").hide();
     }
 
-    listLoadFunction("");
+    listLoadFunction();
 
     if (canDo('users.manage')) {
         $("#btnFastNew").off("click").on("click", function(){
@@ -64,11 +76,11 @@ $(function(){
                     if (crt_arr["all_good"]) {
                         $("#btnSave").prop("disabled", true);
                         $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
-                        fncMyAjax("new_user", "users", crt_arr["params"], 1)
+                        fncMyAjax("new", "users", crt_arr["params"], 1)
                             .done(function(data){
                                 if (data.sccss) {
                                     main_modal.hide();
-                                    listLoadFunction(window.orgFilterPicker.getValue());
+                                    listLoadFunction();
                                 } else {
                                     fncBtnReset();
                                     fncShowFormError(data.msg ?? "Проверьте введённые данные");
@@ -86,10 +98,13 @@ $(function(){
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function listLoadFunction(organization_id) {
+function listLoadFunction() {
+    let organization_id = window.orgFilterPicker ? window.orgFilterPicker.getValue() : "";
+    let status = window.currentStatus || "actual";
+
     $("#divChptContent").html(spnr_loading);
     let path = new URL("./_books_users/users_list.php", url);
-    $("#divChptContent").load(path.href, {organization_id: organization_id || ""}, function(){
+    $("#divChptContent").load(path.href, {organization_id: organization_id, status: status}, function(){
         searchFunction();
         $(".itemTr").off("click").on("click", function(){
             infoLoadFunction(+$(this).data("id"));
@@ -100,8 +115,7 @@ function listLoadFunction(organization_id) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function infoLoadFunction(user_id) {
-    let user_name = $(`.itemName[data-id="${user_id}"]`).first()
-        .clone().children().remove().end().text().trim();
+    let user_name = $(`.itemName[data-id="${user_id}"]`).first().text().trim();
 
     $("#mainModalLabel").html(user_name);
     $("#mainModalBody").html(spnr_loading);

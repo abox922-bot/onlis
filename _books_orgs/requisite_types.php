@@ -15,18 +15,20 @@ if (!is_array($countries) || isset($countries['sccss'])) {
 
 <div class="section-toolbar">
 
-    <select class="toolbar-filter" id="slctCountry">
-        <option value="">Выберите страну</option>
-        <?php foreach ($countries as $country): ?>
-            <option value="<?php echo $country['id']; ?>">
-                <?php echo htmlspecialchars($country['name']); ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
+    <div class="toolbar-filter">
+        <select id="slctCountry">
+            <option value="">Выберите страну</option>
+            <?php foreach ($countries as $country): ?>
+                <option value="<?php echo $country['id']; ?>">
+                    <?php echo htmlspecialchars($country['name']); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
 
     <div class="toolbar-search">
         <i class="bi bi-search toolbar-search__icon"></i>
-        <input type="text" class="form-in" id="inpSearch" placeholder="Поиск">
+        <input type="text" class="form-in" id="inpSearchVal" placeholder="Поиск">
     </div>
 
     <button type="button" class="btn-action-main toolbar-add" id="btnFastNew" disabled>
@@ -43,4 +45,4 @@ if (!is_array($countries) || isset($countries['sccss'])) {
     <div class="empty-hint__text">Выберите страну для просмотра реквизитов</div>
 </div>
 
-<script src="./_books_orgs/js/requisite_types.js?2026070100"></script>
+<script src="./_books_orgs/js/requisite_types.js?2026071600"></script>

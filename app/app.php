@@ -83,11 +83,12 @@ if ($action === 'in') {
   $session = $stmt ? $stmt->fetch() : null;
 
   if ($session) {
+      $flag_path = $_SERVER['DOCUMENT_ROOT'] . '/sse_cache/u_' . md5($session['usr_id']) . '.flag';
       if (!$session['is_active']) {
           $out_array = ['sccss' => false, 'msg' => 'Доступ заблокирован'];
+          touch($flag_path);
       } else {
           $perms = fncLoadPermissions((int)$session['usr_id']);
-          $flag_path = $_SERVER['DOCUMENT_ROOT'] . '/sse_cache/u_' . md5($session['usr_id']) . '.flag';
           $out_array = [
               'sccss'     => true,
               'user'      => $session['usr_id'],

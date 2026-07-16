@@ -9,7 +9,6 @@ $(function(){
         placeholder: "Выберите город",
         allowEmptyOption: false,
         maxOptions: null,
-        wrapperClass: "ts-wrapper toolbar-filter",
         plugins: ["clear_button"],
         render: {
             item: function(data, escape) {

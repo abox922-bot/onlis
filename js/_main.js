@@ -176,7 +176,8 @@ function searchFunction() {
             $(".itemTr").addClass("d-none");
             val = val.toLowerCase();
             $(".itemTr").each(function() {
-                if ($(this).html().toLowerCase().includes(val)) {
+                let item_id = +$(this).data("id");
+                if ($(`.itemName[data-id=${item_id}]`).html().toLowerCase().includes(val)) {
                     $(this).removeClass("d-none");
                 }
             });

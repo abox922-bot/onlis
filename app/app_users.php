@@ -31,20 +31,22 @@ $result = [];
 switch ($action) {
 
     // -------------------------------------------------------------------------
-    // Список сотрудников, с фильтром по организации
+    // Список сотрудников: фильтр по организации + статус (actual/archived)
     case 'users_list':
         if (!fncCan($perms, 'users.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
         $organization_filter = $_POST['organization_id'] ?? '';
+        $status = ($_POST['status'] ?? 'actual') === 'archived' ? 'archived' : 'actual';
+        $actual_condition = $status === 'archived' ? 'u.actual IS NULL' : 'u.actual = 1';
 
         if ($organization_filter === 'none') {
             $stmt = fncQuery(
                 "SELECT u.id AS user_id,
                         CONCAT_WS(' ', u.last_name, u.name) AS full_name
                  FROM users u
-                 WHERE u.actual = 1 AND u.id NOT IN (
+                 WHERE {$actual_condition} AND u.id NOT IN (
                      SELECT user_id FROM organization_staff WHERE date_end IS NULL
                  )
                  ORDER BY u.last_name, u.name"
@@ -82,7 +84,7 @@ switch ($action) {
              LEFT JOIN organization_staff os ON os.user_id = u.id AND os.date_end IS NULL
              LEFT JOIN organizations o ON o.id = os.organization_id
              LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
-             WHERE u.actual = 1 {$where_filter}
+             WHERE {$actual_condition} {$where_filter}
              GROUP BY u.id
              ORDER BY u.last_name, u.name",
             $filter_params
@@ -233,6 +235,8 @@ switch ($action) {
         break;
 
     // -------------------------------------------------------------------------
+    // Сохранение доступа. При отключении is_active — каскадом рвём сессии,
+    // удаляем логин/пароль и уведомляем SSE-флагом (мгновенный разлогин клиента).
     case 'upd_access':
         if (!fncCan($perms, 'users.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -249,6 +253,21 @@ switch ($action) {
             "UPDATE users SET is_active = ?, updated_by = ?, updated_at = NOW() WHERE id = ?",
             [$is_active, $user_id, $edit_user_id]
         );
+
+        if (!$is_active) {
+            fncQuery(
+                "UPDATE sessions SET session = NULL, cntrl = NULL, stop_time = NOW()
+                 WHERE user = ? AND session IS NOT NULL",
+                [$edit_user_id]
+            );
+            fncQuery("DELETE FROM users_auth WHERE user = ?", [$edit_user_id]);
+
+            $flag_path = $_SERVER['DOCUMENT_ROOT'] . '/sse_cache/u_' . md5($edit_user_id) . '.flag';
+            touch($flag_path);
+
+            $result = ['sccss' => true];
+            break;
+        }
 
         if ($login) {
             $stmt = fncQuery("SELECT id FROM users_auth WHERE login = ? AND user != ?", [$login, $edit_user_id]);
@@ -279,33 +298,81 @@ switch ($action) {
         break;
 
     // -------------------------------------------------------------------------
-    // Полная деактивация человека (снятие доступа + завершение всех привязок)
-    case 'dismiss':
+    // Активные организации человека — для предупреждения перед архивацией
+    case 'active_organizations':
+        if (!fncCan($perms, 'users.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $target_user_id = (int)($_POST['user_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT o.name, ot.abbreviation, ot.is_individual
+             FROM organization_staff os
+             LEFT JOIN organizations o ON o.id = os.organization_id
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             WHERE os.user_id = ? AND os.date_end IS NULL
+             ORDER BY o.name",
+            [$target_user_id]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $result = array_map(function($r) {
+            return $r['is_individual']
+                ? $r['abbreviation'] . ' ' . $r['name']
+                : $r['abbreviation'] . ' «' . $r['name'] . '»';
+        }, $rows);
+        break;
+
+    // -------------------------------------------------------------------------
+    // Перенос в архив: actual = NULL, полное закрытие доступа и всех привязок,
+    // SSE-уведомление о принудительном разлогине.
+    case 'archive':
         if (!fncCan($perms, 'users.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        $dismissed_user_id = (int)fncValFind('user-id', $params);
-        if (!$dismissed_user_id) { echo json_encode(['sccss' => false]); exit; }
+        $archive_user_id = (int)fncValFind('user-id', $params);
+        if (!$archive_user_id) { echo json_encode(['sccss' => false]); exit; }
+
+        fncQuery(
+            "UPDATE users SET actual = NULL, is_active = 0, updated_by = ?, updated_at = NOW() WHERE id = ?",
+            [$user_id, $archive_user_id]
+        );
 
         fncQuery(
             "UPDATE organization_staff SET date_end = CURDATE()
              WHERE user_id = ? AND date_end IS NULL",
-            [$dismissed_user_id]
-        );
-
-        fncQuery(
-            "UPDATE users SET is_active = 0, actual = NULL, updated_by = ?, updated_at = NOW() WHERE id = ?",
-            [$user_id, $dismissed_user_id]
+            [$archive_user_id]
         );
 
         fncQuery(
             "UPDATE sessions SET session = NULL, cntrl = NULL, stop_time = NOW()
              WHERE user = ? AND session IS NOT NULL",
-            [$dismissed_user_id]
+            [$archive_user_id]
         );
 
-        fncQuery("DELETE FROM users_auth WHERE user = ?", [$dismissed_user_id]);
+        fncQuery("DELETE FROM users_auth WHERE user = ?", [$archive_user_id]);
+
+        $flag_path = $_SERVER['DOCUMENT_ROOT'] . '/sse_cache/u_' . md5($archive_user_id) . '.flag';
+        touch($flag_path);
+
+        $result = ['sccss' => true];
+        break;
+
+    // -------------------------------------------------------------------------
+    // Восстановление из архива. Доступ и привязки НЕ восстанавливаются
+    // автоматически — настраиваются заново вручную.
+    case 'restore':
+        if (!fncCan($perms, 'users.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $restore_user_id = (int)fncValFind('user-id', $params);
+        if (!$restore_user_id) { echo json_encode(['sccss' => false]); exit; }
+
+        fncQuery(
+            "UPDATE users SET actual = 1, updated_by = ?, updated_at = NOW() WHERE id = ?",
+            [$user_id, $restore_user_id]
+        );
 
         $result = ['sccss' => true];
         break;

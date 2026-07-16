@@ -20,28 +20,50 @@ $own_orgs   = array_filter($orgs_result, fn($o) => !$o['is_contractor']);
 $other_orgs = array_filter($orgs_result, fn($o) => $o['is_contractor']);
 ?>
 <div class="section-toolbar">
-    <select class="toolbar-filter" id="slctOrgFilter">
-        <option value="">Все сотрудники</option>
-        <option value="none">Без организации</option>
-        <?php if (!empty($own_orgs)): ?>
-            <optgroup label="Наши организации">
-                <?php foreach ($own_orgs as $o): ?>
-                    <option value="<?php echo $o['id']; ?>">
-                        <?php echo htmlspecialchars($o['display_name']); ?>
-                    </option>
-                <?php endforeach; ?>
-            </optgroup>
-        <?php endif; ?>
-        <?php if (!empty($other_orgs)): ?>
-            <optgroup label="Контрагенты и банки">
-                <?php foreach ($other_orgs as $o): ?>
-                    <option value="<?php echo $o['id']; ?>">
-                        <?php echo htmlspecialchars($o['display_name']); ?>
-                    </option>
-                <?php endforeach; ?>
-            </optgroup>
-        <?php endif; ?>
-    </select>
+    <button type="button" class="btn-action-outline toolbar-filters-toggle" id="btnToggleFilters">
+        <i class="bi bi-funnel"></i>
+    </button>
+
+    <div class="toolbar-filters-group" id="divFiltersGroup">
+
+        <div class="dropdown">
+            <button class="btn-action-outline dropdown-toggle" type="button"
+                id="btnStatusFilter" data-bs-toggle="dropdown" aria-expanded="false">
+                Актуальные
+            </button>
+            <ul class="dropdown-menu" aria-labelledby="btnStatusFilter">
+                <li><a class="dropdown-item" href="#" data-status="actual">Актуальные</a></li>
+                <li><a class="dropdown-item" href="#" data-status="archived">Архив</a></li>
+            </ul>
+        </div>
+
+        <div class="toolbar-filter">
+          <select id="slctOrgFilter">
+            <option value="">Все сотрудники</option>
+            <option value="none">Без организации</option>
+            <?php if (!empty($own_orgs)): ?>
+                <optgroup label="Наши организации">
+                    <?php foreach ($own_orgs as $o): ?>
+                        <option value="<?php echo $o['id']; ?>">
+                            <?php echo htmlspecialchars($o['display_name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </optgroup>
+            <?php endif; ?>
+            <?php if (!empty($other_orgs)): ?>
+                <optgroup label="Контрагенты и банки">
+                    <?php foreach ($other_orgs as $o): ?>
+                        <option value="<?php echo $o['id']; ?>">
+                            <?php echo htmlspecialchars($o['display_name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </optgroup>
+            <?php endif; ?>
+          </select>
+        </div>
+
+    </div>
+
     <div class="toolbar-search">
         <i class="bi bi-search toolbar-search__icon"></i>
         <input type="text" class="form-in" id="inpSearchVal" placeholder="Поиск...">
@@ -52,4 +74,4 @@ $other_orgs = array_filter($orgs_result, fn($o) => $o['is_contractor']);
     </button>
 </div>
 <div id="divChptContent"></div>
-<script src="./_books_users/js/users.js?2026071400"></script>
+<script src="./_books_users/js/users.js?2026071605"></script>

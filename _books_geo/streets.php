@@ -11,25 +11,28 @@
     $result = send_request($data, 'geo');
     ?>
     <div class="section-toolbar">
-      <select class="toolbar-filter" id="slctCity">
-          <option value="">Выберите город</option>
-          <?php foreach ($result as $value): ?>
-              <option value="<?php echo $value['id']; ?>"
-                      data-region="<?php echo $value['region']; ?>"
-                      data-country="<?php echo $value['country']; ?>">
-                  <?php echo htmlspecialchars($value['name']); ?> — <?php echo htmlspecialchars($value['reg_name']); ?>
-              </option>
-          <?php endforeach; ?>
-      </select>
+      <div class="toolbar-filter">
+        <select id="slctCity">
+            <option value="">Выберите город</option>
+            <?php foreach ($result as $value): ?>
+                <option value="<?php echo $value['id']; ?>"
+                        data-region="<?php echo $value['region']; ?>"
+                        data-country="<?php echo $value['country']; ?>">
+                    <?php echo htmlspecialchars($value['name']); ?> — <?php echo htmlspecialchars($value['reg_name']); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+      </div>
       <div class="toolbar-search">
             <i class="bi bi-search toolbar-search__icon"></i>
             <input type="text" class="form-in" id="inpSearchVal" placeholder="Поиск...">
-        </div>
-        <button type="button" class="btn-action-main toolbar-add" id="btnFastNew" disabled>
-            <i class="bi bi-plus-lg"></i>
-            <span class="btn-label">Добавить</span>
-        </button>
+      </div>
+      <button type="button" class="btn-action-main toolbar-add" id="btnFastNew" disabled>
+          <i class="bi bi-plus-lg"></i>
+          <span class="btn-label">Добавить</span>
+      </button>
     </div>
+
 
     <div class="d-none" id="divChptContent"></div>
 
@@ -38,4 +41,4 @@
         <div class="empty-hint__text">Выберите город для просмотра улиц</div>
     </div>
 
-    <script src="./_books_geo/js/streets.js?2026071300"></script>
+    <script src="./_books_geo/js/streets.js?2026071602"></script>

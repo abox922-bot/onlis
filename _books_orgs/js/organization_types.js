@@ -6,7 +6,6 @@ $(function(){
 
     window.countryPicker = new TomSelect("#slctCountry", {
         maxOptions: null,
-        wrapperClass: "ts-wrapper toolbar-filter",
         plugins: ["clear_button"],
         render: {
             item: function(data, escape) {

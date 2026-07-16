@@ -7,7 +7,6 @@ $(function(){
     // Инициализация Tom Select для фильтра страны
     window.countryPicker = new TomSelect("#slctCountry", {
         maxOptions: null,
-        wrapperClass: "ts-wrapper toolbar-filter",
         plugins: ["clear_button"],
         render: {
             item: function(data, escape) {

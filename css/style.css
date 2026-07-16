@@ -1,4 +1,6 @@
-/* --- 1. ШРИФТЫ И БАЗОВЫЕ НАСТРОЙКИ --- */
+/* =============================================================================
+   1. ШРИФТЫ И БАЗОВЫЕ НАСТРОЙКИ
+   ============================================================================= */
 
 :root {
     --bs-body-font-family: 'Montserrat', sans-serif;
@@ -11,7 +13,7 @@
     --border-color: #f0f0f0;
     --input-bg: #fdfdfd;
     --dropdown-bg: #ffffff;
-    --shadow: rgba(0,0,0,0.06);
+    --shadow: rgba(0, 0, 0, 0.06);
     --transition: all 0.2s ease-in-out;
 }
 
@@ -21,16 +23,21 @@ body {
     color: var(--text-main);
     transition: background-color 0.3s ease;
 }
+
 #divMainContent {
     min-height: 600px;
 }
 
-/* --- 2. BOOTSTRAP OVERRIDES --- */
+/* =============================================================================
+   2. BOOTSTRAP OVERRIDES
+   ============================================================================= */
+
 .table { --bs-table-bg: var(--card-bg); color: var(--text-main); }
 .modal-content { background-color: var(--card-bg); color: var(--text-main); border: 1px solid var(--border-color); }
-.modal-body {min-height: 500px; overflow-x: hidden;}
+.modal-body { min-height: 500px; overflow-x: hidden; }
 .card { --bs-card-bg: var(--card-bg); border-color: var(--border-color); }
 .list-group { --bs-list-group-bg: var(--card-bg); }
+
 .confirm-modal-content {
     max-width: 360px;
     width: 100%;
@@ -48,6 +55,7 @@ body {
 }
 
 .form-label { margin-bottom: 0; }
+
 .dropdown-menu {
     --bs-dropdown-bg: var(--dropdown-bg);
     --bs-dropdown-link-color: var(--text-main);
@@ -55,12 +63,16 @@ body {
     --bs-dropdown-link-active-bg: var(--accent-color);
     border-color: var(--border-color);
 }
+
 .form-check-input:checked {
     background-color: var(--accent-color);
     border-color: var(--accent-color);
 }
 
-/* --- 3. OFFCANVAS MENU --- */
+/* =============================================================================
+   3. OFFCANVAS MENU
+   ============================================================================= */
+
 #myOffcanvas {
     --bs-offcanvas-width: 290px;
     --bs-offcanvas-bg: var(--card-bg);
@@ -134,7 +146,10 @@ body {
 #spnQuit { color: #dc3545 !important; }
 #spnQuit:hover { background-color: rgba(220, 53, 69, 0.1); }
 
-/* --- 4. AUTH PAGE & ПИН-ПАД --- */
+/* =============================================================================
+   4. AUTH PAGE & ПИН-ПАД
+   ============================================================================= */
+
 .auth-container-wrapper { background-color: var(--bs-body-bg); }
 .auth-card { border: none; border-radius: 20px; background-color: var(--card-bg); color: var(--text-main); }
 .btnInNmb {
@@ -149,13 +164,17 @@ body {
 .btnInNmb:hover { background-color: var(--accent-color) !important; color: #fff !important; }
 #btnLogin { height: 48px; background-color: var(--accent-color) !important; color: #fff !important; font-weight: 700; border-radius: 10px; }
 
-/* --- 5. КНОПКИ И ФОРМЫ --- */
+/* =============================================================================
+   5. КНОПКИ И ФОРМЫ
+   ============================================================================= */
+
 .card-content-wrapper {
     background-color: var(--card-bg);
     border-radius: 15px;
     padding: 20px;
     box-shadow: 0 4px 15px var(--shadow);
 }
+
 .btn-action, .btn-action-outline, .btn-action-main {
     padding: 8px 20px; border-radius: 10px; font-weight: 600;
     font-size: 0.85rem; transition: all 0.2s ease;
@@ -217,7 +236,7 @@ input.form-in, select.form-in { height: 42px; }
 textarea.form-in { min-height: 100px; resize: vertical; }
 .form-in:focus {
     border-color: var(--accent-color);
-    box-shadow: 0 0 0 4px rgba(0,0,0,0.05);
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
     outline: none;
 }
 
@@ -231,7 +250,6 @@ textarea.form-in { min-height: 100px; resize: vertical; }
 .input-group > .form-in {
     flex: 1 1 auto; width: 1% !important;
     border-left: none !important;
-    /*border-radius: 10px 10px 10px 10px !important;*/
     margin: 0 !important;
 }
 .input-group > .btn-generate {
@@ -253,8 +271,9 @@ textarea.form-in { min-height: 100px; resize: vertical; }
 }
 .btn-group .btn-check:checked + .btn {
     background-color: #fff !important; color: #000 !important;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
+
 .form-context {
     border-left: 3px solid var(--accent-color);
     padding: 2px 0 2px 12px;
@@ -273,7 +292,10 @@ textarea.form-in { min-height: 100px; resize: vertical; }
     color: var(--text-muted);
 }
 
-/* --- 6. ТАБЛИЦЫ --- */
+/* =============================================================================
+   6. ТАБЛИЦЫ
+   ============================================================================= */
+
 .table { border-collapse: separate; border-spacing: 0 4px; margin-top: 10px; }
 .table caption { font-size: 1.1rem; font-weight: 700; color: #000; padding: 15px 5px; }
 .table thead th {
@@ -286,14 +308,17 @@ textarea.form-in { min-height: 100px; resize: vertical; }
     background-color: #fff;
     border-top: 1px solid #f2f2f2 !important;
     border-bottom: 1px solid #f2f2f2 !important;
+    border-left: 1px solid #f2f2f2;
+    border-right: 1px solid #f2f2f2;
+    border-radius: 5px;
 }
-.table td { border-left: 1px solid #f2f2f2; border-right: 1px solid #f2f2f2; border-radius: 5px 5px 5px 5px; }
-/*.table td:first-child { border-left: 1px solid #f2f2f2; border-radius: 10px 0 0 10px; }
-.table td:last-child { border-right: 1px solid #f2f2f2; border-radius: 0 10px 10px 0; }*/
 .table-hover tbody tr:hover td { background-color: var(--bg-hover) !important; color: var(--accent-color); }
 .itemTr { cursor: pointer; }
 
-/* --- 7. ВСПОМОГАТЕЛЬНЫЕ СТИЛИ --- */
+/* =============================================================================
+   7. ВСПОМОГАТЕЛЬНЫЕ СТИЛИ
+   ============================================================================= */
+
 hr { margin: 15px 0; opacity: 0.1; background-color: var(--text-main); }
 .text-limit {
     display: inline-block; max-width: 170px;
@@ -313,6 +338,7 @@ button:disabled {
     flex-shrink: 0;
     display: inline-block;
 }
+
 .form-error-msg {
     font-size: 0.85rem;
     color: var(--bs-danger);
@@ -322,7 +348,10 @@ button:disabled {
     border-radius: 4px;
 }
 
-/* --- 8. МОДУЛЬ — ОБОЛОЧКА И ТАБЫ --- */
+/* =============================================================================
+   8. МОДУЛЬ — ОБОЛОЧКА И ТАБЫ
+   ============================================================================= */
+
 .module-shell {
     background-color: var(--card-bg);
     border-radius: 15px;
@@ -366,7 +395,10 @@ button:disabled {
     color: #fff;
 }
 
-/* --- 9. МОДАЛЬНОЕ ОКНО — ТАБЫ --- */
+/* =============================================================================
+   9. МОДАЛЬНОЕ ОКНО — ТАБЫ
+   ============================================================================= */
+
 .inline-tabs {
     display: flex;
     gap: 6px;
@@ -397,6 +429,7 @@ button:disabled {
     background: var(--accent-color);
     color: #fff;
 }
+
 .inline-tab-sub {
     background: none;
     border: none;
@@ -412,7 +445,10 @@ button:disabled {
     font-weight: 600;
 }
 
-/* --- 10. TOOLBAR РАЗДЕЛОВ (универсальный) --- */
+/* =============================================================================
+   10. TOOLBAR РАЗДЕЛОВ (универсальный)
+   ============================================================================= */
+
 .section-toolbar {
     display: flex;
     align-items: center;
@@ -423,8 +459,7 @@ button:disabled {
 }
 
 .toolbar-filter {
-    flex: 0 0 auto;
-    max-width: 320px;
+    flex: 0 0 260px;
     min-width: 130px;
     height: 42px;
 }
@@ -453,9 +488,26 @@ button:disabled {
     margin-left: auto;
     gap: 7px;
 }
+
 .btn-label { font-size: 0.85rem; }
 
-/* --- 11. ПУСТОЕ СОСТОЯНИЕ (универсальное) --- */
+/* Группа из нескольких фильтров (например dropdown + toolbar-filter), которая
+   на мобильной версии сворачивается под отдельную кнопку. На десктопе
+   display: contents делает обёртку "прозрачной" — её дети становятся прямыми
+   flex-элементами .section-toolbar, ведут себя идентично одиночному
+   .toolbar-filter без группировки. */
+.toolbar-filters-toggle {
+    display: none;
+}
+
+.toolbar-filters-group {
+    display: contents;
+}
+
+/* =============================================================================
+   11. ПУСТОЕ СОСТОЯНИЕ (универсальное)
+   ============================================================================= */
+
 .empty-hint {
     text-align: center;
     padding: 48px 20px;
@@ -476,7 +528,10 @@ button:disabled {
     margin-bottom: 12px;
 }
 
-/* --- 12. TOM SELECT --- */
+/* =============================================================================
+   12. TOM SELECT
+   ============================================================================= */
+
 .ts-wrapper { width: 100%; }
 .ts-control {
     border: 1px solid #e0e0e0 !important;
@@ -493,7 +548,7 @@ button:disabled {
 }
 .ts-wrapper.focus .ts-control {
     border-color: var(--accent-color) !important;
-    box-shadow: 0 0 0 4px rgba(0,0,0,0.05) !important;
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05) !important;
 }
 .ts-dropdown {
     border: 1px solid var(--border-color) !important;
@@ -526,23 +581,30 @@ button:disabled {
     max-width: calc(100% - 30px);
 }
 
-/* --- 13. MODAL OFFCANVAS --- */
+/* =============================================================================
+   13. MODAL OFFCANVAS
+   ============================================================================= */
+
 #modalOffcanvas {
     --bs-offcanvas-width: 700px;
 }
 
-/* --- 14. МЕДИАЗАПРОСЫ --- */
+/* =============================================================================
+   14. МЕДИАЗАПРОСЫ
+   ============================================================================= */
+
 @media (min-width: 768px) {
     .auth-card { max-width: 400px; margin: 0 auto; }
 }
 
 @media (max-width: 767px) {
     #modalOffcanvas {
-      --bs-offcanvas-width: 100%;
+        --bs-offcanvas-width: 100%;
     }
     .toolbar-filter {
         flex: 1 0 100%;
         max-width: 100%;
+        width: 100%;
     }
     .toolbar-search {
         flex: 1;
@@ -558,5 +620,39 @@ button:disabled {
     .custom-dropdown {
         flex: 1 0 100%;
         max-width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    .toolbar-filters-toggle {
+        display: inline-flex;
+    }
+
+    /* На мобильной версии группа перестаёт быть "прозрачной" и становится
+       реальным сворачиваемым блоком */
+    .toolbar-filters-group {
+        display: none;
+        width: 100%;
+        flex-direction: column;
+        gap: 8px;
+        order: 3;
+        margin-top: 8px;
+    }
+    .toolbar-filters-group.show {
+        display: flex;
+    }
+
+    .toolbar-filters-group .dropdown,
+    .toolbar-filters-group #btnStatusFilter,
+    .toolbar-filters-group .toolbar-filter {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+    .toolbar-filters-group .dropdown-menu {
+        width: 100%;
+    }
+    .toolbar-filters-group #btnStatusFilter {
+        text-align: left;
     }
 }

@@ -24,8 +24,8 @@
                 <tbody>
                     <?php foreach ($result as $value): ?>
                         <tr class="itemTr" data-id="<?php echo $value['id']; ?>">
-                            <td class="py-2 itemName" data-id="<?php echo $value['id']; ?>">
-                                <?php echo htmlspecialchars($value['name']); ?>
+                            <td class="py-2">
+                                <span class="itemName" data-id="<?php echo $value['id']; ?>"><?php echo htmlspecialchars($value['name']); ?></span>
                                 <?php if (!empty($value['full_name'])): ?>
                                     <div><small class="text-muted"><?php echo htmlspecialchars($value['full_name']); ?></small></div>
                                 <?php endif; ?>
