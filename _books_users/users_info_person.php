@@ -10,7 +10,7 @@ $ses_info = [
 $user_id = (int)($_POST['user_id'] ?? 0);
 
 $result = send_request(array_merge($ses_info, [
-    'action'  => 'user_info_person',
+    'action'  => 'info_person',
     'user_id' => $user_id,
 ]), 'users');
 
@@ -96,6 +96,8 @@ if (!is_array($result) || isset($result['sccss'])) {
             <label for="inpPhone" class="my-input-label">Телефон</label>
             <input type="text" class="form-in form-inp" id="inpPhone"
                 data-name="user-phone" data-type="phone"
+                data-phone-code="<?php echo htmlspecialchars($result['phone_code'] ?? ''); ?>"
+                data-phone-mask="<?php echo htmlspecialchars($result['phone_mask'] ?? ''); ?>"
                 value="<?php echo htmlspecialchars($result['phone'] ?? ''); ?>"
                 autocomplete="off"
                 <?php echo empty($result['phone_country_id']) ? 'disabled' : ''; ?>>
@@ -122,4 +124,4 @@ if (!is_array($result) || isset($result['sccss'])) {
 
     </div>
 </form>
-<script src="./_books_users/js/users_info_person.js?2026071500"></script>
+<script src="./_books_users/js/users_info_person.js?2026071705"></script>

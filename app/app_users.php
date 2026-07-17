@@ -162,9 +162,11 @@ switch ($action) {
         }
         $target_user_id = (int)($_POST['user_id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT last_name, name, middle_name, b_date, phone, email, time_zone,
-                    country_id, phone_country_id
-             FROM users WHERE id = ?",
+            "SELECT u.last_name, u.name, u.middle_name, u.b_date, u.phone, u.email, u.time_zone,
+                    u.country_id, u.phone_country_id, c.phone_code, c.phone_mask
+             FROM users u
+             LEFT JOIN countries c ON c.id = u.phone_country_id
+             WHERE u.id = ?",
             [$target_user_id]
         );
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];

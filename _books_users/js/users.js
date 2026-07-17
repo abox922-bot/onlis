@@ -1,3 +1,5 @@
+// window.orgFilterPicker, window.countryPicker, window.phoneCountryPicker — глобальные Tom Select инстансы
+
 $(function(){
 
     $("#btnToggleFilters").off("click").on("click", function(){
@@ -11,6 +13,12 @@ $(function(){
         window.currentStatus = $(this).data("status");
         $("#btnStatusFilter").html($(this).text());
         listLoadFunction();
+    });
+
+    $(document).off("click.closeStatusDropdown").on("click.closeStatusDropdown", function(e){
+        if ($(e.target).closest(".ts-wrapper").length) {
+            $("#btnStatusFilter").dropdown("hide");
+        }
     });
 
     if (window.orgFilterPicker) window.orgFilterPicker.destroy();
@@ -117,10 +125,28 @@ function listLoadFunction() {
 function infoLoadFunction(user_id) {
     let user_name = $(`.itemName[data-id="${user_id}"]`).first().text().trim();
 
-    $("#mainModalLabel").html(user_name);
     $("#mainModalBody").html(spnr_loading);
+    $("#mainModalLabel").html(user_name);
     fncHideFormError();
     main_modal.show();
     let path = new URL("./_books_users/users_info.php", url);
-    $("#mainModalBody").load(path.href, {user_id: user_id});
+    $("#mainModalBody").load(path.href, {user_id: user_id}, function(){
+        $(".inline-tab").off("click").on("click", function(){
+            $(".inline-tab").removeClass("active");
+            $(this).addClass("active");
+            fncUserTabLoad(user_id, $(this).data("target"));
+        });
+        fncUserTabLoad(user_id, "person");
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fncUserTabLoad(user_id, target) {
+    $(".inline-tab").prop("disabled", true);
+    $("#divUserInfoContent").html(spnr_loading);
+    let path = new URL(`./_books_users/users_info_${target}.php`, url);
+    $("#divUserInfoContent").load(path.href, {user_id: user_id}, function(){
+        $(".inline-tab").prop("disabled", false);
+    });
 }

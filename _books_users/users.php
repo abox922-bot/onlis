@@ -25,7 +25,6 @@ $other_orgs = array_filter($orgs_result, fn($o) => $o['is_contractor']);
     </button>
 
     <div class="toolbar-filters-group" id="divFiltersGroup">
-
         <div class="dropdown">
             <button class="btn-action-outline dropdown-toggle" type="button"
                 id="btnStatusFilter" data-bs-toggle="dropdown" aria-expanded="false">
@@ -38,30 +37,29 @@ $other_orgs = array_filter($orgs_result, fn($o) => $o['is_contractor']);
         </div>
 
         <div class="toolbar-filter">
-          <select id="slctOrgFilter">
-            <option value="">Все сотрудники</option>
-            <option value="none">Без организации</option>
-            <?php if (!empty($own_orgs)): ?>
-                <optgroup label="Наши организации">
-                    <?php foreach ($own_orgs as $o): ?>
-                        <option value="<?php echo $o['id']; ?>">
-                            <?php echo htmlspecialchars($o['display_name']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </optgroup>
-            <?php endif; ?>
-            <?php if (!empty($other_orgs)): ?>
-                <optgroup label="Контрагенты и банки">
-                    <?php foreach ($other_orgs as $o): ?>
-                        <option value="<?php echo $o['id']; ?>">
-                            <?php echo htmlspecialchars($o['display_name']); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </optgroup>
-            <?php endif; ?>
-          </select>
+            <select id="slctOrgFilter">
+                <option value="">Все сотрудники</option>
+                <option value="none">Без организации</option>
+                <?php if (!empty($own_orgs)): ?>
+                    <optgroup label="Наши организации">
+                        <?php foreach ($own_orgs as $o): ?>
+                            <option value="<?php echo $o['id']; ?>">
+                                <?php echo htmlspecialchars($o['display_name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                <?php endif; ?>
+                <?php if (!empty($other_orgs)): ?>
+                    <optgroup label="Контрагенты и банки">
+                        <?php foreach ($other_orgs as $o): ?>
+                            <option value="<?php echo $o['id']; ?>">
+                                <?php echo htmlspecialchars($o['display_name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </optgroup>
+                <?php endif; ?>
+            </select>
         </div>
-
     </div>
 
     <div class="toolbar-search">
@@ -74,4 +72,4 @@ $other_orgs = array_filter($orgs_result, fn($o) => $o['is_contractor']);
     </button>
 </div>
 <div id="divChptContent"></div>
-<script src="./_books_users/js/users.js?2026071605"></script>
+<script src="./_books_users/js/users.js?2026071702"></script>
