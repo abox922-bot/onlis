@@ -17,9 +17,19 @@ $result = send_request(array_merge($ses_info, [
 if (!is_array($result) || isset($result['sccss'])) {
     $result = [];
 }
+
+$is_archived = empty($result['actual']);
 ?>
 <form id="formUserAccess">
     <div class="row">
+
+        <?php if ($is_archived): ?>
+        <div class="col-12 mb-3">
+            <div class="form-context" style="border-left-color:#dc3545;">
+                Сотрудник в архиве. Доступ и учётные данные недоступны для редактирования, пока запись не восстановлена.
+            </div>
+        </div>
+        <?php endif; ?>
 
         <div class="col-12 mt-2">
             <div class="form-group-label">Доступ в систему</div>
@@ -28,7 +38,8 @@ if (!is_array($result) || isset($result['sccss'])) {
             <div class="form-check form-switch">
                 <input class="form-check-input form-inp" type="checkbox" role="switch"
                     id="chckIsActive" data-name="is-active" data-type="check"
-                    <?php echo !empty($result['is_active']) ? 'checked' : ''; ?>>
+                    <?php echo !empty($result['is_active']) ? 'checked' : ''; ?>
+                    <?php echo $is_archived ? 'disabled' : ''; ?>>
                 <label class="form-check-label" for="chckIsActive" id="lblIsActive">
                     <?php echo !empty($result['is_active']) ? 'Активен' : 'Заблокирован'; ?>
                 </label>
@@ -45,8 +56,10 @@ if (!is_array($result) || isset($result['sccss'])) {
                     data-name="login" data-type="digits_only"
                     data-length="5"
                     placeholder="Сгенерируйте логин"
-                    value="<?php echo htmlspecialchars($result['login'] ?? ''); ?>" disabled>
-                <button type="button" class="btn btn-generate" id="btnGenLogin" title="Сгенерировать логин">
+                    value="<?php echo htmlspecialchars($result['login'] ?? ''); ?>"
+                    disabled>
+                <button type="button" class="btn btn-generate" id="btnGenLogin" title="Сгенерировать логин"
+                    <?php echo $is_archived ? 'disabled' : ''; ?>>
                     <i class="bi bi-arrow-counterclockwise"></i>
                 </button>
             </div>
@@ -59,7 +72,8 @@ if (!is_array($result) || isset($result['sccss'])) {
                     data-length="4"
                     placeholder="Сгенерируйте пароль"
                     value="" disabled>
-                <button type="button" class="btn btn-generate border-start" id="btnGenPass" title="Сгенерировать пароль">
+                <button type="button" class="btn btn-generate border-start" id="btnGenPass" title="Сгенерировать пароль"
+                    <?php echo $is_archived ? 'disabled' : ''; ?>>
                     <i class="bi bi-arrow-counterclockwise"></i>
                 </button>
             </div>
@@ -70,15 +84,21 @@ if (!is_array($result) || isset($result['sccss'])) {
         </div>
 
         <div class="col-12 d-flex flex-wrap gap-2">
-            <button type="submit" class="btn-action-main" id="btnSave">
-                <span id="btnSaveText">Сохранить</span>
-                <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
-            </button>
-            <button type="button" class="btn-danger-action" id="btnArchive">
-                Архивировать
-            </button>
+            <?php if (!$is_archived): ?>
+                <button type="submit" class="btn-action-main" id="btnSave">
+                    <span id="btnSaveText">Сохранить</span>
+                    <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
+                </button>
+                <button type="button" class="btn-danger-action" id="btnArchive">
+                    Архивировать
+                </button>
+            <?php else: ?>
+                <button type="button" class="btn-action-main" id="btnRestore">
+                    Восстановить из архива
+                </button>
+            <?php endif; ?>
         </div>
 
     </div>
 </form>
-<script src="./_books_users/js/users_info_access.js?2026071701"></script>
+<script src="./_books_users/js/users_info_access.js?2026071800"></script>

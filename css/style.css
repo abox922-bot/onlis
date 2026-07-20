@@ -39,9 +39,19 @@ body {
 .list-group { --bs-list-group-bg: var(--card-bg); }
 
 .confirm-modal-content {
-    max-width: 360px;
+    max-width: 400px;
     width: 100%;
     margin: 0 auto;
+}
+
+.confirm-modal-body {
+    padding: 28px 24px;
+}
+
+#confirmModalText {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 20px;
 }
 
 .form-control, .form-select {
@@ -313,7 +323,7 @@ textarea.form-in { min-height: 100px; resize: vertical; }
     border-radius: 5px;
 }
 .table-hover tbody tr:hover td { background-color: var(--bg-hover) !important; color: var(--accent-color); }
-.itemTr { cursor: pointer; }
+.itemTr, .listTr { cursor: pointer; }
 
 /* =============================================================================
    7. ВСПОМОГАТЕЛЬНЫЕ СТИЛИ

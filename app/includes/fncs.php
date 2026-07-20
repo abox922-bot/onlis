@@ -80,3 +80,33 @@ function fncCan(array $perms, string $slug): bool {
     return false;
 }
 //==============================================================================
+// Проверка авторизации в app_x.php
+//==============================================================================
+function fncApiAuth(string $session_id, string $cntrl_token): array
+{
+    $stmt = fncQuery(
+        "SELECT s.user AS usr_id, u.is_active, u.actual
+         FROM sessions s
+         LEFT JOIN users u ON u.id = s.user
+         WHERE s.session = :session AND s.cntrl = :cntrl AND s.cntrl IS NOT NULL",
+        ['session' => $session_id, 'cntrl' => $cntrl_token]
+    );
+    $session = $stmt ? $stmt->fetch() : null;
+
+    if (!$session) {
+        return ['sccss' => false];
+    }
+
+    if (!$session['is_active'] || !$session['actual']) {
+        $flag_path = $_SERVER['DOCUMENT_ROOT'] . '/sse_cache/u_' . md5($session['usr_id']) . '.flag';
+        touch($flag_path);
+        return ['sccss' => false];
+    }
+
+    return [
+        'sccss' => true,
+        'user'  => (int)$session['usr_id'],
+        'rules' => fncLoadPermissions((int)$session['usr_id']),
+    ];
+}
+//==============================================================================

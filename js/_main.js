@@ -32,6 +32,14 @@ $(function(){
         $("#mainModalBody").html("");
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    $("#confirmModal").on("show.bs.modal", function(){
+        main_modal._config.keyboard = false;
+    });
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    $("#confirmModal").on("hidden.bs.modal", function(){
+        main_modal._config.keyboard = true;
+    });
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $(".my-menu-div-btn").click(function(){
         $(".my-nav-item_second_level").addClass("d-none");
         myOffcanvas.show();

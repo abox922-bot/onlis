@@ -9,11 +9,7 @@ $token  = $_POST['x_token']   ?? '';
 
 if (!$cookie || !$token) { echo json_encode(['sccss' => false]); exit; }
 
-$ses_check = send_request([
-    '_onlis_id' => $cookie,
-    'x_token'   => $token,
-    'action'    => 'in_cntrl'
-], 'main');
+$ses_check = fncApiAuth($cookie, $token);
 
 if (!$ses_check || empty($ses_check['sccss'])) {
     echo json_encode(['sccss' => false]);
@@ -104,7 +100,7 @@ switch ($action) {
         break;
 
     // -------------------------------------------------------------------------
-    // Создание человека
+    // Создание сотрудника
     case 'new':
         if (!fncCan($perms, 'users.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -118,6 +114,7 @@ switch ($action) {
         $phone_country_id = (int)fncValFind('phone-country-id', $params);
         $phone            = fncValFind('user-phone',             $params);
         $email            = fncValFind('user-email',             $params);
+        $organization_id  = (int)fncValFind('organization-id',  $params);
 
         if (!$last_name || !$name) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
@@ -131,6 +128,15 @@ switch ($action) {
         if ($stmt && $stmt->fetch()) {
             echo json_encode(['sccss' => false, 'msg' => 'Такой человек уже есть в системе']);
             exit;
+        }
+
+        if (!$country_id && $organization_id) {
+            $stmt = fncQuery("SELECT country_id FROM organizations WHERE id = ?", [$organization_id]);
+            $org_row    = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+            $country_id = (int)($org_row['country_id'] ?? 0);
+        }
+        if (!$phone_country_id) {
+            $phone_country_id = $country_id;
         }
 
         global $pdo;
@@ -150,7 +156,21 @@ switch ($action) {
                 $user_id,
             ]
         );
-        $result = $stmt ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()] : ['sccss' => false];
+        if (!$stmt) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ошибка при создании пользователя']);
+            exit;
+        }
+        $new_user_id = (int)$pdo->lastInsertId();
+
+        if ($organization_id) {
+            fncQuery(
+                "INSERT INTO organization_staff (organization_id, user_id, date_start, created_by)
+                 VALUES (?, ?, CURDATE(), ?)",
+                [$organization_id, $new_user_id, $user_id]
+            );
+        }
+
+        $result = ['sccss' => true, 'id' => $new_user_id];
         break;
 
     // -------------------------------------------------------------------------
@@ -161,9 +181,11 @@ switch ($action) {
             exit;
         }
         $target_user_id = (int)($_POST['user_id'] ?? 0);
+        if (!$target_user_id) { echo json_encode(['sccss' => false]); exit; }
+
         $stmt = fncQuery(
             "SELECT u.last_name, u.name, u.middle_name, u.b_date, u.phone, u.email, u.time_zone,
-                    u.country_id, u.phone_country_id, c.phone_code, c.phone_mask
+                    u.country_id, u.phone_country_id, u.actual, c.phone_code, c.phone_mask
              FROM users u
              LEFT JOIN countries c ON c.id = u.phone_country_id
              WHERE u.id = ?",
@@ -226,8 +248,10 @@ switch ($action) {
             exit;
         }
         $target_user_id = (int)($_POST['user_id'] ?? 0);
+        if (!$target_user_id) { echo json_encode(['sccss' => false]); exit; }
+
         $stmt = fncQuery(
-            "SELECT u.id AS user_id, u.is_active, ua.login
+            "SELECT u.id AS user_id, u.is_active, u.actual, ua.login
              FROM users u
              LEFT JOIN users_auth ua ON ua.user = u.id
              WHERE u.id = ?",
@@ -378,7 +402,33 @@ switch ($action) {
 
         $result = ['sccss' => true];
         break;
-
+    // -------------------------------------------------------------------------
+    // Список организаций, к которым привязан человек
+    case 'user_organizations':
+        if (!fncCan($perms, 'users.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $target_user_id = (int)($_POST['user_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT os.id AS organization_staff_id, os.organization_id,
+                    o.name, ot.abbreviation, ot.is_individual, op.name AS title
+             FROM organization_staff os
+             LEFT JOIN organizations o ON o.id = os.organization_id
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             LEFT JOIN organization_positions op ON op.id = os.position_id
+             WHERE os.user_id = ? AND os.date_end IS NULL
+             ORDER BY o.name",
+            [$target_user_id]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        foreach ($rows as $key => $row) {
+            $rows[$key]['display_name'] = $row['is_individual']
+                ? $row['abbreviation'] . ' ' . $row['name']
+                : $row['abbreviation'] . ' «' . $row['name'] . '»';
+        }
+        $result = $rows;
+        break;
     // -------------------------------------------------------------------------
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);

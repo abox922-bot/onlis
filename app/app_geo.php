@@ -4,22 +4,12 @@ require_once('./includes/request.php');
 
 header('Content-Type: application/json');
 
-// =============================================================================
-// Проверка сессии
-// =============================================================================
 $cookie = $_POST['_onlis_id'] ?? '';
 $token  = $_POST['x_token']   ?? '';
 
-if (!$cookie || !$token) {
-    echo json_encode(['sccss' => false]);
-    exit;
-}
+if (!$cookie || !$token) { echo json_encode(['sccss' => false]); exit; }
 
-$ses_check = send_request([
-    '_onlis_id' => $cookie,
-    'x_token'   => $token,
-    'action'    => 'in_cntrl',
-], 'main');
+$ses_check = fncApiAuth($cookie, $token);
 
 if (!$ses_check || empty($ses_check['sccss'])) {
     echo json_encode(['sccss' => false]);
@@ -28,15 +18,9 @@ if (!$ses_check || empty($ses_check['sccss'])) {
 
 $user_id = (int)($ses_check['user'] ?? 0);
 $perms   = $ses_check['rules'] ?? [];
-
-// =============================================================================
-// Роутинг
-// =============================================================================
-$action = $_POST['action'] ?? '';
-$params = isset($_POST['params']) ? json_decode($_POST['params'], true) : [];
-if (!is_array($params)) {
-    $params = [];
-}
+$action  = $_POST['action'] ?? '';
+$params  = isset($_POST['params']) ? json_decode($_POST['params'], true) : [];
+if (!is_array($params)) $params = [];
 
 $result = [];
 

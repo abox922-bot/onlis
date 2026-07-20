@@ -17,7 +17,15 @@ $result = send_request(array_merge($ses_info, [
 if (!is_array($result) || isset($result['sccss'])) {
     $result = ['countries' => []];
 }
+
+$is_archived = empty($result['actual']);
 ?>
+<?php if ($is_archived): ?>
+<div class="form-context mb-3" style="border-left-color:#dc3545;">
+    Сотрудник в архиве. Доступ и учётные данные недоступны для редактирования, пока запись не восстановлена.
+</div>
+<?php endif; ?>
+
 <form id="formUserPerson">
     <div class="row">
 
@@ -26,7 +34,7 @@ if (!is_array($result) || isset($result['sccss'])) {
             <input type="text" class="form-in form-inp" id="inpLastName"
                 data-name="user-last" data-type="text" data-required="1"
                 value="<?php echo htmlspecialchars($result['last_name'] ?? ''); ?>"
-                autocomplete="off">
+                autocomplete="off" <?php echo $is_archived ? 'disabled' : ''; ?>>
         </div>
 
         <div class="col-12 col-md-4 mb-3">
@@ -34,7 +42,7 @@ if (!is_array($result) || isset($result['sccss'])) {
             <input type="text" class="form-in form-inp" id="inpFirstName"
                 data-name="user-name" data-type="text" data-required="1"
                 value="<?php echo htmlspecialchars($result['name'] ?? ''); ?>"
-                autocomplete="off">
+                autocomplete="off" <?php echo $is_archived ? 'disabled' : ''; ?>>
         </div>
 
         <div class="col-12 col-md-4 mb-3">
@@ -42,19 +50,20 @@ if (!is_array($result) || isset($result['sccss'])) {
             <input type="text" class="form-in form-inp" id="inpMdName"
                 data-name="user-md" data-type="text"
                 value="<?php echo htmlspecialchars($result['middle_name'] ?? ''); ?>"
-                autocomplete="off">
+                autocomplete="off" <?php echo $is_archived ? 'disabled' : ''; ?>>
         </div>
 
         <div class="col-12 col-md-6 mb-3">
             <label for="inpBDate" class="my-input-label">Дата рождения</label>
             <input type="date" class="form-in form-inp" id="inpBDate"
                 data-name="user-bdate" data-required="1"
-                value="<?php echo htmlspecialchars($result['b_date'] ?? ''); ?>">
+                value="<?php echo htmlspecialchars($result['b_date'] ?? ''); ?>"
+                <?php echo $is_archived ? 'disabled' : ''; ?>>
         </div>
 
         <div class="col-12 col-md-6 mb-3">
             <label for="slctCountry" class="my-input-label">Страна</label>
-            <select id="slctCountry">
+            <select id="slctCountry" <?php echo $is_archived ? 'disabled' : ''; ?>>
                 <option value="">Выберите страну</option>
                 <?php foreach ($result['countries'] as $c): ?>
                     <option value="<?php echo $c['id']; ?>"
@@ -70,7 +79,7 @@ if (!is_array($result) || isset($result['sccss'])) {
             <input type="text" class="form-in form-inp" id="inpTimeZone"
                 data-name="user-time-zone" data-type="digits_double"
                 value="<?php echo htmlspecialchars($result['time_zone'] ?? ''); ?>"
-                placeholder="например: 5">
+                placeholder="например: 5" <?php echo $is_archived ? 'disabled' : ''; ?>>
         </div>
 
         <div class="col-12 mt-2">
@@ -79,7 +88,7 @@ if (!is_array($result) || isset($result['sccss'])) {
 
         <div class="col-12 col-md-5 mb-3">
             <label for="slctPhoneCountry" class="my-input-label">Страна номера</label>
-            <select id="slctPhoneCountry">
+            <select id="slctPhoneCountry" <?php echo $is_archived ? 'disabled' : ''; ?>>
                 <option value="">Выберите страну</option>
                 <?php foreach ($result['countries'] as $c): ?>
                     <option value="<?php echo $c['id']; ?>"
@@ -100,7 +109,7 @@ if (!is_array($result) || isset($result['sccss'])) {
                 data-phone-mask="<?php echo htmlspecialchars($result['phone_mask'] ?? ''); ?>"
                 value="<?php echo htmlspecialchars($result['phone'] ?? ''); ?>"
                 autocomplete="off"
-                <?php echo empty($result['phone_country_id']) ? 'disabled' : ''; ?>>
+                <?php echo (empty($result['phone_country_id']) || $is_archived) ? 'disabled' : ''; ?>>
         </div>
 
         <div class="col-12 mb-3">
@@ -108,20 +117,22 @@ if (!is_array($result) || isset($result['sccss'])) {
             <input type="text" class="form-in form-inp" id="inpEmail"
                 data-name="user-email" data-type="email"
                 value="<?php echo htmlspecialchars($result['email'] ?? ''); ?>"
-                autocomplete="off">
+                autocomplete="off" <?php echo $is_archived ? 'disabled' : ''; ?>>
         </div>
 
         <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>
 
+        <?php if (!$is_archived): ?>
         <div class="col-12">
             <button type="submit" class="btn-action-main" id="btnSave">
                 <span id="btnSaveText">Сохранить</span>
                 <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
             </button>
         </div>
+        <?php endif; ?>
 
     </div>
 </form>
-<script src="./_books_users/js/users_info_person.js?2026071705"></script>
+<script src="./_books_users/js/users_info_person.js?2026071802"></script>

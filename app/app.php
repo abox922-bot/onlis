@@ -21,7 +21,8 @@ $out_array = [];
 if ($action === 'in') {
     $params = json_decode($_POST['params'] ?? '[]', true);
 
-    $qu = "SELECT u.id AS id, CONCAT_WS(' ', u.name, u.last_name) AS full_name, ua.password AS psw
+    $qu = "SELECT u.id AS id, CONCAT_WS(' ', u.name, u.last_name) AS full_name,
+                  ua.password AS psw, u.is_active, u.actual
            FROM users_auth ua
            LEFT JOIN users u ON u.id = ua.user
            WHERE ua.login = :login";
@@ -29,7 +30,7 @@ if ($action === 'in') {
     $stmt = fncQuery($qu, ['login' => fncValFind('usr_login', $params)]);
     $user = $stmt ? $stmt->fetch() : null;
 
-    if ($user && password_verify(fncValFind('usr_pass', $params), $user['psw'])) {
+    if ($user && password_verify(fncValFind('usr_pass', $params), $user['psw']) && $user['is_active'] && $user['actual']) {
 
         $usr_id   = $user['id'];
         $usr_name = $user['full_name'];
@@ -73,7 +74,7 @@ if ($action === 'in') {
 
   $qu = "SELECT s.id AS ses_id, s.user AS usr_id, u.name AS onl_name,
                 CONCAT_WS(' ', u.name, u.last_name) AS usr_name,
-                u.is_active,
+                u.is_active, u.actual,
                 CURDATE() AS today
          FROM sessions s
          LEFT JOIN users u ON u.id = s.user
@@ -84,7 +85,7 @@ if ($action === 'in') {
 
   if ($session) {
       $flag_path = $_SERVER['DOCUMENT_ROOT'] . '/sse_cache/u_' . md5($session['usr_id']) . '.flag';
-      if (!$session['is_active']) {
+      if (!$session['is_active'] || !$session['actual']) {
           $out_array = ['sccss' => false, 'msg' => 'Доступ заблокирован'];
           touch($flag_path);
       } else {

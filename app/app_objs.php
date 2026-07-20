@@ -9,11 +9,7 @@ $token  = $_POST['x_token']   ?? '';
 
 if (!$cookie || !$token) { echo json_encode(['sccss' => false]); exit; }
 
-$ses_check = send_request([
-    '_onlis_id' => $cookie,
-    'x_token'   => $token,
-    'action'    => 'in_cntrl'
-], 'main');
+$ses_check = fncApiAuth($cookie, $token);
 
 if (!$ses_check || empty($ses_check['sccss'])) {
     echo json_encode(['sccss' => false]);

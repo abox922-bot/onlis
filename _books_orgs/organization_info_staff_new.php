@@ -32,27 +32,27 @@ if (!is_array($result) || isset($result['sccss'])) {
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpLastName" class="my-input-label">Фамилия</label>
                 <input type="text" class="form-in form-inp" id="inpLastName"
-                    data-name="staff-last" data-type="text" data-required="1" autocomplete="off">
+                    data-name="user-last" data-type="text" data-required="1" autocomplete="off">
             </div>
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpFirstName" class="my-input-label">Имя</label>
                 <input type="text" class="form-in form-inp" id="inpFirstName"
-                    data-name="staff-name" data-type="text" data-required="1" autocomplete="off">
+                    data-name="user-name" data-type="text" data-required="1" autocomplete="off">
             </div>
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpMdName" class="my-input-label">Отчество</label>
                 <input type="text" class="form-in form-inp" id="inpMdName"
-                    data-name="staff-md" data-type="text" autocomplete="off">
+                    data-name="user-md" data-type="text" autocomplete="off">
             </div>
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpBDate" class="my-input-label">Дата рождения</label>
                 <input type="date" class="form-in form-inp" id="inpBDate"
-                    data-name="staff-bdate" value="<?= $today; ?>">
+                    data-name="user-bdate" value="<?= $today; ?>">
             </div>
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpPhone" class="my-input-label">Телефон</label>
                 <input type="text" class="form-in form-inp" id="inpPhone"
-                    data-name="staff-phone" data-type="phone"
+                    data-name="user-phone" data-type="phone"
                     data-phone-code="<?php echo htmlspecialchars($result['phone_code']); ?>"
                     data-phone-mask="<?php echo htmlspecialchars($result['phone_mask']); ?>"
                     autocomplete="off">
@@ -60,7 +60,7 @@ if (!is_array($result) || isset($result['sccss'])) {
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpEmail" class="my-input-label">Email</label>
                 <input type="text" class="form-in form-inp" id="inpEmail"
-                    data-name="staff-email" data-type="email" autocomplete="off">
+                    data-name="user-email" data-type="email" autocomplete="off">
             </div>
             <div class="col-12 mt-2 d-none" id="divFormError">
                 <div class="form-error-msg" id="spnFormError"></div>

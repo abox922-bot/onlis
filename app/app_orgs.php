@@ -9,11 +9,7 @@ $token  = $_POST['x_token']   ?? '';
 
 if (!$cookie || !$token) { echo json_encode(['sccss' => false]); exit; }
 
-$ses_check = send_request([
-    '_onlis_id' => $cookie,
-    'x_token'   => $token,
-    'action'    => 'in_cntrl'
-], 'main');
+$ses_check = fncApiAuth($cookie, $token);
 
 if (!$ses_check || empty($ses_check['sccss'])) {
     echo json_encode(['sccss' => false]);
@@ -965,11 +961,11 @@ switch ($action) {
         }
         $org_id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT os.id,
+            "SELECT os.id, os.user_id,
                     CONCAT_WS(' ', u.last_name, u.name) AS name,
                     op.name AS title,
                     IF(os.phone IS NULL,
-                        (SELECT phone_code FROM countries WHERE id = u.country_id),
+                        (SELECT phone_code FROM countries WHERE id = u.phone_country_id),
                         (SELECT phone_code FROM countries WHERE id = o.country_id)) AS phone_code,
                     IF(os.phone IS NULL, u.phone, os.phone) AS phone,
                     IF(os.email IS NULL, u.email, os.email) AS email
@@ -1013,60 +1009,6 @@ switch ($action) {
         );
         $org['users'] = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         $result = $org;
-        break;
-
-    // -------------------------------------------------------------------------
-    case 'new_organization_staff':
-        if (!fncCan($perms, 'organizations.manage')) {
-            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
-            exit;
-        }
-        $org_id    = (int)fncValFind('org-id',      $params);
-        $last_name = fncValFind('staff-last',        $params);
-        $name      = fncValFind('staff-name',        $params);
-        $md_name   = fncValFind('staff-md',          $params);
-        $b_date    = fncValFind('staff-bdate',       $params);
-        $phone     = fncValFind('staff-phone',       $params);
-        $email     = fncValFind('staff-email',       $params);
-
-        if (!$org_id || !$last_name || !$name) {
-            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
-            exit;
-        }
-
-        // Проверка дубля
-        $stmt = fncQuery(
-            "SELECT id FROM users WHERE last_name = ? AND name = ? AND b_date = ?",
-            [$last_name, $name, $b_date]
-        );
-        if ($stmt && $stmt->fetch()) {
-            echo json_encode(['sccss' => false, 'msg' => 'Сотрудник с такими данными уже есть в системе']);
-            exit;
-        }
-
-        // Получаем country_id организации
-        $stmt = fncQuery("SELECT country_id FROM organizations WHERE id = ?", [$org_id]);
-        $org_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
-
-        global $pdo;
-        $stmt = fncQuery(
-            "INSERT INTO users (is_active, country_id, last_name, name, middle_name, b_date, phone, email, created_by)
-             VALUES (0, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [$org_row['country_id'] ?? null, $last_name, $name, $md_name ?: null,
-             $b_date ?: null, $phone ?: null, $email ?: null, $user_id]
-        );
-        if (!$stmt) {
-            echo json_encode(['sccss' => false, 'msg' => 'Ошибка при создании пользователя']);
-            exit;
-        }
-        $new_user_id = (int)$pdo->lastInsertId();
-
-        fncQuery(
-            "INSERT INTO organization_staff (organization_id, user_id, date_start, created_by)
-             VALUES (?, ?, CURDATE(), ?)",
-            [$org_id, $new_user_id, $user_id]
-        );
-        $result = ['sccss' => true];
         break;
 
     // -------------------------------------------------------------------------
@@ -1132,26 +1074,6 @@ switch ($action) {
         break;
 
     // -------------------------------------------------------------------------
-    case 'organization_staff_info_person':
-        if (!fncCan($perms, 'organizations.manage.view')) {
-            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
-            exit;
-        }
-        $st_id = (int)($_POST['st_id'] ?? 0);
-        $stmt = fncQuery(
-            "SELECT os.user_id, u.last_name, u.name, u.middle_name AS md_name,
-                    u.b_date, u.phone, u.email, u.time_zone,
-                    (SELECT phone_code FROM countries WHERE id = u.country_id) AS phone_code,
-                    (SELECT phone_mask FROM countries WHERE id = u.country_id) AS phone_mask
-             FROM organization_staff os
-             LEFT JOIN users u ON u.id = os.user_id
-             WHERE os.id = ?",
-            [$st_id]
-        );
-        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
-        break;
-
-    // -------------------------------------------------------------------------
     case 'upd_organization_staff_main':
         if (!fncCan($perms, 'organizations.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -1172,50 +1094,6 @@ switch ($action) {
              WHERE id = ?",
             [$position_id ?: null, $dep_id ?: null, $w_email ?: null,
              $w_phone ?: null, $w_phone_ext ?: null, $is_contact, $user_id, $st_id]
-        );
-        $result = ['sccss' => (bool)$stmt];
-        break;
-
-    // -------------------------------------------------------------------------
-    case 'upd_organization_staff_person':
-        if (!fncCan($perms, 'organizations.manage')) {
-            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
-            exit;
-        }
-        $st_id     = (int)fncValFind('st-id',       $params);
-        $last_name = fncValFind('staff-last',         $params);
-        $name      = fncValFind('staff-name',         $params);
-        $md_name   = fncValFind('staff-md',           $params);
-        $b_date    = fncValFind('staff-bdate',        $params);
-        $phone     = fncValFind('staff-phone',        $params);
-        $email     = fncValFind('staff-email',        $params);
-        $time_zone = fncValFind('staff-time-zone',    $params);
-        if (!$st_id || !$last_name || !$name) {
-            echo json_encode(['sccss' => false]);
-            exit;
-        }
-
-        // Получаем user_id
-        $stmt = fncQuery("SELECT user_id FROM organization_staff WHERE id = ?", [$st_id]);
-        $st_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
-        $usr_id = (int)($st_row['user_id'] ?? 0);
-
-        // Проверка дубля
-        $stmt = fncQuery(
-            "SELECT id FROM users WHERE id != ? AND last_name = ? AND name = ? AND b_date = ?",
-            [$usr_id, $last_name, $name, $b_date]
-        );
-        if ($stmt && $stmt->fetch()) {
-            echo json_encode(['sccss' => false, 'msg' => 'Сотрудник с такими данными уже есть в системе']);
-            exit;
-        }
-
-        $stmt = fncQuery(
-            "UPDATE users SET last_name = ?, name = ?, middle_name = ?, b_date = ?,
-             phone = ?, email = ?, time_zone = ?, updated_by = ?, updated_at = NOW()
-             WHERE id = ?",
-            [$last_name, $name, $md_name ?: null, $b_date ?: null,
-             $phone ?: null, $email ?: null, $time_zone ?: null, $user_id, $usr_id]
         );
         $result = ['sccss' => (bool)$stmt];
         break;
@@ -1253,89 +1131,6 @@ switch ($action) {
 
         // 4. Удаляем учётные данные
         fncQuery("DELETE FROM users_auth WHERE user = ?", [$dismissed_user_id]);
-
-        $result = ['sccss' => true];
-        break;
-
-    // -------------------------------------------------------------------------
-    case 'organization_staff_info_access':
-        if (!fncCan($perms, 'organizations.manage.view')) {
-            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
-            exit;
-        }
-        $st_id = (int)($_POST['st_id'] ?? 0);
-        $stmt = fncQuery(
-            "SELECT u.id, u.is_active, ua.login
-             FROM organization_staff os
-             LEFT JOIN users u ON u.id = os.user_id
-             LEFT JOIN users_auth ua ON ua.user = u.id
-             WHERE os.id = ?",
-            [$st_id]
-        );
-        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
-        break;
-
-    // -------------------------------------------------------------------------
-    case 'upd_organization_staff_access':
-        if (!fncCan($perms, 'organizations.manage')) {
-            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
-            exit;
-        }
-        $st_id     = (int)fncValFind('st-id',     $params);
-        $is_active = (int)fncValFind('is-active',  $params);
-        $login     = fncValFind('login',            $params);
-
-        if (!$st_id) { echo json_encode(['sccss' => false]); exit; }
-
-        // Получаем user_id
-        $stmt = fncQuery("SELECT user_id FROM organization_staff WHERE id = ?", [$st_id]);
-        $st_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
-        if (!$st_row) { echo json_encode(['sccss' => false]); exit; }
-        $usr_id = (int)$st_row['user_id'];
-
-        // Обновляем is_active
-        fncQuery(
-            "UPDATE users SET is_active = ?, updated_by = ?, updated_at = NOW() WHERE id = ?",
-            [$is_active, $user_id, $usr_id]
-        );
-
-        // Обновляем логин если передан
-        if ($login) {
-            // Проверяем уникальность логина
-            $stmt = fncQuery(
-                "SELECT id FROM users_auth WHERE login = ? AND user != ?",
-                [$login, $usr_id]
-            );
-            if ($stmt && $stmt->fetch()) {
-                echo json_encode(['sccss' => false, 'msg' => 'Логин уже занят']);
-                exit;
-            }
-            // Обновляем или создаём запись в users_auth
-            $stmt = fncQuery("SELECT id FROM users_auth WHERE user = ?", [$usr_id]);
-            if ($stmt && $stmt->fetch()) {
-                fncQuery("UPDATE users_auth SET login = ? WHERE user = ?", [$login, $usr_id]);
-            } else {
-                fncQuery(
-                    "INSERT INTO users_auth (user, login, password) VALUES (?, ?, ?)",
-                    [$usr_id, $login, password_hash('', PASSWORD_DEFAULT)]
-                );
-            }
-        }
-
-        $password = fncValFind('password', $params);
-
-        // Если пароль передан — хешируем и сохраняем
-        if ($password) {
-            $hashed = password_hash($password, PASSWORD_DEFAULT);
-            $stmt = fncQuery("SELECT id FROM users_auth WHERE user = ?", [$usr_id]);
-            if ($stmt && $stmt->fetch()) {
-                fncQuery("UPDATE users_auth SET login = ?, password = ? WHERE user = ?",
-                    [$login, $hashed, $usr_id]);
-            } else {
-                fncQuery("INSERT INTO users_auth (user, login, password) VALUES (?, ?, ?)",
-                    [$usr_id, $login, $hashed]);
-            }
-        }
 
         $result = ['sccss' => true];
         break;

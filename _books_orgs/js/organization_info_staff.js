@@ -17,7 +17,6 @@ $(function(){
         let path = new URL("./_books_orgs/organization_info_staff_new.php", url);
         $("#modalOffcanvasBody").load(path.href, {id}, function(){
 
-            // Переключение вкладок Новый/Список
             $(".inline-tab-info").off("click").on("click", function(){
                 $(".inline-tab-info").removeClass("active");
                 $(this).addClass("active");
@@ -25,14 +24,13 @@ $(function(){
                 $($(this).data("target")).removeClass("d-none");
             });
 
-            // Маска телефона
             let phone_mask = $("#inpPhone").data("phone-mask");
             if (phone_mask) $("#inpPhone").mask(phone_mask);
 
-            // Добавить существующего пользователя
-            $(".freeTr").off("click").on("click", function(){
+            $(".freeTr").off("click").on("click", async function(){
                 let usr_id = +$(this).data("id");
-                if (confirm("Добавить сотрудника в штат организации?")) {
+                let confirmed = await fncConfirm("Добавить сотрудника в штат организации?");
+                if (confirmed) {
                     fncMyAjax("add_staff_to_organization", "orgs", [
                         {name: "org-id",  value: id},
                         {name: "user-id", value: usr_id}
@@ -44,17 +42,16 @@ $(function(){
                 }
             });
 
-            // Создать нового сотрудника
             $("#formNew").submit(function(e){
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 let params_arr = [];
-                params_arr.push({name: "org-id", value: id});
+                params_arr.push({name: "organization-id", value: id});
                 let crt_arr = fncParamsCrt(".form-inp", params_arr);
                 if (crt_arr["all_good"]) {
                     $("#btnSave").prop("disabled", true);
                     $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
-                    fncMyAjax("new_organization_staff", "orgs", crt_arr["params"], 1)
+                    fncMyAjax("new", "users", crt_arr["params"], 1)
                         .done(function(data){
                             if (data.sccss) {
                                 modalOffcanvas.hide();
@@ -81,6 +78,7 @@ function staffListLoad(org_id) {
     $("#divStaffList").load(path.href, {id: org_id}, function(){
         $(".staffTr").off("click").on("click", function(){
             let st_id    = +$(this).data("id");
+            let user_id  = +$(this).data("user-id");
             let st_name  = $(`.staffName[data-id="${st_id}"]`).clone()
                             .children().remove().end().text().trim();
             let org_type = $("#hdnOrgType").val();
@@ -90,16 +88,15 @@ function staffListLoad(org_id) {
             modalOffcanvas.show();
 
             let path = new URL("./_books_orgs/organization_info_staff_info.php", url);
-            $("#modalOffcanvasBody").load(path.href, {st_id, org_id, org_type}, function(){
+            $("#modalOffcanvasBody").load(path.href, {st_id, user_id, org_id, org_type}, function(){
 
-                // Переключение вкладок карточки сотрудника
                 $(".inline-tab-info").off("click").on("click", function(){
                     $(".inline-tab-info").removeClass("active");
                     $(this).addClass("active");
-                    staffTabLoad(st_id, $(this).data("target"));
+                    staffTabLoad(st_id, user_id, $(this).data("target"));
                 });
 
-                staffTabLoad(st_id, "main");
+                staffTabLoad(st_id, user_id, "main");
             });
         });
     });
@@ -107,8 +104,11 @@ function staffListLoad(org_id) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function staffTabLoad(st_id, target) {
+function staffTabLoad(st_id, user_id, target) {
+    $(".inline-tab-info").prop("disabled", true);
     $("#divStaffInfoContent").html(spnr_loading);
     let path = new URL(`./_books_orgs/organization_info_staff_info_${target}.php`, url);
-    $("#divStaffInfoContent").load(path.href, {st_id});
+    $("#divStaffInfoContent").load(path.href, {st_id, user_id}, function(){
+        $(".inline-tab-info").prop("disabled", false);
+    });
 }

@@ -21,10 +21,10 @@ $(function(){
     });
 
     let phone_mask = $("#inpPhone").data("phone-mask");
-    if (phone_mask && !$("#inpPhone").prop("disabled")) {
+    if (phone_mask) {
         $("#inpPhone").mask(phone_mask);
     }
-
+    
     if (!canDo('users.manage')) {
         $("#btnSave").hide();
     } else {
