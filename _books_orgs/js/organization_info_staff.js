@@ -110,5 +110,11 @@ function staffTabLoad(st_id, user_id, target) {
     let path = new URL(`./_books_orgs/organization_info_staff_info_${target}.php`, url);
     $("#divStaffInfoContent").load(path.href, {st_id, user_id}, function(){
         $(".inline-tab-info").prop("disabled", false);
+        if (target === "main") {
+            fncInitStaffMainForm(st_id, function(){
+                staffListLoad(+$("#hdnOrgId").val());
+            });
+        }
     });
 }
+// ─────────────────────────────────────────────────────────────────────────────

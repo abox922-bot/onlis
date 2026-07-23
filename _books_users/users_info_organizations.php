@@ -53,4 +53,4 @@ if (!is_array($result) || isset($result['sccss'])) {
         <?php endif; ?>
     </div>
 </div>
-<script src="./_books_users/js/users_info_organizations.js?2026071901"></script>
+<script src="./_books_users/js/users_info_organizations.js?2026072201"></script>

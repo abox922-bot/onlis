@@ -103,5 +103,3 @@ if (!is_array($result) || isset($result['sccss'])) {
 
     </div>
 </form>
-
-<script src="./_books_orgs/js/organization_info_staff_main.js?2026070403"></script>

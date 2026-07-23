@@ -8,7 +8,6 @@ $ses_info = [
 ];
 
 $id       = (int)($_POST['id']       ?? 0);
-$org_type = $_POST['org_type'] ?? 'my';
 
 $result = send_request(array_merge($ses_info, [
     'action' => 'organization_info_address',
@@ -19,9 +18,6 @@ if (!is_array($result) || isset($result['sccss'])) {
     $result = [];
 }
 ?>
-
-<input type="hidden" id="hdnOrgId"   value="<?php echo $id; ?>">
-<input type="hidden" id="hdnOrgType" value="<?php echo htmlspecialchars($org_type); ?>">
 
 <form id="formInfo">
     <div class="row">

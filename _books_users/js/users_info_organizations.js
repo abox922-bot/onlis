@@ -3,15 +3,17 @@ $(function(){
     let user_id = +$("#hdnUserId").val();
 
     $(".orgTr").off("click").on("click", function(){
-        let organization_staff_id = +$(this).data("id");
+        let st_id = +$(this).data("id");
         let org_name = $(this).find(".orgName").text().trim();
-
         $("#modalOffcanvasLabel").html(org_name);
         $("#modalOffcanvasBody").html(spnr_loading);
         modalOffcanvas.show();
-
-        let path = new URL("../organizations/_books_orgs/organization_info_staff_info_main.php", url);
-        $("#modalOffcanvasBody").load(path.href, {organization_staff_id: organization_staff_id});
+        let path = new URL("../_books_orgs/organization_info_staff_info_main.php", url);
+        $("#modalOffcanvasBody").load(path.href, {st_id}, function(){
+            fncInitStaffMainForm(st_id, function(){
+                fncUserTabLoad(user_id, "organizations");
+            });
+        });
     });
 
     $("#btnAddOrg").off("click").on("click", async function(){
@@ -53,8 +55,8 @@ $(function(){
             let confirmed = await fncConfirm("Привязать сотрудника к этой организации?");
             if (!confirmed) return;
 
-            fncMyAjax("add_staff_to_organization", "users", [
-                {name: "organization-id", value: organization_id},
+            fncMyAjax("add_staff_to_organization", "orgs", [
+                {name: "org-id",  value: organization_id},
                 {name: "user-id", value: user_id}
             ], 0)
             .always(function(){

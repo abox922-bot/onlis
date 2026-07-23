@@ -47,7 +47,7 @@ if (!is_array($result) || isset($result['sccss'])) {
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpBDate" class="my-input-label">Дата рождения</label>
                 <input type="date" class="form-in form-inp" id="inpBDate"
-                    data-name="user-bdate" value="<?= $today; ?>">
+                    data-name="user-bdate" data-required="1" value="">
             </div>
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpPhone" class="my-input-label">Телефон</label>
@@ -85,7 +85,7 @@ if (!is_array($result) || isset($result['sccss'])) {
         <table class="table table-sm table-hover mt-2">
             <tbody>
                 <?php foreach ($result['users'] as $user): ?>
-                    <tr class="freeTr" data-id="<?php echo $user['id']; ?>">
+                    <tr class="listTr freeTr" data-id="<?php echo $user['id']; ?>">
                         <td class="py-2"><?php echo htmlspecialchars($user['name']); ?></td>
                     </tr>
                 <?php endforeach; ?>

@@ -13,10 +13,18 @@ $(function(){
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#modalOffcanvas").on("shown.bs.offcanvas", function(){
         main_modal._config.keyboard = false;
+        main_modal._config.backdrop = false;
+        modalOffcanvas._config.keyboard = true;
+        modalOffcanvas._config.backdrop = true;
+        $("#modalOffcanvas").trigger("focus");
+        $("#mainModal").addClass("modal-static-silent");
     });
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     $("#modalOffcanvas").on("hidden.bs.offcanvas", function(){
         main_modal._config.keyboard = true;
+        main_modal._config.backdrop = true;
+        $("#mainModal").trigger("focus");
+        $("#mainModal").removeClass("modal-static-silent");
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#mainModal").on("shown.bs.modal", function(){
@@ -32,36 +40,31 @@ $(function(){
         $("#mainModalBody").html("");
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    $("#confirmModal").on("show.bs.modal", function(){
-        main_modal._config.keyboard = false;
-    });
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    $("#confirmModal").on("hidden.bs.modal", function(){
-        main_modal._config.keyboard = true;
-    });
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $(".my-menu-div-btn").click(function(){
         $(".my-nav-item_second_level").addClass("d-none");
         myOffcanvas.show();
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    $(document).click(function(e){
-        if (e.target.closest(".head-item")) {
-            const target = $(e.target).closest(".head-item").data("target");
-            $(`.my-nav-item_second_level[data-target!="${target}"]`).addClass("d-none");
-            $(`.my-nav-item_second_level[data-target="${target}"]`).toggleClass("d-none");
-        } else if (e.target.closest(".link-item")) {
-            myOffcanvas.hide();
-            const $item = $(e.target).closest(".link-item");
-            fncChptLoad($item.data("module"), $item.data("ttl"));
-        } else if (e.target.closest("#spnQuit")) {
-            myOffcanvas.hide();
-            if (confirm("Выйти из системы?")) {
-                fncMyAjax("close_ses", "main")
-                    .always(function() {
-                        window.location.reload();
-                    });
-            }
+    $(".head-item").on("click", function(){
+        const target = $(this).data("target");
+        $(`.my-nav-item_second_level[data-target!="${target}"]`).addClass("d-none");
+        $(`.my-nav-item_second_level[data-target="${target}"]`).toggleClass("d-none");
+    });
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    $(".link-item").on("click", function(){
+        myOffcanvas.hide();
+        const $item = $(this);
+        fncChptLoad($item.data("module"), $item.data("ttl"));
+    });
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    $("#spnQuit").on("click", async function(){
+        myOffcanvas.hide();
+        let confirmed = await fncConfirm("Выйти из системы?");
+        if (confirmed) {
+            fncMyAjax("close_ses", "main")
+                .always(function() {
+                    window.location.reload();
+                });
         }
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -150,7 +153,6 @@ function fncBookNav() {
             $tabs.removeClass("active");
             $(this).addClass("active");
             this.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
-            //$("#divScrollArea").animate({ scrollTop: 0 }, 150, "linear");
             $('body, html').animate({scrollTop: 0}, 100, "linear");
             let chpt = $(this).data("target");
             $("#rowContent").html(`<div class="col-12 p-3">${spnr_loading}</div>`);
@@ -171,7 +173,6 @@ function fncChptLoad(module_key, chpt_header) {
     $("#sectionHeader").html(chpt_header);
     let path = new URL(`main_module.php?module=${module_key}`, url);
     $("#divMainContent").load(path.href, function(){
-        //$("#divScrollArea").animate({ scrollTop: 0 }, 150, "linear");
         $('body, html').animate({scrollTop: 0}, 100, "linear");
         fncBookNav();
     });
@@ -204,16 +205,78 @@ function fncConfirm(message) {
         let confirmed = false;
         $("#confirmModalText").html(message);
 
+        if ($("#modalOffcanvas").hasClass("show")) {
+            modalOffcanvas._config.keyboard = false;
+            modalOffcanvas._config.backdrop = false;
+        } else {
+            main_modal._config.keyboard = false;
+            main_modal._config.backdrop = false;
+        }
+
         $("#btnConfirmOk").off("click").on("click", function(){
             confirmed = true;
             confirm_modal.hide();
         });
 
+        $("#confirmModal").off("shown.bs.modal").one("shown.bs.modal", function(){
+            $("#confirmModal").trigger("focus");
+        });
+
         $("#confirmModal").off("hidden.bs.modal").one("hidden.bs.modal", function(){
+            if ($("#modalOffcanvas").hasClass("show")) {
+                modalOffcanvas._config.keyboard = true;
+                modalOffcanvas._config.backdrop = true;
+                $("#modalOffcanvas").trigger("focus");
+            } else {
+                main_modal._config.keyboard = true;
+                main_modal._config.backdrop = true;
+                $("#mainModal").trigger("focus");
+            }
             resolve(confirmed);
         });
 
         confirm_modal.show();
+    });
+}
+//==============================================================================
+function fncInitStaffMainForm(st_id, reloadCallback) {
+    let phone_mask = $("#inpWPhone").data("phone-mask");
+    if (phone_mask) $("#inpWPhone").mask(phone_mask);
+
+    if (!canDo('organizations.manage')) {
+        $("#btnSave, #btnDismiss").hide();
+        return;
+    }
+
+    $("#formStaffMain").submit(function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        let params_arr = [];
+        params_arr.push({name: "st-id", value: st_id});
+        let crt_arr = fncParamsCrt(".form-inp", params_arr);
+        if (crt_arr["all_good"]) {
+            $("#btnSave").prop("disabled", true);
+            $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
+            fncMyAjax("upd_organization_staff_main", "orgs", crt_arr["params"], 0)
+                .done(function(){
+                    reloadCallback();
+                    fncBtnReset();
+                })
+                .fail(function(){ fncBtnReset(); });
+        }
+    });
+
+    $("#btnDismiss").on("click", async function(){
+        let confirmed = await fncConfirm("Уволить сотрудника?");
+        if (confirmed) {
+            fncMyAjax("dismiss_organization_staff", "orgs", [
+                {name: "st-id", value: st_id}
+            ], 0)
+            .always(function(){
+                reloadCallback();
+                modalOffcanvas.hide();
+            });
+        }
     });
 }
 //==============================================================================

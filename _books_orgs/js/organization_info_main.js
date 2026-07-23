@@ -1,7 +1,7 @@
 $(function(){
 
     let id       = +$("#hdnOrgId").val();
-    let org_type = +$("#hdnOrgType").val();
+    let org_type = $("#hdnOrgType").val();
 
     if (!canDo('organizations.manage')) {
         $("#btnSave").hide();
@@ -12,7 +12,7 @@ $(function(){
     if (phone_mask) {
         $("#inpPhone").mask(phone_mask);
     }
-    
+
     $("#formInfo").submit(function(e){
         e.preventDefault();
         e.stopImmediatePropagation();
