@@ -1107,46 +1107,63 @@ switch ($action) {
         $st_id = (int)fncValFind('st-id', $params);
         if (!$st_id) { echo json_encode(['sccss' => false]); exit; }
 
-        $stmt = fncQuery("SELECT user_id FROM organization_staff WHERE id = ?", [$st_id]);
+        // Получаем user_id и organization_id
+        $stmt = fncQuery(
+            "SELECT user_id, organization_id FROM organization_staff WHERE id = ?",
+            [$st_id]
+        );
         $st_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
         if (!$st_row) { echo json_encode(['sccss' => false]); exit; }
+
         $dismissed_user_id = (int)$st_row['user_id'];
+        $org_id            = (int)$st_row['organization_id'];
 
-        // Закрываем запись сотрудника
-        fncQuery("UPDATE organization_staff SET date_end = CURDATE() WHERE id = ?", [$st_id]);
+        // 1. Закрываем запись сотрудника организации
+        fncQuery(
+            "UPDATE organization_staff
+             SET date_end = CURDATE(), updated_by = ?, updated_at = NOW()
+             WHERE id = ?",
+            [$user_id, $st_id]
+        );
 
-        // Проверяем, остались ли ещё активные привязки у человека
+        // 2. Снимаем сотрудника со всех объектов этой организации
+        fncQuery(
+            "UPDATE object_staff os
+             JOIN objects o ON o.id = os.object_id
+             SET os.date_end = CURDATE(), os.updated_by = ?, os.updated_at = NOW()
+             WHERE os.user_id = ? AND o.organization_id = ? AND os.date_end IS NULL",
+            [$user_id, $dismissed_user_id, $org_id]
+        );
+
+        // 3. Проверяем остались ли ещё активные привязки у человека
         $stmt = fncQuery(
             "SELECT COUNT(id) AS cnt FROM organization_staff
              WHERE user_id = ? AND date_end IS NULL",
             [$dismissed_user_id]
         );
-        $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+        $row       = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
         $remaining = (int)($row['cnt'] ?? 0);
 
-        // Если это была последняя привязка — блокируем доступ (обратимо, не архивация)
+        // 4. Если последняя привязка — блокируем доступ (обратимо, не архивация)
         if ($remaining === 0) {
             fncQuery(
                 "UPDATE users SET is_active = 0, updated_by = ?, updated_at = NOW() WHERE id = ?",
                 [$user_id, $dismissed_user_id]
             );
-
             fncQuery(
                 "UPDATE sessions SET session = NULL, cntrl = NULL, stop_time = NOW()
                  WHERE user = ? AND session IS NOT NULL",
                 [$dismissed_user_id]
             );
-
             fncQuery("DELETE FROM users_auth WHERE user = ?", [$dismissed_user_id]);
-
             $flag_path = $_SERVER['DOCUMENT_ROOT'] . '/sse_cache/u_' . md5($dismissed_user_id) . '.flag';
             touch($flag_path);
         }
 
         $result = ['sccss' => true];
         break;
-        
-    // -------------------------------------------------------------------------
+
+      // -------------------------------------------------------------------------
       default:
       echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
       exit;

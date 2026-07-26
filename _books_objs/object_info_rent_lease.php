@@ -73,4 +73,4 @@ if (!is_array($owners) || isset($owners['sccss'])) {
         </div>
     </div>
 </form>
-<script src="./_books_objs/js/object_info_rent_lease.js?2026070800"></script>
+<script src="./_books_objs/js/object_info_rent_lease.js?2026072410"></script>

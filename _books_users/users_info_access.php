@@ -90,15 +90,16 @@ $is_archived = empty($result['actual']);
                     <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
                 </button>
                 <button type="button" class="btn-danger-action" id="btnArchive">
-                    Архивировать
+                    <span id="btnArchiveText">Архивировать</span>
+                    <div class="spinner-border spinner-border-sm d-none" id="divArchiveLoading"></div>
                 </button>
             <?php else: ?>
                 <button type="button" class="btn-action-main" id="btnRestore">
-                    Восстановить из архива
+                    <span id="btnRestoreText">Восстановить из архива</span>
+                    <div class="spinner-border spinner-border-sm d-none" id="divRestoreLoading"></div>
                 </button>
             <?php endif; ?>
         </div>
 
     </div>
 </form>
-<script src="./_books_users/js/users_info_access.js?2026071800"></script>

@@ -64,4 +64,4 @@ if (!is_array($utility) || isset($utility['sccss'])) {
 
     <div class="col-12" id="divHistListContent"></div>
 </div>
-<script src="./_books_objs/js/object_info_rent_utilities_info_hist.js?2026070801"></script>
+<script src="./_books_objs/js/object_info_rent_utilities_info_hist.js?2026072410"></script>

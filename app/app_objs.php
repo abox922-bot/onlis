@@ -651,8 +651,94 @@ switch ($action) {
         $stmt = fncQuery("DELETE FROM `object_schedule_temporary_breaks` WHERE `id` = ?", [$id]);
         $result = ['sccss' => (bool)$stmt];
         break;
-    //--------------------------------------------------------------------------
 
+    //--------------------------------------------------------------------------
+    case 'object_staff_list':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $object_id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `ost`.`id`, `ost`.`user_id`,
+                    CONCAT_WS(' ', `u`.`last_name`, `u`.`name`) AS `name`,
+                    `op`.`name` AS `title`,
+                    IF(`os`.`phone` IS NULL,
+                        (SELECT `phone_code` FROM `countries` WHERE `id` = `u`.`phone_country_id`),
+                        (SELECT `phone_code` FROM `countries` WHERE `id` = `oo`.`country_id`)) AS `phone_code`,
+                    IF(`os`.`phone` IS NULL, `u`.`phone`, `os`.`phone`) AS `phone`,
+                    IF(`os`.`email` IS NULL, `u`.`email`, `os`.`email`) AS `email`
+             FROM `object_staff` `ost`
+             LEFT JOIN `users` `u` ON `u`.`id` = `ost`.`user_id`
+             LEFT JOIN `objects` `o` ON `o`.`id` = `ost`.`object_id`
+             LEFT JOIN `organizations` `oo` ON `oo`.`id` = `o`.`organization_id`
+             LEFT JOIN `organization_staff` `os` ON `os`.`organization_id` = `o`.`organization_id`
+                  AND `os`.`user_id` = `ost`.`user_id` AND `os`.`date_end` IS NULL
+             LEFT JOIN `organization_positions` `op` ON `op`.`id` = `os`.`position_id`
+             WHERE `ost`.`object_id` = ? AND `ost`.`date_end` IS NULL
+             ORDER BY `u`.`last_name`, `u`.`name`",
+            [$object_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'object_staff_new':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $object_id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `u`.`id`, CONCAT_WS(' ', `u`.`last_name`, `u`.`name`) AS `name`
+             FROM `users` `u`
+             JOIN `organization_staff` `os` ON `os`.`user_id` = `u`.`id` AND `os`.`date_end` IS NULL
+             JOIN `objects` `o` ON `o`.`id` = ?
+             WHERE `os`.`organization_id` = `o`.`organization_id`
+               AND `u`.`id` NOT IN (
+                   SELECT `user_id` FROM `object_staff` WHERE `object_id` = ? AND `date_end` IS NULL
+               )
+             ORDER BY `u`.`last_name`, `u`.`name`",
+            [$object_id, $object_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'new_object_staff':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $object_id   = (int)fncValFind('object_id', $params);
+        $user_id_add = (int)fncValFind('user_id', $params);
+        if (!$object_id || !$user_id_add) {
+            echo json_encode(['sccss' => false]);
+            exit;
+        }
+        $stmt = fncQuery(
+            "INSERT INTO `object_staff` (`object_id`, `user_id`, `date_start`, `created_by`)
+             VALUES (?, ?, CURDATE(), ?)",
+            [$object_id, $user_id_add, $user_id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'del_object_staff':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)fncValFind('id', $params);
+        if (!$id) { echo json_encode(['sccss' => false]); exit; }
+        $stmt = fncQuery(
+            "UPDATE `object_staff` SET `date_end` = CURDATE(), `updated_at` = NOW(), `updated_by` = ? WHERE `id` = ?",
+            [$user_id, $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+    //--------------------------------------------------------------------------
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
         exit;

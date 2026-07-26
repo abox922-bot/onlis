@@ -79,8 +79,7 @@ function staffListLoad(org_id) {
         $(".staffTr").off("click").on("click", function(){
             let st_id    = +$(this).data("id");
             let user_id  = +$(this).data("user-id");
-            let st_name  = $(`.staffName[data-id="${st_id}"]`).clone()
-                            .children().remove().end().text().trim();
+            let st_name = $(`.staffName[data-id="${st_id}"]`).first().text().trim();
             let org_type = $("#hdnOrgType").val();
 
             $("#modalOffcanvasLabel").html(st_name);
@@ -107,7 +106,14 @@ function staffListLoad(org_id) {
 function staffTabLoad(st_id, user_id, target) {
     $(".inline-tab-info").prop("disabled", true);
     $("#divStaffInfoContent").html(spnr_loading);
-    let path = new URL(`./_books_orgs/organization_info_staff_info_${target}.php`, url);
+
+    let path;
+    if (target === "person" || target === "access") {
+        path = new URL(`../_books_users/users_info_${target}.php`, url);
+    } else {
+        path = new URL(`./_books_orgs/organization_info_staff_info_${target}.php`, url);
+    }
+
     $("#divStaffInfoContent").load(path.href, {st_id, user_id}, function(){
         $(".inline-tab-info").prop("disabled", false);
         if (target === "main") {
@@ -115,6 +121,16 @@ function staffTabLoad(st_id, user_id, target) {
                 staffListLoad(+$("#hdnOrgId").val());
             });
         }
+        if (target === "person") {
+            fncInitPersonForm(user_id, function(){
+                staffListLoad(+$("#hdnOrgId").val());
+            });
+        }
+        if (target === "access") {
+            fncInitAccessForm(user_id, function(){
+                staffListLoad(+$("#hdnOrgId").val());
+                modalOffcanvas.hide();
+            });
+        }
     });
-}
-// ─────────────────────────────────────────────────────────────────────────────
+}// ─────────────────────────────────────────────────────────────────────────────

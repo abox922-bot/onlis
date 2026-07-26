@@ -135,4 +135,3 @@ $is_archived = empty($result['actual']);
 
     </div>
 </form>
-<script src="./_books_users/js/users_info_person.js?2026071802"></script>

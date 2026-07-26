@@ -105,4 +105,4 @@ if (!is_array($countries) || isset($countries['sccss'])) {
 <input type="hidden" id="hdnAddrCityId"   value="<?php echo (int)($address['city_id'] ?? 0); ?>">
 <input type="hidden" id="hdnAddrStreetId" value="<?php echo (int)($address['street_id'] ?? 0); ?>">
 
-<script src="./_books_objs/js/object_info_address.js?2026070809"></script>
+<script src="./_books_objs/js/object_info_address.js?2026072410"></script>

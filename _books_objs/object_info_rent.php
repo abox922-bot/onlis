@@ -7,4 +7,4 @@ fncRequireSession();
     <button type="button" class="inline-tab-sub" data-target="utilities">Счётчики</button>
 </div>
 <div id="divObjectRentContent"></div>
-<script src="./_books_objs/js/object_info_rent.js?2026070800"></script>
+<script src="./_books_objs/js/object_info_rent.js?2026072410"></script>

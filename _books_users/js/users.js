@@ -146,7 +146,17 @@ function fncUserTabLoad(user_id, target) {
     $(".inline-tab").prop("disabled", true);
     $("#divUserInfoContent").html(spnr_loading);
     let path = new URL(`./_books_users/users_info_${target}.php`, url);
-    $("#divUserInfoContent").load(path.href, {user_id: user_id}, function(){
+    $("#divUserInfoContent").load(path.href, {user_id}, function(){
         $(".inline-tab").prop("disabled", false);
+        if (target === "person") {
+            fncInitPersonForm(user_id, listLoadFunction);
+        }
+        if (target === "access") {
+            fncInitAccessForm(user_id, function(){
+                listLoadFunction();
+                main_modal.hide();
+            });
+        }
     });
 }
+// ─────────────────────────────────────────────────────────────────────────────

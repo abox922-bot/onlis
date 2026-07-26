@@ -17,4 +17,4 @@ fncRequireSession();
     </div>
     <div class="col-12" id="divDowContent"></div>
 </div>
-<script src="./_books_objs/js/object_info_schedule_main.js?2026071004"></script>
+<script src="./_books_objs/js/object_info_schedule_main.js?2026072410"></script>

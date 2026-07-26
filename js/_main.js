@@ -280,3 +280,135 @@ function fncInitStaffMainForm(st_id, reloadCallback) {
     });
 }
 //==============================================================================
+function fncInitPersonForm(user_id, reloadCallback) {
+
+    if (window.countryPicker) window.countryPicker.destroy();
+    window.countryPicker = new TomSelect("#slctCountry", {
+        maxOptions: null
+    });
+
+    if (window.phoneCountryPicker) window.phoneCountryPicker.destroy();
+    window.phoneCountryPicker = new TomSelect("#slctPhoneCountry", {
+        maxOptions: null,
+        onChange: function(value){
+            if (!value) {
+                $("#inpPhone").prop("disabled", true).val("").unmask();
+                return;
+            }
+            let opt  = $(`#slctPhoneCountry option[value="${value}"]`);
+            let mask = opt.data("mask");
+            $("#inpPhone").prop("disabled", false).val("").attr("data-phone-mask", mask);
+            if (mask) $("#inpPhone").mask(mask);
+        }
+    });
+
+    let phone_mask = $("#inpPhone").data("phone-mask");
+    if (phone_mask) {
+        $("#inpPhone").mask(phone_mask);
+    }
+
+    if (!canDo('users.manage')) {
+        $("#btnSave").hide();
+    } else {
+        $("#formUserPerson").off("submit").on("submit", function(e){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            let params_arr = [];
+            params_arr.push({name: "user-id", value: user_id});
+            params_arr.push({name: "user-country-id",  value: window.countryPicker.getValue()});
+            params_arr.push({name: "phone-country-id", value: window.phoneCountryPicker.getValue()});
+            let crt_arr = fncParamsCrt(".form-inp", params_arr);
+            if (crt_arr["all_good"]) {
+                $("#btnSave").prop("disabled", true);
+                $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
+                fncMyAjax("upd_person", "users", crt_arr["params"], 0)
+                    .done(function(){ fncBtnReset(); reloadCallback(); })
+                    .fail(function(){ fncBtnReset(); });
+            }
+        });
+    }
+
+}
+//==============================================================================
+function fncInitAccessForm(user_id, onDone) {
+
+    $("#chckIsActive").off("change").on("change", function(){
+        $("#lblIsActive").html($(this).prop("checked") ? "Активен" : "Заблокирован");
+    });
+
+    $("#btnGenLogin").off("click").on("click", function(){
+        let login = String(Math.floor(10000 + Math.random() * 90000));
+        $("#inpLogin").val(login).prop("disabled", false);
+    });
+
+    $("#btnGenPass").off("click").on("click", function(){
+        let pass = String(Math.floor(1000 + Math.random() * 9000));
+        $("#inpPassword").val(pass).prop("disabled", false);
+    });
+
+    if (!canDo('users.manage')) {
+        $("#btnSave, #btnGenLogin, #btnGenPass, #btnArchive, #btnRestore").hide();
+        return;
+    }
+
+    $("#formUserAccess").off("submit").on("submit", function(e){
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        let params_arr = [];
+        params_arr.push({name: "user-id", value: user_id});
+        let crt_arr = fncParamsCrt(".form-inp", params_arr);
+        if (crt_arr["all_good"]) {
+            $("#btnSave").prop("disabled", true);
+            $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
+            fncMyAjax("upd_access", "users", crt_arr["params"], 1)
+                .done(function(data){
+                    if (data.sccss) {
+                        fncBtnReset();
+                        onDone();
+                    } else {
+                        fncBtnReset();
+                        fncShowFormError(data.msg ?? "Проверьте введённые данные");
+                    }
+                })
+                .fail(function(){ fncBtnReset(); });
+        }
+    });
+
+    $("#btnArchive").off("click").on("click", async function(){
+        let orgs = await fncMyAjax("active_organizations", "users", [
+            {name: "user-id", value: user_id}
+        ], 1);
+
+        let message = "Перенести сотрудника в архив?";
+        if (orgs && orgs.length > 0) {
+            message = "Сотрудник будет уволен из следующих организаций: "
+                + orgs.join(", ") + ". Продолжить?";
+        }
+
+        let confirmed = await fncConfirm(message);
+        if (!confirmed) return;
+
+        $("#btnArchive").prop("disabled", true);
+        $("#btnArchiveText, #divArchiveLoading").toggleClass("d-none");
+
+        fncMyAjax("archive", "users", [
+            {name: "user-id", value: user_id}
+        ], 0)
+        .always(function(){ onDone(); });
+    });
+
+    $("#btnRestore").off("click").on("click", async function(){
+        let confirmed = await fncConfirm("Восстановить сотрудника из архива? Доступ и привязки к организациям нужно будет настроить заново.");
+        if (!confirmed) return;
+
+        $("#btnRestore").prop("disabled", true);
+        $("#btnRestoreText, #divRestoreLoading").toggleClass("d-none");
+
+        fncMyAjax("restore", "users", [
+            {name: "user-id", value: user_id}
+        ], 0)
+        .always(function(){ onDone(); });
+    });
+
+}
+//==============================================================================
