@@ -1163,10 +1163,28 @@ switch ($action) {
         $result = ['sccss' => true];
         break;
 
-      // -------------------------------------------------------------------------
-      default:
-      echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
-      exit;
+    // -------------------------------------------------------------------------
+    case 'organization_objects_list':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $org_id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT o.id, o.name, o.is_active, ot.name AS type_name
+             FROM objects o
+             LEFT JOIN object_types ot ON ot.id = o.type_id
+             WHERE o.organization_id = ?
+             ORDER BY o.is_active DESC, o.name",
+            [$org_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+        default:
+        echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
+        exit;
 }
 
 echo json_encode($result);

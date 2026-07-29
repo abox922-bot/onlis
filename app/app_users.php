@@ -365,9 +365,15 @@ switch ($action) {
         );
 
         fncQuery(
-            "UPDATE organization_staff SET date_end = CURDATE()
+            "UPDATE organization_staff SET date_end = CURDATE(), updated_by = ?, updated_at = NOW()
              WHERE user_id = ? AND date_end IS NULL",
-            [$archive_user_id]
+            [$user_id, $archive_user_id]
+        );
+
+        fncQuery(
+            "UPDATE object_staff SET date_end = CURDATE(), updated_by = ?, updated_at = NOW()
+             WHERE user_id = ? AND date_end IS NULL",
+            [$user_id, $archive_user_id]
         );
 
         fncQuery(
@@ -383,7 +389,7 @@ switch ($action) {
 
         $result = ['sccss' => true];
         break;
-
+        
     // -------------------------------------------------------------------------
     // Восстановление из архива. Доступ и привязки НЕ восстанавливаются
     // автоматически — настраиваются заново вручную.
