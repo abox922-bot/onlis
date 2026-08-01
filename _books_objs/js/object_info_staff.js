@@ -59,17 +59,23 @@ function listStaffLoad() {
     });
 }
 //==============================================================================
-function fncStaffInfoTabLoad(target) {
+function fncStaffInfoTabLoad(target, user_id) {
     $(".inline-tab-info").prop("disabled", true);
     $("#divStaffInfoContent").html(spnr_loading);
 
-    let user_id = $("#hdnStaffUserId").val();
     let path = target === "person"
         ? new URL("../_books_users/users_info_person.php", url)
         : new URL(`./_books_objs/object_info_staff_info_${target}.php`, url);
 
     $("#divStaffInfoContent").load(path.href, {user_id}, function(){
         $(".inline-tab-info").prop("disabled", false);
+        if (target === "main") {
+            let staff_id = $("#hdnStaffId").val();
+            fncInitObjectStaffMainForm(staff_id, function(){
+                modalOffcanvas.hide();
+                listStaffLoad();
+            });
+        }
         if (target === "person") {
             fncInitPersonForm(user_id, listStaffLoad);
         }

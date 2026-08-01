@@ -31,4 +31,3 @@ $can_edit = fncCan($result['rules'], 'objects.manage');
         </div>
     <?php endif; ?>
 </div>
-<script src="./_books_objs/js/object_info_staff_info_main.js?2026072410"></script>

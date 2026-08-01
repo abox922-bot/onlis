@@ -7,4 +7,4 @@ fncRequireSession();
     <div class="col-12" id="divObjectsList"></div>
 </div>
 
-<script src="./_books_orgs/js/organization_info_objects.js?2026072901"></script>
+<script src="./_books_orgs/js/organization_info_objects.js?2026080103"></script>

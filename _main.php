@@ -122,7 +122,7 @@
                                       <i class="bi <?php echo $item['icon']; ?>"></i>
                                       <span class="my-nav-link__name link-item"
                                             data-module="<?php echo $item['module']; ?>"
-                                            data-ttl="<?php echo $group['title']; ?>"
+                                            data-ttl="<?php echo $item['title']; ?>"
                                             data-onload="<?php echo $group['onload'] ?? 0; ?>">
                                           <?php echo $item['title']; ?>
                                       </span>
@@ -150,4 +150,4 @@
 
     </div>
   </div>
-  <script src="./js/_main.js?2026072603"></script>
+  <script src="./js/_main.js?2026080102"></script>

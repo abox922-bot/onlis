@@ -31,7 +31,7 @@ if (!is_array($result) || isset($result['sccss'])) {
                 <tr class="objTr <?php echo !$value['is_active'] ? 'table-secondary' : ''; ?>"
                     data-id="<?php echo $value['id']; ?>">
                     <td class="py-2">
-                        <span class="itemName" data-id="<?php echo $value['id']; ?>">
+                        <span class="objName" data-id="<?php echo $value['id']; ?>">
                             <?php echo htmlspecialchars($value['name']); ?>
                         </span>
                         <?php if (!empty($value['type_name'])): ?>

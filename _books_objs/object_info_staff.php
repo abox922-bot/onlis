@@ -11,4 +11,4 @@ $result = fncRequireSession();
     <?php endif; ?>
 </div>
 <div id="divStaffList"></div>
-<script src="./_books_objs/js/object_info_staff.js?2026072501"></script>
+<script src="./_books_objs/js/object_info_staff.js?2026080100"></script>

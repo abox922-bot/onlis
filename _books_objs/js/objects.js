@@ -31,8 +31,11 @@ $(function(){
                             fncMyAjax("new_object", "objs", crt_arr["params"], 1)
                                 .done(function(data){
                                     if (data.sccss) {
-                                        localStorage.setItem('new_item', data.id);
-                                        main_modal.hide();
+                                      $("#mainModal").one("hidden.bs.modal", function(){
+                                          localStorage.setItem('new_item', data.id);
+                                          listLoadFunction();
+                                      });
+                                      main_modal.hide();
                                     } else {
                                         fncBtnReset();
                                         fncShowFormError(data.msg ?? "Проверьте введённые данные");
@@ -40,9 +43,6 @@ $(function(){
                                 })
                                 .fail(function(){
                                     fncBtnReset();
-                                })
-                                .always(function(){
-                                    listLoadFunction();
                                 });
                         }
                     });
@@ -97,6 +97,12 @@ function fncObjectTabLoad(id, target) {
     $("#divObjectInfoContent").html(spnr_loading);
     let path = new URL(`./_books_objs/object_info_${target}.php`, url);
     $("#divObjectInfoContent").load(path.href, {id}, function(){
-      $(".inline-tab").prop("disabled", false);
+        $(".inline-tab").prop("disabled", false);
+        if (target === "main") {
+            fncInitObjectMainForm(id, function(){
+                listLoadFunction();
+                main_modal.hide();
+            });
+        }
     });
 }

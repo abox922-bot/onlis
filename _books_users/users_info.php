@@ -8,6 +8,7 @@ $user_id = (int)($_POST['user_id'] ?? 0);
     <button type="button" class="inline-tab active" data-target="person">Личная</button>
     <button type="button" class="inline-tab" data-target="access">Доступ</button>
     <button type="button" class="inline-tab" data-target="organizations">Организации</button>
+    <button type="button" class="inline-tab" data-target="objects">Объекты</button>
     <button type="button" class="inline-tab" data-target="history">История</button>
 </div>
 <div id="divUserInfoContent"></div>

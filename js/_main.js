@@ -25,6 +25,7 @@ $(function(){
         main_modal._config.backdrop = true;
         $("#mainModal").trigger("focus");
         $("#mainModal").removeClass("modal-static-silent");
+        $("#modalOffcanvasBody").html("");
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#mainModal").on("shown.bs.modal", function(){
@@ -410,5 +411,44 @@ function fncInitAccessForm(user_id, onDone) {
         .always(function(){ onDone(); });
     });
 
+}
+//==============================================================================
+function fncInitObjectStaffMainForm(staff_id, onDone) {
+    $("#btnDismissObjectStaff").off("click").on("click", async function(){
+        let confirmed = await fncConfirm("Снять сотрудника с объекта?");
+        if (confirmed) {
+            fncMyAjax("del_object_staff", "objs", [{name: "id", value: staff_id}], 1)
+                .always(function(){ onDone(); });
+        }
+    });
+}
+//==============================================================================
+function fncInitObjectMainForm(object_id, onDone) {
+    if (!canDo('objects.manage')) {
+        $("#btnSave").hide();
+        $("#formInfoMain").off("submit");
+    } else {
+        $("#formInfoMain").off("submit").on("submit", function(e){
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            let params_arr = [];
+            params_arr.push({name: "id", value: object_id});
+            let crt_arr = fncParamsCrt(".form-inp", params_arr);
+            if (crt_arr["all_good"]) {
+                $("#btnSave").prop("disabled", true);
+                $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
+                fncMyAjax("upd_object_main", "objs", crt_arr["params"], 1)
+                    .done(function(data){
+                        if (data.sccss) {
+                            onDone();
+                        } else {
+                            fncBtnReset();
+                            fncShowFormError(data.msg ?? "Проверьте введённые данные");
+                        }
+                    })
+                    .fail(function(){ fncBtnReset(); });
+            }
+        });
+    }
 }
 //==============================================================================

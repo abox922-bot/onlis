@@ -58,13 +58,13 @@ $(function(){
                     $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                     fncMyAjax("new_street", "geo", crt_arr["params"], 0)
                         .done(function() {
-                            main_modal.hide();
+                          $("#mainModal").one("hidden.bs.modal", function(){
+                              localStorage.setItem('new_item', data.id);
+                              listLoadFunction(window.cityPicker.getValue());
+                          });
                         })
                         .fail(function() {
                             fncBtnReset();
-                        })
-                        .always(function() {
-                            listLoadFunction(window.cityPicker.getValue());
                         });
                 }
             });

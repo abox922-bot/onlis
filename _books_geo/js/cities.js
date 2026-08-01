@@ -66,16 +66,16 @@ $(function(){
                     fncMyAjax("new_city", "geo", crt_arr["params"], 0)
                         .done(function(data) {
                             if (data.sccss) {
-                                main_modal.hide();
+                              $("#mainModal").one("hidden.bs.modal", function(){
+                                  localStorage.setItem('new_item', data.id);
+                                  listLoadFunction(+$("#slctCountry").val(), +$("#slctRegion").val());
+                              });
                             } else {
                                 fncBtnReset();
                             }
                         })
                         .fail(function() {
                             fncBtnReset();
-                        })
-                        .always(function() {
-                            listLoadFunction(+$("#slctCountry").val(), +$("#slctRegion").val());
                         });
                 }
             });

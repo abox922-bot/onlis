@@ -389,7 +389,7 @@ switch ($action) {
 
         $result = ['sccss' => true];
         break;
-        
+
     // -------------------------------------------------------------------------
     // Восстановление из архива. Доступ и привязки НЕ восстанавливаются
     // автоматически — настраиваются заново вручную.
@@ -435,6 +435,50 @@ switch ($action) {
         }
         $result = $rows;
         break;
+    // -------------------------------------------------------------------------
+    case 'user_objects':
+        if (!fncCan($perms, 'users.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $target_user_id = (int)($_POST['user_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `os`.`id` AS `object_staff_id`, `os`.`object_id`,
+                    `o`.`name` AS `object_name`, `ot`.`name` AS `type_name`
+             FROM `object_staff` `os`
+             LEFT JOIN `objects` `o` ON `o`.`id` = `os`.`object_id`
+             LEFT JOIN `object_types` `ot` ON `ot`.`id` = `o`.`type_id`
+             WHERE `os`.`user_id` = ? AND `os`.`date_end` IS NULL
+             ORDER BY `o`.`name`",
+            [$target_user_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'user_object_candidates':
+        if (!fncCan($perms, 'users.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $target_user_id = (int)(fncValFind('user_id', $params) ?? ($_POST['user_id'] ?? 0));
+        $stmt = fncQuery(
+            "SELECT `o`.`id`, `o`.`name`
+             FROM `objects` `o`
+             WHERE `o`.`organization_id` IN (
+                 SELECT `organization_id` FROM `organization_staff`
+                 WHERE `user_id` = ? AND `date_end` IS NULL
+             )
+             AND `o`.`id` NOT IN (
+                 SELECT `object_id` FROM `object_staff`
+                 WHERE `user_id` = ? AND `date_end` IS NULL
+             )
+             ORDER BY `o`.`name`",
+            [$target_user_id, $target_user_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+        
     // -------------------------------------------------------------------------
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);

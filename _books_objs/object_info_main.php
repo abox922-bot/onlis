@@ -115,4 +115,3 @@ if ($can_edit_org) {
         </div>
     </div>
 </form>
-<script src="./_books_objs/js/object_info_main.js?2026072410"></script>
