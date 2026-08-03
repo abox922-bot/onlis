@@ -45,4 +45,11 @@
           ],
       ],
 
+      'units' => [
+          'folder'   => '_books_units',
+          'sections' => [
+              ['key' => 'units', 'slug' => 'units.manage.view', 'title' => 'Единицы измерения', 'file' => 'units', 'default' => true],
+          ],
+      ],
+
   ];

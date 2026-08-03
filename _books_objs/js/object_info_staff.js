@@ -49,10 +49,10 @@ function listStaffLoad() {
                 $(".inline-tab-info").off("click").on("click", function(){
                     $(".inline-tab-info").removeClass("active");
                     $(this).addClass("active");
-                    fncStaffInfoTabLoad($(this).data("target"));
+                    fncStaffInfoTabLoad($(this).data("target"), user_id);
                 });
 
-                fncStaffInfoTabLoad("main");
+                fncStaffInfoTabLoad("main", user_id);
 
             });
         });

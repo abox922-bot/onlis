@@ -34,10 +34,11 @@ return [
         'title' => 'Справочники',
         'icon'  => 'bi-journal-bookmark',
         'items' => [
-            ['slug' => 'users.manage.view',         'module' => 'users',          'title' => 'Сотрудники',    'icon' => 'bi-people'],
-            ['slug' => 'geography.manage.view',     'module' => 'geography',      'title' => 'География',     'icon' => 'bi-globe-americas'],
-            ['slug' => 'organizations.manage.view', 'module' => 'organizations',  'title' => 'Организации',   'icon' => 'bi-building'],
-            ['slug' => 'objects.manage.view',       'module' => 'objects',        'title' => 'Объекты',       'icon' => 'bi-shop'],
+            ['slug' => 'users.manage.view',         'module' => 'users',          'title' => 'Сотрудники',        'icon' => 'bi-people'],
+            ['slug' => 'geography.manage.view',     'module' => 'geography',      'title' => 'География',         'icon' => 'bi-globe-americas'],
+            ['slug' => 'organizations.manage.view', 'module' => 'organizations',  'title' => 'Организации',       'icon' => 'bi-building'],
+            ['slug' => 'objects.manage.view',       'module' => 'objects',        'title' => 'Объекты',           'icon' => 'bi-shop'],
+            ['slug' => 'units.manage.view',         'module' => 'units',          'title' => 'Единицы измерения', 'icon' => 'bi-rulers'],
         ]
     ],
 ];
