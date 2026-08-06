@@ -52,4 +52,21 @@
           ],
       ],
 
+      'nomenclature' => [
+          'folder'   => '_books_noms',
+          'sections' => [
+              ['key' => 'nomenclature',         'slug' => 'nomenclature.manage.view', 'title' => 'Номенклатура',  'file' => 'nomenclature',       'default' => true],
+              ['key' => 'semi_finished',        'slug' => 'nomenclature.manage.view', 'title' => 'ПФ',            'file' => 'semi_finished'],
+              ['key' => 'nomenclature_groups',  'slug' => 'nomenclature.manage.view', 'title' => 'Группы',        'file' => 'nomenclature_groups'],
+          ],
+      ],
+
+      'products' => [
+          'folder'   => '_books_products',
+          'sections' => [
+              ['key' => 'products',         'slug' => 'products.manage.view', 'title' => 'Товары',          'file' => 'products',       'default' => true],
+              ['key' => 'products_groups',  'slug' => 'products.manage.view', 'title' => 'Группы товаров',  'file' => 'products_groups'],
+          ],
+      ],
+
   ];
