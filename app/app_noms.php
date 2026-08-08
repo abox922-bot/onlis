@@ -43,21 +43,22 @@ switch ($action) {
         $binds  = [];
 
         if ($type === 'nomenclature' || $type === 'product') {
-            $where[] = "`type` = ?";
-            $binds[] = $type;
+            $where[] = "ng.type = :type";
+            $binds['type'] = $type;
         }
 
         if ($status === 'active') {
-            $where[] = "`is_active` = 1";
+            $where[] = "ng.is_active = 1";
         } elseif ($status === 'archive') {
-            $where[] = "`is_active` = 0";
+            $where[] = "ng.is_active = 0";
         }
 
-        $sql = "SELECT `id`, `parent_id`, `type`, `name`, `is_active` FROM `nomenclature_groups`";
+        $sql = "SELECT ng.id, ng.parent_id, ng.type, ng.name, ng.is_active
+                FROM nomenclature_groups ng";
         if ($where) {
             $sql .= " WHERE " . implode(' AND ', $where);
         }
-        $sql .= " ORDER BY `name`";
+        $sql .= " ORDER BY ng.name";
 
         $stmt = fncQuery($sql, $binds);
         $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -87,7 +88,12 @@ switch ($action) {
             exit;
         }
         $id = (int)($_POST['id'] ?? 0);
-        $stmt = fncQuery("SELECT `id`, `parent_id`, `type`, `name`, `is_active` FROM `nomenclature_groups` WHERE `id` = ?", [$id]);
+        $stmt = fncQuery(
+            "SELECT ng.id, ng.parent_id, ng.type, ng.name, ng.is_active
+             FROM nomenclature_groups ng
+             WHERE ng.id = :id",
+            ['id' => $id]
+        );
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
         break;
 
@@ -106,7 +112,7 @@ switch ($action) {
         }
 
         if ($parent_id) {
-            $stmt = fncQuery("SELECT `type` FROM `nomenclature_groups` WHERE `id` = ?", [$parent_id]);
+            $stmt = fncQuery("SELECT ng.type FROM nomenclature_groups ng WHERE ng.id = :id", ['id' => $parent_id]);
             $parent = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
             if (!$parent || $parent['type'] !== $type) {
                 echo json_encode(['sccss' => false, 'msg' => 'Некорректная родительская группа']);
@@ -116,8 +122,8 @@ switch ($action) {
 
         global $pdo;
         $stmt = fncQuery(
-            "INSERT INTO `nomenclature_groups` (`parent_id`, `type`, `name`, `created_by`) VALUES (?, ?, ?, ?)",
-            [$parent_id, $type, $name, $user_id]
+            "INSERT INTO nomenclature_groups (parent_id, type, name, created_by) VALUES (:parent_id, :type, :name, :created_by)",
+            ['parent_id' => $parent_id, 'type' => $type, 'name' => $name, 'created_by' => $user_id]
         );
         $result = $stmt
             ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
@@ -138,7 +144,7 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT `type` FROM `nomenclature_groups` WHERE `id` = ?", [$id]);
+        $stmt = fncQuery("SELECT ng.type FROM nomenclature_groups ng WHERE ng.id = :id", ['id' => $id]);
         $current = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
         if (!$current) {
             echo json_encode(['sccss' => false, 'msg' => 'Группа не найдена']);
@@ -146,7 +152,7 @@ switch ($action) {
         }
 
         if ($parent_id) {
-            $stmt = fncQuery("SELECT `id`, `parent_id`, `type` FROM `nomenclature_groups`");
+            $stmt = fncQuery("SELECT ng.id, ng.parent_id, ng.type FROM nomenclature_groups ng");
             $all_rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
             $children_map = [];
@@ -171,7 +177,7 @@ switch ($action) {
                 exit;
             }
 
-            $stmt = fncQuery("SELECT `type` FROM `nomenclature_groups` WHERE `id` = ?", [$parent_id]);
+            $stmt = fncQuery("SELECT ng.type FROM nomenclature_groups ng WHERE ng.id = :id", ['id' => $parent_id]);
             $parent = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
             if (!$parent || $parent['type'] !== $current['type']) {
                 echo json_encode(['sccss' => false, 'msg' => 'Некорректная родительская группа']);
@@ -180,8 +186,8 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "UPDATE `nomenclature_groups` SET `name` = ?, `parent_id` = ?, `updated_by` = ? WHERE `id` = ?",
-            [$name, $parent_id, $user_id, $id]
+            "UPDATE nomenclature_groups SET name = :name, parent_id = :parent_id, updated_by = :updated_by WHERE id = :id",
+            ['name' => $name, 'parent_id' => $parent_id, 'updated_by' => $user_id, 'id' => $id]
         );
         $result = ['sccss' => (bool)$stmt];
         break;
@@ -197,7 +203,7 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT `id`, `parent_id`, `type` FROM `nomenclature_groups`");
+        $stmt = fncQuery("SELECT ng.id, ng.parent_id, ng.type FROM nomenclature_groups ng");
         $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
         $children_map = [];
@@ -217,10 +223,18 @@ switch ($action) {
             }
         }
 
-        $placeholders = implode(',', array_fill(0, count($subtree_ids), '?'));
+        $in_placeholders = [];
+        $in_binds = [];
+        foreach ($subtree_ids as $i => $sid) {
+            $key = "sid{$i}";
+            $in_placeholders[] = ":{$key}";
+            $in_binds[$key] = $sid;
+        }
+        $in_sql = implode(',', $in_placeholders);
+
         $stmt = fncQuery(
-            "SELECT COUNT(*) AS `cnt` FROM `nomenclature` WHERE `group_id` IN ($placeholders) AND `is_active` = 1",
-            $subtree_ids
+            "SELECT COUNT(*) AS cnt FROM nomenclature n WHERE n.group_id IN ($in_sql) AND n.is_active = 1",
+            $in_binds
         );
         $active_count = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] : 0;
 
@@ -230,8 +244,8 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "UPDATE `nomenclature_groups` SET `is_active` = 0, `updated_by` = ? WHERE `id` IN ($placeholders)",
-            array_merge([$user_id], $subtree_ids)
+            "UPDATE nomenclature_groups SET is_active = 0, updated_by = :updated_by WHERE id IN ($in_sql)",
+            array_merge(['updated_by' => $user_id], $in_binds)
         );
         $result = ['sccss' => (bool)$stmt];
         break;
@@ -247,7 +261,7 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT `id`, `parent_id` FROM `nomenclature_groups`");
+        $stmt = fncQuery("SELECT ng.id, ng.parent_id FROM nomenclature_groups ng");
         $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
         $by_id = [];
@@ -267,10 +281,18 @@ switch ($action) {
             $ancestor_ids[] = $current_id;
         }
 
-        $placeholders = implode(',', array_fill(0, count($ancestor_ids), '?'));
+        $in_placeholders = [];
+        $in_binds = [];
+        foreach ($ancestor_ids as $i => $aid) {
+            $key = "aid{$i}";
+            $in_placeholders[] = ":{$key}";
+            $in_binds[$key] = $aid;
+        }
+        $in_sql = implode(',', $in_placeholders);
+
         $stmt = fncQuery(
-            "UPDATE `nomenclature_groups` SET `is_active` = 1, `updated_by` = ? WHERE `id` IN ($placeholders)",
-            array_merge([$user_id], $ancestor_ids)
+            "UPDATE nomenclature_groups SET is_active = 1, updated_by = :updated_by WHERE id IN ($in_sql)",
+            array_merge(['updated_by' => $user_id], $in_binds)
         );
         $result = ['sccss' => (bool)$stmt];
         break;
@@ -289,17 +311,17 @@ switch ($action) {
         $binds = [];
 
         if ($section === 'produced') {
-            $where[] = "`nomenclature`.`is_produced` = 1 AND `nomenclature`.`is_sellable` = 0";
+            $where[] = "n.is_produced = 1 AND n.is_sellable = 0";
         } else {
-            $where[] = "`nomenclature`.`is_purchased` = 1";
+            $where[] = "n.is_purchased = 1";
         }
 
         if ($status === 'active') {
-            $where[] = "`nomenclature`.`is_active` = 1";
+            $where[] = "n.is_active = 1";
         }
 
         if ($group_id) {
-            $stmt = fncQuery("SELECT `id`, `parent_id` FROM `nomenclature_groups`");
+            $stmt = fncQuery("SELECT ng.id, ng.parent_id FROM nomenclature_groups ng");
             $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
             $children_map = [];
@@ -319,17 +341,20 @@ switch ($action) {
                 }
             }
 
-            $placeholders = implode(',', array_fill(0, count($group_ids), '?'));
-            $where[] = "`nomenclature`.`group_id` IN ($placeholders)";
-            $binds = array_merge($binds, $group_ids);
+            $in_placeholders = [];
+            foreach ($group_ids as $i => $gid) {
+                $key = "gid{$i}";
+                $in_placeholders[] = ":{$key}";
+                $binds[$key] = $gid;
+            }
+            $where[] = "n.group_id IN (" . implode(',', $in_placeholders) . ")";
         }
 
-        $sql = "SELECT `nomenclature`.`id`, `nomenclature`.`name`, `nomenclature`.`is_active`,
-                        `nomenclature_groups`.`name` AS `group_name`
-                FROM `nomenclature`
-                LEFT JOIN `nomenclature_groups` ON `nomenclature_groups`.`id` = `nomenclature`.`group_id`
+        $sql = "SELECT n.id, n.name, n.is_active, ng.name AS group_name
+                FROM nomenclature n
+                LEFT JOIN nomenclature_groups ng ON ng.id = n.group_id
                 WHERE " . implode(' AND ', $where) . "
-                ORDER BY `nomenclature`.`name`";
+                ORDER BY n.name";
 
         $stmt = fncQuery($sql, $binds);
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -360,7 +385,7 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT `type` FROM `nomenclature_groups` WHERE `id` = ?", [$group_id]);
+        $stmt = fncQuery("SELECT ng.type FROM nomenclature_groups ng WHERE ng.id = :id", ['id' => $group_id]);
         $group = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
         if (!$group || $group['type'] !== 'nomenclature') {
             echo json_encode(['sccss' => false, 'msg' => 'Некорректная группа']);
@@ -372,12 +397,24 @@ switch ($action) {
 
         global $pdo;
         $stmt = fncQuery(
-            "INSERT INTO `nomenclature`
-                (`group_id`, `name`, `display_name`, `description`, `unit_id`,
-                 `is_purchased`, `is_produced`, `is_sellable`, `default_supplier_id`, `created_by`)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            [$group_id, $name, $display_name, $description, $unit_id,
-             $is_purchased, $is_produced, $is_sellable, $default_supplier_id, $user_id]
+            "INSERT INTO nomenclature
+                (group_id, name, display_name, description, unit_id,
+                 is_purchased, is_produced, is_sellable, default_supplier_id, created_by)
+             VALUES
+                (:group_id, :name, :display_name, :description, :unit_id,
+                 :is_purchased, :is_produced, :is_sellable, :default_supplier_id, :created_by)",
+            [
+                'group_id'             => $group_id,
+                'name'                 => $name,
+                'display_name'         => $display_name,
+                'description'          => $description,
+                'unit_id'              => $unit_id,
+                'is_purchased'         => $is_purchased,
+                'is_produced'          => $is_produced,
+                'is_sellable'          => $is_sellable,
+                'default_supplier_id'  => $default_supplier_id,
+                'created_by'           => $user_id,
+            ]
         );
         $result = $stmt
             ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
@@ -391,10 +428,13 @@ switch ($action) {
         }
         $id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `id`, `group_id`, `name`, `display_name`, `description`, `unit_id`,
-                    `is_purchased`, `is_produced`, `is_sellable`, `default_supplier_id`, `is_active`
-             FROM `nomenclature` WHERE `id` = ?",
-            [$id]
+            "SELECT n.id, n.group_id, n.name, n.display_name, n.description, n.unit_id,
+                    n.is_purchased, n.is_produced, n.is_sellable, n.default_supplier_id, n.is_active,
+                    u.short_name AS unit_short_name
+             FROM nomenclature n
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE n.id = :id",
+            ['id' => $id]
         );
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
         break;
@@ -410,7 +450,7 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT `is_produced` FROM `nomenclature` WHERE `id` = ?", [$id]);
+        $stmt = fncQuery("SELECT n.is_produced FROM nomenclature n WHERE n.id = :id", ['id' => $id]);
         $current = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
         if (!$current) {
             echo json_encode(['sccss' => false, 'msg' => 'Позиция не найдена']);
@@ -430,7 +470,7 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT `type` FROM `nomenclature_groups` WHERE `id` = ?", [$group_id]);
+        $stmt = fncQuery("SELECT ng.type FROM nomenclature_groups ng WHERE ng.id = :id", ['id' => $group_id]);
         $group = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
         if (!$group || $group['type'] !== 'nomenclature') {
             echo json_encode(['sccss' => false, 'msg' => 'Некорректная группа']);
@@ -438,12 +478,22 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "UPDATE `nomenclature`
-             SET `group_id` = ?, `name` = ?, `display_name` = ?, `description` = ?, `unit_id` = ?,
-                 `is_sellable` = ?, `default_supplier_id` = ?, `updated_by` = ?
-             WHERE `id` = ?",
-            [$group_id, $name, $display_name, $description, $unit_id,
-             $is_sellable, $default_supplier_id, $user_id, $id]
+            "UPDATE nomenclature
+             SET group_id = :group_id, name = :name, display_name = :display_name, description = :description,
+                 unit_id = :unit_id, is_sellable = :is_sellable, default_supplier_id = :default_supplier_id,
+                 updated_by = :updated_by
+             WHERE id = :id",
+            [
+                'group_id'             => $group_id,
+                'name'                 => $name,
+                'display_name'         => $display_name,
+                'description'          => $description,
+                'unit_id'              => $unit_id,
+                'is_sellable'          => $is_sellable,
+                'default_supplier_id'  => $default_supplier_id,
+                'updated_by'           => $user_id,
+                'id'                   => $id,
+            ]
         );
         $result = ['sccss' => (bool)$stmt];
         break;
@@ -459,8 +509,8 @@ switch ($action) {
             exit;
         }
         $stmt = fncQuery(
-            "UPDATE `nomenclature` SET `is_active` = 0, `updated_by` = ? WHERE `id` = ?",
-            [$user_id, $id]
+            "UPDATE nomenclature SET is_active = 0, updated_by = :updated_by WHERE id = :id",
+            ['updated_by' => $user_id, 'id' => $id]
         );
         $result = ['sccss' => (bool)$stmt];
         break;
@@ -476,8 +526,144 @@ switch ($action) {
             exit;
         }
         $stmt = fncQuery(
-            "UPDATE `nomenclature` SET `is_active` = 1, `updated_by` = ? WHERE `id` = ?",
-            [$user_id, $id]
+            "UPDATE nomenclature SET is_active = 1, updated_by = :updated_by WHERE id = :id",
+            ['updated_by' => $user_id, 'id' => $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'package_list':
+        if (!fncCan($perms, 'nomenclature.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT np.id, np.name, np.quantity, np.is_default, u.short_name AS unit_short_name
+             FROM nomenclature_packages np
+             LEFT JOIN nomenclature n ON n.id = np.nomenclature_id
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE np.nomenclature_id = :nomenclature_id
+             ORDER BY np.is_default DESC, np.name",
+            ['nomenclature_id' => $nomenclature_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    case 'package_info':
+        if (!fncCan($perms, 'nomenclature.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT np.id, np.nomenclature_id, np.name, np.quantity, np.is_default, u.short_name AS unit_short_name
+             FROM nomenclature_packages np
+             LEFT JOIN nomenclature n ON n.id = np.nomenclature_id
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE np.id = :id",
+            ['id' => $id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'new_package':
+        if (!fncCan($perms, 'nomenclature.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
+        $name            = fncValFind('name', $params);
+        $quantity        = fncValFind('quantity', $params);
+        $is_default      = (int)fncValFind('is_default', $params);
+
+        if (!$nomenclature_id || !$name || !$quantity) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT COUNT(*) AS cnt FROM nomenclature_packages np WHERE np.nomenclature_id = :nomenclature_id",
+            ['nomenclature_id' => $nomenclature_id]
+        );
+        $existing_count = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] : 0;
+
+        if ($existing_count === 0) {
+            $is_default = 1;
+        }
+
+        if ($is_default) {
+            fncQuery(
+                "UPDATE nomenclature_packages SET is_default = 0 WHERE nomenclature_id = :nomenclature_id",
+                ['nomenclature_id' => $nomenclature_id]
+            );
+        }
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO nomenclature_packages (nomenclature_id, name, quantity, is_default, created_by)
+             VALUES (:nomenclature_id, :name, :quantity, :is_default, :created_by)",
+            [
+                'nomenclature_id' => $nomenclature_id,
+                'name'            => $name,
+                'quantity'        => $quantity,
+                'is_default'      => $is_default,
+                'created_by'      => $user_id,
+            ]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось создать упаковку'];
+        break;
+
+    case 'upd_package':
+        if (!fncCan($perms, 'nomenclature.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id         = (int)fncValFind('id', $params);
+        $name       = fncValFind('name', $params);
+        $quantity   = fncValFind('quantity', $params);
+        $is_default = (int)fncValFind('is_default', $params);
+
+        if (!$id || !$name || !$quantity) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT np.nomenclature_id, np.is_default FROM nomenclature_packages np WHERE np.id = :id",
+            ['id' => $id]
+        );
+        $current = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$current) {
+            echo json_encode(['sccss' => false, 'msg' => 'Упаковка не найдена']);
+            exit;
+        }
+
+        if ($current['is_default'] && !$is_default) {
+            echo json_encode(['sccss' => false, 'msg' => 'Должна остаться хотя бы одна упаковка по умолчанию — назначьте другую']);
+            exit;
+        }
+
+        if ($is_default) {
+            fncQuery(
+                "UPDATE nomenclature_packages SET is_default = 0 WHERE nomenclature_id = :nomenclature_id AND id != :id",
+                ['nomenclature_id' => $current['nomenclature_id'], 'id' => $id]
+            );
+        }
+
+        $stmt = fncQuery(
+            "UPDATE nomenclature_packages
+             SET name = :name, quantity = :quantity, is_default = :is_default, updated_by = :updated_by
+             WHERE id = :id",
+            [
+                'name'        => $name,
+                'quantity'    => $quantity,
+                'is_default'  => $is_default,
+                'updated_by'  => $user_id,
+                'id'          => $id,
+            ]
         );
         $result = ['sccss' => (bool)$stmt];
         break;

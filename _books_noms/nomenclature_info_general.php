@@ -105,9 +105,10 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
 
         <?php if (!$info['is_produced']): ?>
             <div class="col-12 mb-3">
-                <div class="form-check">
+                <div class="form-check form-switch">
                     <input type="checkbox"
                         class="form-check-input form-inp"
+                        role="switch"
                         id="chkSellable"
                         data-name="is_sellable"
                         data-type="check"

@@ -2,7 +2,7 @@
 require_once('../app/includes/session_guard.php');
 fncRequireSession();
 
-$id       = (int)($_POST['id']       ?? 0);
+$id       = (int)($_POST['id'] ?? 0);
 $org_type = $_POST['org_type'] ?? 'my';
 ?>
 <input type="hidden" id="hdnOrgId"    value="<?php echo $id; ?>">
@@ -13,12 +13,10 @@ $org_type = $_POST['org_type'] ?? 'my';
     <button type="button" class="inline-tab" data-target="accs">Счета</button>
     <?php if ($org_type === 'my'): ?>
         <button type="button" class="inline-tab" data-target="staff">Сотрудники</button>
+        <button type="button" class="inline-tab" data-target="positions">Должности</button>
+        <button type="button" class="inline-tab" data-target="departments">Отделы</button>
     <?php else: ?>
         <button type="button" class="inline-tab" data-target="contacts">Контакты</button>
     <?php endif; ?>
-    <button type="button" class="inline-tab" data-target="positions">Должности</button>
-    <button type="button" class="inline-tab" data-target="departments">Отделы</button>
-    <button type="button" class="inline-tab" data-target="objects">Объекты</button>
 </div>
-
 <div id="divOrgInfoContent"></div>

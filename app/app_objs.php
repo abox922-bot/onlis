@@ -32,13 +32,13 @@ switch ($action) {
             exit;
         }
         $stmt = fncQuery(
-            "SELECT `objects`.`id`, `objects`.`name`, `objects`.`is_active`,
-                    `object_types`.`name` AS `type_name`,
-                    `organizations`.`short_name`, `organizations`.`name` AS `org_name`
-             FROM `objects`
-             LEFT JOIN `object_types` ON `object_types`.`id` = `objects`.`type_id`
-             LEFT JOIN `organizations` ON `organizations`.`id` = `objects`.`organization_id`
-             ORDER BY `objects`.`is_active` DESC, `objects`.`name`"
+            "SELECT o.id, o.name, o.is_active,
+                    ot.name AS type_name,
+                    oo.short_name, oo.name AS org_name
+             FROM objects o
+             LEFT JOIN object_types ot ON ot.id = o.type_id
+             LEFT JOIN organizations oo ON oo.id = o.organization_id
+             ORDER BY o.is_active DESC, o.name"
         );
         if ($stmt) {
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -60,7 +60,7 @@ switch ($action) {
 
         global $pdo;
         $stmt = fncQuery(
-            "INSERT INTO `objects` (`organization_id`, `type_id`, `name`, `created_by`)
+            "INSERT INTO objects (organization_id, type_id, name, created_by)
              VALUES (?, ?, ?, ?)",
             [$organization_id, $type_id, $name, $user_id]
         );
@@ -76,11 +76,11 @@ switch ($action) {
             exit;
         }
         $stmt = fncQuery(
-            "SELECT `object_types`.`id`, `object_types`.`name`, `object_types`.`organization_id`,
-                    `object_types`.`is_active`, `organizations`.`short_name`, `organizations`.`name` AS `org_name`
-             FROM `object_types`
-             LEFT JOIN `organizations` ON `organizations`.`id` = `object_types`.`organization_id`
-             ORDER BY `object_types`.`organization_id` IS NULL DESC, `object_types`.`is_active` DESC, `object_types`.`name`"
+            "SELECT ot.id, ot.name, ot.organization_id, ot.is_active,
+                    oo.short_name, oo.name AS org_name
+             FROM object_types ot
+             LEFT JOIN organizations oo ON oo.id = ot.organization_id
+             ORDER BY ot.organization_id IS NULL DESC, ot.is_active DESC, ot.name"
         );
         if ($stmt) {
             while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
@@ -110,7 +110,7 @@ switch ($action) {
 
         global $pdo;
         $stmt = fncQuery(
-            "INSERT INTO `object_types` (`organization_id`, `name`, `created_by`)
+            "INSERT INTO object_types (organization_id, name, created_by)
              VALUES (?, ?, ?)",
             [$organization_id, $name, $user_id]
         );
@@ -127,11 +127,11 @@ switch ($action) {
         }
         $id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `object_types`.`id`, `object_types`.`name`, `object_types`.`is_active`,
-                    `object_types`.`organization_id`, `organizations`.`short_name`, `organizations`.`name` AS `org_name`
-             FROM `object_types`
-             LEFT JOIN `organizations` ON `organizations`.`id` = `object_types`.`organization_id`
-             WHERE `object_types`.`id` = ?",
+            "SELECT ot.id, ot.name, ot.is_active,
+                    ot.organization_id, oo.short_name, oo.name AS org_name
+             FROM object_types ot
+             LEFT JOIN organizations oo ON oo.id = ot.organization_id
+             WHERE ot.id = ?",
             [$id]
         );
         $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
@@ -149,7 +149,7 @@ switch ($action) {
         }
         $id = (int)fncValFind('id', $params);
 
-        $check = fncQuery("SELECT `organization_id` FROM `object_types` WHERE `id` = ?", [$id]);
+        $check = fncQuery("SELECT organization_id FROM object_types WHERE id = ?", [$id]);
         $row = $check ? $check->fetch(PDO::FETCH_ASSOC) : null;
         if (!$row) {
             echo json_encode(['sccss' => false, 'msg' => 'Запись не найдена']);
@@ -163,8 +163,8 @@ switch ($action) {
             $organization_id = $organization_id ?: null;
 
             $stmt = fncQuery(
-                "UPDATE `object_types` SET `name` = ?, `organization_id` = ?, `updated_at` = NOW(), `updated_by` = ?
-                 WHERE `id` = ?",
+                "UPDATE object_types SET name = ?, organization_id = ?, updated_at = NOW(), updated_by = ?
+                 WHERE id = ?",
                 [$name, $organization_id, $user_id, $id]
             );
         } else {
@@ -173,8 +173,8 @@ switch ($action) {
                 exit;
             }
             $stmt = fncQuery(
-                "UPDATE `object_types` SET `name` = ?, `updated_at` = NOW(), `updated_by` = ?
-                 WHERE `id` = ?",
+                "UPDATE object_types SET name = ?, updated_at = NOW(), updated_by = ?
+                 WHERE id = ?",
                 [$name, $user_id, $id]
             );
         }
@@ -190,12 +190,12 @@ switch ($action) {
         }
         $id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `objects`.`name`, `objects`.`type_id`, `objects`.`area`, `objects`.`is_stock`,
-                    `objects`.`is_active`, `objects`.`organization_id`,
-                    `organizations`.`short_name`, `organizations`.`name` AS `org_name`
-             FROM `objects`
-             LEFT JOIN `organizations` ON `organizations`.`id` = `objects`.`organization_id`
-             WHERE `objects`.`id` = ?",
+            "SELECT o.name, o.type_id, o.area, o.is_stock,
+                    o.is_active, o.organization_id,
+                    oo.short_name, oo.name AS org_name
+             FROM objects o
+             LEFT JOIN organizations oo ON oo.id = o.organization_id
+             WHERE o.id = ?",
             [$id]
         );
         $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
@@ -223,18 +223,18 @@ switch ($action) {
             $organization_id = fncValFind('organization_id', $params);
 
             $stmt = fncQuery(
-                "UPDATE `objects`
-                 SET `name` = ?, `type_id` = ?, `area` = ?, `is_stock` = ?, `is_active` = ?,
-                     `organization_id` = ?, `updated_at` = NOW(), `updated_by` = ?
-                 WHERE `id` = ?",
+                "UPDATE objects
+                 SET name = ?, type_id = ?, area = ?, is_stock = ?, is_active = ?,
+                     organization_id = ?, updated_at = NOW(), updated_by = ?
+                 WHERE id = ?",
                 [$name, $type_id, $area, $is_stock, $is_active, $organization_id, $user_id, $id]
             );
         } else {
             $stmt = fncQuery(
-                "UPDATE `objects`
-                 SET `name` = ?, `type_id` = ?, `area` = ?, `is_stock` = ?, `is_active` = ?,
-                     `updated_at` = NOW(), `updated_by` = ?
-                 WHERE `id` = ?",
+                "UPDATE objects
+                 SET name = ?, type_id = ?, area = ?, is_stock = ?, is_active = ?,
+                     updated_at = NOW(), updated_by = ?
+                 WHERE id = ?",
                 [$name, $type_id, $area, $is_stock, $is_active, $user_id, $id]
             );
         }
@@ -250,8 +250,8 @@ switch ($action) {
         }
         $id   = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `country_id`, `region_id`, `city_id`, `street_id`, `house`, `office`
-             FROM `objects` WHERE `id` = ?",
+            "SELECT country_id, region_id, city_id, street_id, house, office
+             FROM objects WHERE id = ?",
             [$id]
         );
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
@@ -278,10 +278,10 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "UPDATE `objects`
-             SET `country_id` = ?, `region_id` = ?, `city_id` = ?, `street_id` = ?, `house` = ?, `office` = ?,
-                 `updated_at` = NOW(), `updated_by` = ?
-             WHERE `id` = ?",
+            "UPDATE objects
+             SET country_id = ?, region_id = ?, city_id = ?, street_id = ?, house = ?, office = ?,
+                 updated_at = NOW(), updated_by = ?
+             WHERE id = ?",
             [$country_id, $region_id, $city_id, $street_id, $house, $office, $user_id, $id]
         );
 
@@ -295,8 +295,8 @@ switch ($action) {
         }
         $id   = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `is_own_property`, `owner_organization_id`, `rent_amount`, `rent_day_of_month`
-             FROM `objects` WHERE `id` = ?",
+            "SELECT is_own_property, owner_organization_id, rent_amount, rent_day_of_month
+             FROM objects WHERE id = ?",
             [$id]
         );
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
@@ -328,10 +328,10 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "UPDATE `objects`
-             SET `is_own_property` = ?, `owner_organization_id` = ?, `rent_amount` = ?, `rent_day_of_month` = ?,
-                 `updated_at` = NOW(), `updated_by` = ?
-             WHERE `id` = ?",
+            "UPDATE objects
+             SET is_own_property = ?, owner_organization_id = ?, rent_amount = ?, rent_day_of_month = ?,
+                 updated_at = NOW(), updated_by = ?
+             WHERE id = ?",
             [$is_own_property, $owner_organization_id, $rent_amount, $rent_day_of_month, $user_id, $id]
         );
 
@@ -346,8 +346,8 @@ switch ($action) {
         }
         $object_id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `id`, `name`, `is_active` FROM `object_utility_types`
-             WHERE `object_id` = ? ORDER BY `is_active` DESC, `name`",
+            "SELECT id, name, is_active FROM object_utility_types
+             WHERE object_id = ? ORDER BY is_active DESC, name",
             [$object_id]
         );
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -364,7 +364,7 @@ switch ($action) {
 
         global $pdo;
         $stmt = fncQuery(
-            "INSERT INTO `object_utility_types` (`object_id`, `name`, `created_by`) VALUES (?, ?, ?)",
+            "INSERT INTO object_utility_types (object_id, name, created_by) VALUES (?, ?, ?)",
             [$object_id, $name, $user_id]
         );
         $result = $stmt
@@ -380,7 +380,7 @@ switch ($action) {
         }
         $id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `name`, `current_tariff`, `is_active` FROM `object_utility_types` WHERE `id` = ?",
+            "SELECT name, current_tariff, is_active FROM object_utility_types WHERE id = ?",
             [$id]
         );
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
@@ -398,9 +398,9 @@ switch ($action) {
         $is_active      = fncValFind('is_active', $params);
 
         $stmt = fncQuery(
-            "UPDATE `object_utility_types`
-             SET `name` = ?, `current_tariff` = ?, `is_active` = ?, `updated_at` = NOW(), `updated_by` = ?
-             WHERE `id` = ?",
+            "UPDATE object_utility_types
+             SET name = ?, current_tariff = ?, is_active = ?, updated_at = NOW(), updated_by = ?
+             WHERE id = ?",
             [$name, $current_tariff, $is_active, $user_id, $id]
         );
         $result = ['sccss' => (bool)$stmt];
@@ -417,10 +417,10 @@ switch ($action) {
         $end_date         = $_POST['end_date'] ?? '';
 
         $stmt = fncQuery(
-            "SELECT `reading_date`, `reading_value`, `tariff`
-             FROM `object_utility_readings`
-             WHERE `utility_type_id` = ? AND `reading_date` BETWEEN ? AND ?
-             ORDER BY `reading_date` DESC",
+            "SELECT reading_date, reading_value, tariff
+             FROM object_utility_readings
+             WHERE utility_type_id = ? AND reading_date BETWEEN ? AND ?
+             ORDER BY reading_date DESC",
             [$utility_type_id, $start_date, $end_date]
         );
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -438,19 +438,19 @@ switch ($action) {
         $tariff          = fncValFind('tariff', $params);
 
         $check = fncQuery(
-            "SELECT `id` FROM `object_utility_readings` WHERE `utility_type_id` = ? AND `reading_date` = ?",
+            "SELECT id FROM object_utility_readings WHERE utility_type_id = ? AND reading_date = ?",
             [$utility_type_id, $reading_date]
         );
         $existing = $check ? $check->fetch(PDO::FETCH_ASSOC) : null;
 
         if ($existing) {
             $stmt = fncQuery(
-                "UPDATE `object_utility_readings` SET `reading_value` = ?, `tariff` = ? WHERE `id` = ?",
+                "UPDATE object_utility_readings SET reading_value = ?, tariff = ? WHERE id = ?",
                 [$reading_value, $tariff, $existing['id']]
             );
         } else {
             $stmt = fncQuery(
-                "INSERT INTO `object_utility_readings` (`utility_type_id`, `reading_value`, `tariff`, `reading_date`, `created_by`)
+                "INSERT INTO object_utility_readings (utility_type_id, reading_value, tariff, reading_date, created_by)
                  VALUES (?, ?, ?, ?, ?)",
                 [$utility_type_id, $reading_value, $tariff, $reading_date, $user_id]
             );
@@ -468,8 +468,8 @@ switch ($action) {
         $dow       = (int)($_POST['dow'] ?? 0);
 
         $stmt = fncQuery(
-            "SELECT `id`, `start_time`, `end_time`, `is_all_day`, `is_day_off`
-             FROM `object_schedule` WHERE `object_id` = ? AND `day_of_week` = ?",
+            "SELECT id, start_time, end_time, is_all_day, is_day_off
+             FROM object_schedule WHERE object_id = ? AND day_of_week = ?",
             [$object_id, $dow]
         );
         $schedule = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
@@ -477,8 +477,8 @@ switch ($action) {
         $breaks = [];
         if (!empty($schedule['id'])) {
             $b_stmt = fncQuery(
-                "SELECT `id`, `start_time`, `end_time` FROM `object_schedule_breaks`
-                 WHERE `schedule_id` = ? ORDER BY `start_time`",
+                "SELECT id, start_time, end_time FROM object_schedule_breaks
+                 WHERE schedule_id = ? ORDER BY start_time",
                 [$schedule['id']]
             );
             $breaks = $b_stmt ? $b_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -501,24 +501,24 @@ switch ($action) {
         $is_day_off = fncValFind('is_day_off', $params);
 
         $check = fncQuery(
-            "SELECT `id` FROM `object_schedule` WHERE `object_id` = ? AND `day_of_week` = ?",
+            "SELECT id FROM object_schedule WHERE object_id = ? AND day_of_week = ?",
             [$object_id, $dow]
         );
         $existing = $check ? $check->fetch(PDO::FETCH_ASSOC) : null;
 
         if ($existing) {
             $stmt = fncQuery(
-                "UPDATE `object_schedule`
-                 SET `start_time` = ?, `end_time` = ?, `is_all_day` = ?, `is_day_off` = ?,
-                     `updated_at` = NOW(), `updated_by` = ?
-                 WHERE `id` = ?",
+                "UPDATE object_schedule
+                 SET start_time = ?, end_time = ?, is_all_day = ?, is_day_off = ?,
+                     updated_at = NOW(), updated_by = ?
+                 WHERE id = ?",
                 [$start_time, $end_time, $is_all_day, $is_day_off, $user_id, $existing['id']]
             );
             $schedule_id = $existing['id'];
         } else {
             global $pdo;
             $stmt = fncQuery(
-                "INSERT INTO `object_schedule` (`object_id`, `day_of_week`, `start_time`, `end_time`, `is_all_day`, `is_day_off`, `created_by`)
+                "INSERT INTO object_schedule (object_id, day_of_week, start_time, end_time, is_all_day, is_day_off, created_by)
                  VALUES (?, ?, ?, ?, ?, ?, ?)",
                 [$object_id, $dow, $start_time, $end_time, $is_all_day, $is_day_off, $user_id]
             );
@@ -539,7 +539,7 @@ switch ($action) {
         $end_time    = fncValFind('end_time', $params);
 
         $stmt = fncQuery(
-            "INSERT INTO `object_schedule_breaks` (`schedule_id`, `start_time`, `end_time`, `created_by`)
+            "INSERT INTO object_schedule_breaks (schedule_id, start_time, end_time, created_by)
              VALUES (?, ?, ?, ?)",
             [$schedule_id, $start_time, $end_time, $user_id]
         );
@@ -553,7 +553,7 @@ switch ($action) {
             exit;
         }
         $id   = (int)(fncValFind('id', $params) ?? 0);
-        $stmt = fncQuery("DELETE FROM `object_schedule_breaks` WHERE `id` = ?", [$id]);
+        $stmt = fncQuery("DELETE FROM object_schedule_breaks WHERE id = ?", [$id]);
         $result = ['sccss' => (bool)$stmt];
         break;
 
@@ -565,18 +565,18 @@ switch ($action) {
         }
         $object_id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `id`, `valid_from`, `valid_to`, `start_time`, `end_time`, `is_all_day`, `is_day_off`
-             FROM `object_schedule_temporary`
-             WHERE `object_id` = ? AND `valid_to` >= CURDATE()
-             ORDER BY `valid_from`",
+            "SELECT id, valid_from, valid_to, start_time, end_time, is_all_day, is_day_off
+             FROM object_schedule_temporary
+             WHERE object_id = ? AND valid_to >= CURDATE()
+             ORDER BY valid_from",
             [$object_id]
         );
         $periods = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
         foreach ($periods as $key => $period) {
             $b_stmt = fncQuery(
-                "SELECT `id`, `start_time`, `end_time` FROM `object_schedule_temporary_breaks`
-                 WHERE `schedule_temporary_id` = ? ORDER BY `start_time`",
+                "SELECT id, start_time, end_time FROM object_schedule_temporary_breaks
+                 WHERE schedule_temporary_id = ? ORDER BY start_time",
                 [$period['id']]
             );
             $periods[$key]['breaks'] = $b_stmt ? $b_stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -601,8 +601,8 @@ switch ($action) {
 
         global $pdo;
         $stmt = fncQuery(
-            "INSERT INTO `object_schedule_temporary`
-             (`object_id`, `valid_from`, `valid_to`, `start_time`, `end_time`, `is_all_day`, `is_day_off`, `created_by`)
+            "INSERT INTO object_schedule_temporary
+             (object_id, valid_from, valid_to, start_time, end_time, is_all_day, is_day_off, created_by)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [$object_id, $valid_from, $valid_to, $start_time, $end_time, $is_all_day, $is_day_off, $user_id]
         );
@@ -618,8 +618,8 @@ switch ($action) {
             exit;
         }
         $id = (int)(fncValFind('id', $params) ?? 0);
-        fncQuery("DELETE FROM `object_schedule_temporary_breaks` WHERE `schedule_temporary_id` = ?", [$id]);
-        $stmt = fncQuery("DELETE FROM `object_schedule_temporary` WHERE `id` = ?", [$id]);
+        fncQuery("DELETE FROM object_schedule_temporary_breaks WHERE schedule_temporary_id = ?", [$id]);
+        $stmt = fncQuery("DELETE FROM object_schedule_temporary WHERE id = ?", [$id]);
         $result = ['sccss' => (bool)$stmt];
         break;
 
@@ -634,7 +634,7 @@ switch ($action) {
         $end_time   = fncValFind('end_time', $params);
 
         $stmt = fncQuery(
-            "INSERT INTO `object_schedule_temporary_breaks` (`schedule_temporary_id`, `start_time`, `end_time`, `created_by`)
+            "INSERT INTO object_schedule_temporary_breaks (schedule_temporary_id, start_time, end_time, created_by)
              VALUES (?, ?, ?, ?)",
             [$schedule_temporary_id, $start_time, $end_time, $user_id]
         );
@@ -648,7 +648,7 @@ switch ($action) {
             exit;
         }
         $id   = (int)(fncValFind('id', $params) ?? 0);
-        $stmt = fncQuery("DELETE FROM `object_schedule_temporary_breaks` WHERE `id` = ?", [$id]);
+        $stmt = fncQuery("DELETE FROM object_schedule_temporary_breaks WHERE id = ?", [$id]);
         $result = ['sccss' => (bool)$stmt];
         break;
 
@@ -660,23 +660,23 @@ switch ($action) {
         }
         $object_id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `ost`.`id`, `ost`.`user_id`,
-                    CONCAT_WS(' ', `u`.`last_name`, `u`.`name`) AS `name`,
-                    `op`.`name` AS `title`,
-                    IF(`os`.`phone` IS NULL,
-                        (SELECT `phone_code` FROM `countries` WHERE `id` = `u`.`phone_country_id`),
-                        (SELECT `phone_code` FROM `countries` WHERE `id` = `oo`.`country_id`)) AS `phone_code`,
-                    IF(`os`.`phone` IS NULL, `u`.`phone`, `os`.`phone`) AS `phone`,
-                    IF(`os`.`email` IS NULL, `u`.`email`, `os`.`email`) AS `email`
-             FROM `object_staff` `ost`
-             LEFT JOIN `users` `u` ON `u`.`id` = `ost`.`user_id`
-             LEFT JOIN `objects` `o` ON `o`.`id` = `ost`.`object_id`
-             LEFT JOIN `organizations` `oo` ON `oo`.`id` = `o`.`organization_id`
-             LEFT JOIN `organization_staff` `os` ON `os`.`organization_id` = `o`.`organization_id`
-                  AND `os`.`user_id` = `ost`.`user_id` AND `os`.`date_end` IS NULL
-             LEFT JOIN `organization_positions` `op` ON `op`.`id` = `os`.`position_id`
-             WHERE `ost`.`object_id` = ? AND `ost`.`date_end` IS NULL
-             ORDER BY `u`.`last_name`, `u`.`name`",
+            "SELECT ost.id, ost.user_id,
+                    CONCAT_WS(' ', u.last_name, u.name) AS name,
+                    op.name AS title,
+                    IF(os.phone IS NULL,
+                        (SELECT phone_code FROM countries WHERE id = u.phone_country_id),
+                        (SELECT phone_code FROM countries WHERE id = oo.country_id)) AS phone_code,
+                    IF(os.phone IS NULL, u.phone, os.phone) AS phone,
+                    IF(os.email IS NULL, u.email, os.email) AS email
+             FROM object_staff ost
+             LEFT JOIN users u ON u.id = ost.user_id
+             LEFT JOIN objects o ON o.id = ost.object_id
+             LEFT JOIN organizations oo ON oo.id = o.organization_id
+             LEFT JOIN organization_staff os ON os.organization_id = o.organization_id
+                  AND os.user_id = ost.user_id AND os.date_end IS NULL
+             LEFT JOIN organization_positions op ON op.id = os.position_id
+             WHERE ost.object_id = ? AND ost.date_end IS NULL
+             ORDER BY u.last_name, u.name",
             [$object_id]
         );
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -690,15 +690,15 @@ switch ($action) {
         }
         $object_id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT `u`.`id`, CONCAT_WS(' ', `u`.`last_name`, `u`.`name`) AS `name`
-             FROM `users` `u`
-             JOIN `organization_staff` `os` ON `os`.`user_id` = `u`.`id` AND `os`.`date_end` IS NULL
-             JOIN `objects` `o` ON `o`.`id` = ?
-             WHERE `os`.`organization_id` = `o`.`organization_id`
-               AND `u`.`id` NOT IN (
-                   SELECT `user_id` FROM `object_staff` WHERE `object_id` = ? AND `date_end` IS NULL
+            "SELECT u.id, CONCAT_WS(' ', u.last_name, u.name) AS name
+             FROM users u
+             JOIN organization_staff os ON os.user_id = u.id AND os.date_end IS NULL
+             JOIN objects o ON o.id = ?
+             WHERE os.organization_id = o.organization_id
+               AND u.id NOT IN (
+                   SELECT user_id FROM object_staff WHERE object_id = ? AND date_end IS NULL
                )
-             ORDER BY `u`.`last_name`, `u`.`name`",
+             ORDER BY u.last_name, u.name",
             [$object_id, $object_id]
         );
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -717,7 +717,7 @@ switch ($action) {
             exit;
         }
         $stmt = fncQuery(
-            "INSERT INTO `object_staff` (`object_id`, `user_id`, `date_start`, `created_by`)
+            "INSERT INTO object_staff (object_id, user_id, date_start, created_by)
              VALUES (?, ?, CURDATE(), ?)",
             [$object_id, $user_id_add, $user_id]
         );
@@ -733,7 +733,7 @@ switch ($action) {
         $id = (int)fncValFind('id', $params);
         if (!$id) { echo json_encode(['sccss' => false]); exit; }
         $stmt = fncQuery(
-            "UPDATE `object_staff` SET `date_end` = CURDATE(), `updated_at` = NOW(), `updated_by` = ? WHERE `id` = ?",
+            "UPDATE object_staff SET date_end = CURDATE(), updated_at = NOW(), updated_by = ? WHERE id = ?",
             [$user_id, $id]
         );
         $result = ['sccss' => (bool)$stmt];

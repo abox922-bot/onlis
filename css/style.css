@@ -222,6 +222,17 @@ body {
     color: #fff;
 }
 
+.badge-default {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #198754;
+    background: rgba(25, 135, 84, 0.1);
+    border-radius: 20px;
+    padding: 4px 12px;
+    white-space: nowrap;
+}
+
 .form-in {
     width: 100%; display: block;
     min-width: 0;
