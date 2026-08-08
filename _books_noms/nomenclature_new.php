@@ -1,21 +1,24 @@
 <?php
 require_once('../app/includes/session_guard.php');
 fncRequireSession();
+require_once('../modules_fncs.php');
 
 $ses_info = [
     '_onlis_id' => $_COOKIE['_onlis_id'],
     'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
 ];
 
-require_once('../modules_fncs.php');
-
 $tree = send_request(array_merge($ses_info, ['action' => 'groups_list', 'type' => 'nomenclature', 'status' => 'active']), 'noms');
 if (!is_array($tree) || isset($tree['sccss'])) {
     $tree = [];
 }
+$group_options = [];
+fncFlattenGroupOptions($tree, 0, [], $group_options);
 
-$parent_options = [];
-fncFlattenGroupOptions($tree, 0, [], $parent_options);
+$units = send_request(array_merge($ses_info, ['action' => 'units_list']), 'unt');
+if (!is_array($units) || isset($units['sccss'])) {
+    $units = [];
+}
 ?>
 <form id="formNew">
     <div class="row">
@@ -29,15 +32,27 @@ fncFlattenGroupOptions($tree, 0, [], $parent_options);
                 data-required="1"
                 autocomplete="off">
         </div>
-        <div class="col-12 mb-3">
-            <label for="slctParent" class="my-input-label">Родительская группа</label>
-            <select class="form-in form-inp" id="slctParent" data-name="parent_id" data-type="select">
-                <option value="0">Без родителя</option>
-                <?php foreach ($parent_options as $opt): ?>
+
+        <div class="col-12 col-md-6 mb-3">
+            <label for="slctGroup" class="my-input-label">Группа</label>
+            <select class="form-in form-inp" id="slctGroup" data-name="group_id" data-type="select" data-required="1">
+                <option value="0">Выберите группу</option>
+                <?php foreach ($group_options as $opt): ?>
                     <option value="<?php echo (int)$opt['id']; ?>"><?php echo htmlspecialchars($opt['label']); ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
+
+        <div class="col-12 col-md-6 mb-3">
+            <label for="slctUnit" class="my-input-label">Единица измерения</label>
+            <select class="form-in form-inp" id="slctUnit" data-name="unit_id" data-type="select" data-required="1">
+                <option value="0">Выберите единицу</option>
+                <?php foreach ($units as $unit): ?>
+                    <option value="<?php echo (int)$unit['id']; ?>"><?php echo htmlspecialchars($unit['name']); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
         <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>

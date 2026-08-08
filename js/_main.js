@@ -19,7 +19,7 @@ $(function(){
         $("#modalOffcanvas").trigger("focus");
         $("#mainModal").addClass("modal-static-silent");
     });
-
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $("#modalOffcanvas").on("hidden.bs.offcanvas", function(){
         main_modal._config.keyboard = true;
         main_modal._config.backdrop = true;
@@ -179,22 +179,25 @@ function fncChptLoad(module_key, chpt_header) {
     });
 }
 //==============================================================================
+function fncApplySearchFilter() {
+    let val = $("#inpSearchVal").val();
+    if (val.length > 0) {
+        $(".itemTr").addClass("d-none");
+        val = val.toLowerCase();
+        $(".itemTr").each(function() {
+            let item_id = +$(this).data("id");
+            if ($(`.itemName[data-id=${item_id}]`).html().toLowerCase().includes(val)) {
+                $(this).removeClass("d-none");
+            }
+        });
+    } else {
+        $(".itemTr").removeClass("d-none");
+    }
+}
+//==============================================================================
 function searchFunction() {
-    $("#inpSearchVal").keyup(function() {
-        let val = $(this).val();
-        if (val.length > 0) {
-            $(".itemTr").addClass("d-none");
-            val = val.toLowerCase();
-            $(".itemTr").each(function() {
-                let item_id = +$(this).data("id");
-                if ($(`.itemName[data-id=${item_id}]`).html().toLowerCase().includes(val)) {
-                    $(this).removeClass("d-none");
-                }
-            });
-        } else {
-            $(".itemTr").removeClass("d-none");
-        }
-    });
+    $("#inpSearchVal").off("keyup").on("keyup", fncApplySearchFilter);
+    fncApplySearchFilter();
 }
 //==============================================================================
 function getRandomCode(min, max) {

@@ -191,7 +191,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        $id = (int)($_POST['id'] ?? 0);
         if (!$id) {
             echo json_encode(['sccss' => false, 'msg' => 'Не указана группа']);
             exit;
@@ -241,7 +241,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        $id = (int)($_POST['id'] ?? 0);
         if (!$id) {
             echo json_encode(['sccss' => false, 'msg' => 'Не указана группа']);
             exit;
@@ -271,6 +271,213 @@ switch ($action) {
         $stmt = fncQuery(
             "UPDATE `nomenclature_groups` SET `is_active` = 1, `updated_by` = ? WHERE `id` IN ($placeholders)",
             array_merge([$user_id], $ancestor_ids)
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'nomenclature_list':
+        if (!fncCan($perms, 'nomenclature.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        $section  = fncValFind('section', $params) ?: ($_POST['section'] ?? '');
+        $status   = fncValFind('status', $params) ?: ($_POST['status'] ?? 'active');
+        $group_id = (int)(fncValFind('group_id', $params) ?: ($_POST['group_id'] ?? 0));
+
+        $where = [];
+        $binds = [];
+
+        if ($section === 'produced') {
+            $where[] = "`nomenclature`.`is_produced` = 1 AND `nomenclature`.`is_sellable` = 0";
+        } else {
+            $where[] = "`nomenclature`.`is_purchased` = 1";
+        }
+
+        if ($status === 'active') {
+            $where[] = "`nomenclature`.`is_active` = 1";
+        }
+
+        if ($group_id) {
+            $stmt = fncQuery("SELECT `id`, `parent_id` FROM `nomenclature_groups`");
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+            $children_map = [];
+            foreach ($rows as $row) {
+                $children_map[$row['parent_id']][] = $row['id'];
+            }
+
+            $group_ids = [$group_id];
+            $queue = [$group_id];
+            while ($queue) {
+                $current_id = array_shift($queue);
+                if (!empty($children_map[$current_id])) {
+                    foreach ($children_map[$current_id] as $child_id) {
+                        $group_ids[] = $child_id;
+                        $queue[] = $child_id;
+                    }
+                }
+            }
+
+            $placeholders = implode(',', array_fill(0, count($group_ids), '?'));
+            $where[] = "`nomenclature`.`group_id` IN ($placeholders)";
+            $binds = array_merge($binds, $group_ids);
+        }
+
+        $sql = "SELECT `nomenclature`.`id`, `nomenclature`.`name`, `nomenclature`.`is_active`,
+                        `nomenclature_groups`.`name` AS `group_name`
+                FROM `nomenclature`
+                LEFT JOIN `nomenclature_groups` ON `nomenclature_groups`.`id` = `nomenclature`.`group_id`
+                WHERE " . implode(' AND ', $where) . "
+                ORDER BY `nomenclature`.`name`";
+
+        $stmt = fncQuery($sql, $binds);
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    case 'new_nomenclature':
+        if (!fncCan($perms, 'nomenclature.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        $section = fncValFind('section', $params);
+        if (!in_array($section, ['purchased', 'produced'], true)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректный раздел']);
+            exit;
+        }
+
+        $name                 = fncValFind('name', $params);
+        $display_name         = fncValFind('display_name', $params) ?: null;
+        $description          = fncValFind('description', $params) ?: null;
+        $group_id             = (int)fncValFind('group_id', $params);
+        $unit_id              = (int)fncValFind('unit_id', $params);
+        $default_supplier_id  = (int)fncValFind('default_supplier_id', $params) ?: null;
+        $is_sellable          = $section === 'purchased' ? (int)fncValFind('is_sellable', $params) : 0;
+
+        if (!$name || !$group_id || !$unit_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $stmt = fncQuery("SELECT `type` FROM `nomenclature_groups` WHERE `id` = ?", [$group_id]);
+        $group = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$group || $group['type'] !== 'nomenclature') {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректная группа']);
+            exit;
+        }
+
+        $is_purchased = $section === 'purchased' ? 1 : 0;
+        $is_produced  = $section === 'produced' ? 1 : 0;
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO `nomenclature`
+                (`group_id`, `name`, `display_name`, `description`, `unit_id`,
+                 `is_purchased`, `is_produced`, `is_sellable`, `default_supplier_id`, `created_by`)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            [$group_id, $name, $display_name, $description, $unit_id,
+             $is_purchased, $is_produced, $is_sellable, $default_supplier_id, $user_id]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось создать позицию'];
+        break;
+
+    case 'nomenclature_info':
+        if (!fncCan($perms, 'nomenclature.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT `id`, `group_id`, `name`, `display_name`, `description`, `unit_id`,
+                    `is_purchased`, `is_produced`, `is_sellable`, `default_supplier_id`, `is_active`
+             FROM `nomenclature` WHERE `id` = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'upd_nomenclature':
+        if (!fncCan($perms, 'nomenclature.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)fncValFind('id', $params);
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указана позиция']);
+            exit;
+        }
+
+        $stmt = fncQuery("SELECT `is_produced` FROM `nomenclature` WHERE `id` = ?", [$id]);
+        $current = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$current) {
+            echo json_encode(['sccss' => false, 'msg' => 'Позиция не найдена']);
+            exit;
+        }
+
+        $name                 = fncValFind('name', $params);
+        $display_name         = fncValFind('display_name', $params) ?: null;
+        $description          = fncValFind('description', $params) ?: null;
+        $group_id             = (int)fncValFind('group_id', $params);
+        $unit_id              = (int)fncValFind('unit_id', $params);
+        $default_supplier_id  = (int)fncValFind('default_supplier_id', $params) ?: null;
+        $is_sellable          = $current['is_produced'] ? 0 : (int)fncValFind('is_sellable', $params);
+
+        if (!$name || !$group_id || !$unit_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $stmt = fncQuery("SELECT `type` FROM `nomenclature_groups` WHERE `id` = ?", [$group_id]);
+        $group = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$group || $group['type'] !== 'nomenclature') {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректная группа']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "UPDATE `nomenclature`
+             SET `group_id` = ?, `name` = ?, `display_name` = ?, `description` = ?, `unit_id` = ?,
+                 `is_sellable` = ?, `default_supplier_id` = ?, `updated_by` = ?
+             WHERE `id` = ?",
+            [$group_id, $name, $display_name, $description, $unit_id,
+             $is_sellable, $default_supplier_id, $user_id, $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'archive_nomenclature':
+        if (!fncCan($perms, 'nomenclature.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указана позиция']);
+            exit;
+        }
+        $stmt = fncQuery(
+            "UPDATE `nomenclature` SET `is_active` = 0, `updated_by` = ? WHERE `id` = ?",
+            [$user_id, $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'restore_nomenclature':
+        if (!fncCan($perms, 'nomenclature.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указана позиция']);
+            exit;
+        }
+        $stmt = fncQuery(
+            "UPDATE `nomenclature` SET `is_active` = 1, `updated_by` = ? WHERE `id` = ?",
+            [$user_id, $id]
         );
         $result = ['sccss' => (bool)$stmt];
         break;

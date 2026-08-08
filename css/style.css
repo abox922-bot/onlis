@@ -660,6 +660,7 @@ button:disabled {
 
 #modalOffcanvas {
     --bs-offcanvas-width: 700px;
+    background-color: var(--card-bg);
 }
 
 /* =============================================================================

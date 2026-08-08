@@ -12,7 +12,7 @@ $result = fncRequireSession();
             <li><a class="dropdown-item" href="#" data-status="all">Все</a></li>
         </ul>
     </div>
-    <?php if (fncCan($result['rules'], 'nomenclature.manage')): ?>
+    <?php if (fncCan($result['rules'], 'products.manage')): ?>
         <button type="button" class="btn-action-main toolbar-add" id="btnFastNew">
             <i class="bi bi-plus-lg"></i>
             <span class="btn-label">Добавить</span>
@@ -20,4 +20,4 @@ $result = fncRequireSession();
     <?php endif; ?>
 </div>
 <div id="divChptContent"></div>
-<script src="./_books_noms/js/nomenclature_groups.js?2026080600"></script>
+<script src="./_books_products/js/products_groups.js?2026080601"></script>

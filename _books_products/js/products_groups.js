@@ -2,7 +2,7 @@ window.currentGroupsStatus = 'active';
 
 $(function(){
 
-    if (!canDo('nomenclature.manage')) {
+    if (!canDo('products.manage')) {
         $("#btnFastNew").hide();
     }
 
@@ -15,20 +15,20 @@ $(function(){
         listLoadFunction();
     });
 
-    if (canDo('nomenclature.manage')) {
+    if (canDo('products.manage')) {
         $("#btnFastNew").on("click", function(){
             $("#mainModalLabel").html("Новая группа");
             $("#mainModalBody").html(spnr_loading);
             $("#mainModal").removeClass("modal-xl");
             fncHideFormError();
             main_modal.show();
-            let path = new URL("./_books_noms/nomenclature_groups_new.php", url);
+            let path = new URL("./_books_products/products_groups_new.php", url);
             $("#mainModalBody").load(path.href, function(){
                 $("#formNew").submit(function(e){
                     e.preventDefault();
                     e.stopImmediatePropagation();
                     let params_arr = [];
-                    params_arr.push({name: "type", value: "nomenclature"});
+                    params_arr.push({name: "type", value: "product"});
                     let crt_arr = fncParamsCrt(".form-inp", params_arr);
                     if (crt_arr["all_good"]) {
                         $("#btnSave").prop("disabled", true);
@@ -56,7 +56,7 @@ $(function(){
 
 function listLoadFunction() {
     $("#divChptContent").html(spnr_loading);
-    let path = new URL("./_books_noms/nomenclature_groups_list.php", url);
+    let path = new URL("./_books_products/products_groups_list.php", url);
     $("#divChptContent").load(path.href, {status: window.currentGroupsStatus}, function(){
         $(".tree-toggle").off("click").on("click", function(e){
             e.stopPropagation();
@@ -78,9 +78,9 @@ function infoLoadFunction(item_id) {
     $("#mainModal").removeClass("modal-xl");
     fncHideFormError();
     main_modal.show();
-    let path = new URL("./_books_noms/nomenclature_groups_info.php", url);
+    let path = new URL("./_books_products/products_groups_info.php", url);
     $("#mainModalBody").load(path.href, {id: item_id}, function(){
-        if (!canDo('nomenclature.manage')) {
+        if (!canDo('products.manage')) {
             $("#btnSave").hide();
             $("#formInfo").off("submit");
         } else {

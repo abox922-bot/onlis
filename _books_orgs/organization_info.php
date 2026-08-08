@@ -11,7 +11,11 @@ $org_type = $_POST['org_type'] ?? 'my';
     <button type="button" class="inline-tab active" data-target="main">Основная</button>
     <button type="button" class="inline-tab" data-target="address">Адрес</button>
     <button type="button" class="inline-tab" data-target="accs">Счета</button>
-    <button type="button" class="inline-tab" data-target="staff">Сотрудники</button>
+    <?php if ($org_type === 'my'): ?>
+        <button type="button" class="inline-tab" data-target="staff">Сотрудники</button>
+    <?php else: ?>
+        <button type="button" class="inline-tab" data-target="contacts">Контакты</button>
+    <?php endif; ?>
     <button type="button" class="inline-tab" data-target="positions">Должности</button>
     <button type="button" class="inline-tab" data-target="departments">Отделы</button>
     <button type="button" class="inline-tab" data-target="objects">Объекты</button>

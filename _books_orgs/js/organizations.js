@@ -112,9 +112,9 @@ $(function(){
                         });
 
                         let params_arr = [];
-                        params_arr.push({name: "reqs-list", value: reqs_arr});
-                        params_arr.push({name: "org-type",  value: org_type});
-                        params_arr.push({name: "org-country-id", value: window.orgCountryPicker.getValue()});
+                        params_arr.push({name: "reqs-list",         value: reqs_arr});
+                        params_arr.push({name: "org-type",          value: org_type});
+                        params_arr.push({name: "org-country-id",    value: window.orgCountryPicker.getValue()});
                         let crt_arr = fncParamsCrt(".form-inp", params_arr);
 
                         if (all_good && crt_arr["all_good"]) {

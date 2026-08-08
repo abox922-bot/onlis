@@ -437,12 +437,13 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        $org_name      = fncValFind('org-name',          $params);
-        $type_id       = (int)fncValFind('org-type-id',  $params);
+        $org_name      = fncValFind('org-name',            $params);
+        $type_id       = (int)fncValFind('org-type-id',    $params);
         $country_id    = (int)fncValFind('org-country-id', $params);
-        $is_contractor = (int)fncValFind('org-is-contractor', $params);
-        $is_bank       = (int)fncValFind('org-is-bank',   $params);
-        $reqs_list     = fncValFind('reqs-list',          $params);
+        $org_type      = fncValFind('org-type', $params);
+        $is_contractor = ($org_type === 'contractor' || $org_type === 'bank') ? 1 : 0;
+        $is_bank       = ($org_type === 'bank') ? 1 : 0;
+        $reqs_list     = fncValFind('reqs-list', $params);
 
         if (!$org_name || !$type_id || !$country_id) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
@@ -1179,6 +1180,104 @@ switch ($action) {
             [$org_id]
         );
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_contacts_list':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $org_id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT id, name, position, phone, email, note
+             FROM organization_contacts
+             WHERE organization_id = ?
+             ORDER BY name",
+            [$org_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'organization_contact_info':
+        if (!fncCan($perms, 'organizations.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT id, name, position, phone, email, note
+             FROM organization_contacts WHERE id = ?",
+            [$id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'new_organization_contact':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $org_id   = (int)fncValFind('org-id',       $params);
+        $name     = fncValFind('contact-name',       $params);
+        $position = fncValFind('contact-position',   $params);
+        $phone    = fncValFind('contact-phone',      $params);
+        $email    = fncValFind('contact-email',      $params);
+        $note     = fncValFind('contact-note',       $params);
+        if (!$org_id || !$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO organization_contacts
+                (organization_id, name, position, phone, email, note, created_by)
+             VALUES (?, ?, ?, ?, ?, ?, ?)",
+            [$org_id, $name, $position ?: null, $phone ?: null,
+             $email ?: null, $note ?: null, $user_id]
+        );
+        $result = $stmt ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()] : ['sccss' => false];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'upd_organization_contact':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id       = (int)fncValFind('contact-id',   $params);
+        $name     = fncValFind('contact-name',       $params);
+        $position = fncValFind('contact-position',   $params);
+        $phone    = fncValFind('contact-phone',      $params);
+        $email    = fncValFind('contact-email',      $params);
+        $note     = fncValFind('contact-note',       $params);
+        if (!$id || !$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+        $stmt = fncQuery(
+            "UPDATE organization_contacts
+             SET name = ?, position = ?, phone = ?, email = ?, note = ?,
+                 updated_by = ?, updated_at = NOW()
+             WHERE id = ?",
+            [$name, $position ?: null, $phone ?: null,
+             $email ?: null, $note ?: null, $user_id, $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    // -------------------------------------------------------------------------
+    case 'del_organization_contact':
+        if (!fncCan($perms, 'organizations.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)fncValFind('contact-id', $params);
+        if (!$id) { echo json_encode(['sccss' => false]); exit; }
+        $stmt = fncQuery("DELETE FROM organization_contacts WHERE id = ?", [$id]);
+        $result = ['sccss' => (bool)$stmt];
         break;
 
     // -------------------------------------------------------------------------

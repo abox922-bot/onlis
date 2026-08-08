@@ -47,7 +47,7 @@ if (!is_array($result) || isset($result['sccss'])) {
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpBDate" class="my-input-label">Дата рождения</label>
                 <input type="date" class="form-in form-inp" id="inpBDate"
-                    data-name="user-bdate" data-required="1" value="">
+                    data-name="user-bdate" value="">
             </div>
             <div class="col-12 col-md-4 mb-3">
                 <label for="inpPhone" class="my-input-label">Телефон</label>

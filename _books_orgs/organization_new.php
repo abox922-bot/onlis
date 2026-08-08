@@ -42,9 +42,6 @@ $type_label = $type_labels[$org_type] ?? null;
         </div>
         <?php endif; ?>
 
-        <input type="hidden" class="form-inp" data-name="org-is-contractor" data-type="check" value="<?php echo $is_contractor; ?>">
-        <input type="hidden" class="form-inp" data-name="org-is-bank" data-type="check" value="<?php echo $is_bank; ?>">
-
         <div class="col-12 col-md-7 mb-3">
             <label class="my-input-label" for="slctCountry">Страна</label>
             <select id="slctCountry" data-name="org-country-id" data-type="select" data-required="1">

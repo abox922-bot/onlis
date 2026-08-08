@@ -17,13 +17,12 @@ if (!is_array($info) || empty($info)) {
 
 require_once('../modules_fncs.php');
 
-$tree = send_request(array_merge($ses_info, ['action' => 'groups_list', 'type' => 'nomenclature', 'status' => 'active']), 'noms');
+$tree = send_request(array_merge($ses_info, ['action' => 'groups_list', 'type' => 'product', 'status' => 'active']), 'noms');
 if (!is_array($tree) || isset($tree['sccss'])) {
     $tree = [];
 }
 
 $forbidden_ids = fncCollectForbiddenIds($tree, $id);
-
 $parent_options = [];
 fncFlattenGroupOptions($tree, 0, $forbidden_ids, $parent_options);
 ?>
