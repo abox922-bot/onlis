@@ -668,6 +668,62 @@ switch ($action) {
         $result = ['sccss' => (bool)$stmt];
         break;
 
+    case 'nutrition_info':
+        if (!fncCan($perms, 'nomenclature.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT nn.calories, nn.proteins, nn.fats, nn.carbohydrates, u.is_float AS unit_is_float
+             FROM nomenclature n
+             LEFT JOIN nomenclature_nutrition nn ON nn.nomenclature_id = n.id
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE n.id = :nomenclature_id",
+            ['nomenclature_id' => $nomenclature_id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'upd_nutrition':
+        if (!fncCan($perms, 'nomenclature.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
+        $calories        = fncValFind('calories', $params);
+        $proteins        = fncValFind('proteins', $params);
+        $fats            = fncValFind('fats', $params);
+        $carbohydrates   = fncValFind('carbohydrates', $params);
+
+        if (!$nomenclature_id || $calories === null || $proteins === null || $fats === null || $carbohydrates === null) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните все поля']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "INSERT INTO nomenclature_nutrition (nomenclature_id, calories, proteins, fats, carbohydrates, created_by)
+             VALUES (:nomenclature_id, :calories, :proteins, :fats, :carbohydrates, :created_by)
+             ON DUPLICATE KEY UPDATE
+                calories = :calories2, proteins = :proteins2, fats = :fats2, carbohydrates = :carbohydrates2,
+                updated_by = :updated_by",
+            [
+                'nomenclature_id' => $nomenclature_id,
+                'calories'        => $calories,
+                'proteins'        => $proteins,
+                'fats'            => $fats,
+                'carbohydrates'   => $carbohydrates,
+                'created_by'      => $user_id,
+                'calories2'       => $calories,
+                'proteins2'       => $proteins,
+                'fats2'           => $fats,
+                'carbohydrates2'  => $carbohydrates,
+                'updated_by'      => $user_id,
+            ]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
         exit;

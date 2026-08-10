@@ -7,7 +7,7 @@ $result = fncRequireSession();
         <i class="bi bi-search toolbar-search__icon"></i>
         <input type="text" class="form-in" id="inpSearchVal" placeholder="Поиск...">
     </div>
-    <?php if (fncCan($result['rules'], 'units.manage')): ?>
+    <?php if (fncCan($result['rules'], 'objects.manage')): ?>
         <button type="button" class="btn-action-main toolbar-add" id="btnFastNew">
             <i class="bi bi-plus-lg"></i>
             <span class="btn-label">Добавить</span>
@@ -15,4 +15,4 @@ $result = fncRequireSession();
     <?php endif; ?>
 </div>
 <div id="divChptContent"></div>
-<script src="./_books_units/js/units.js?2026081000"></script>
+<script src="./_books_objs/js/workstations.js?2026081002"></script>

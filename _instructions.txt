@@ -112,6 +112,7 @@ js/index.js — fncMyAjax, fncParamsCrt, fncItemCrt, fncNormalizeInp, fncSetupTo
 _main.php — каркас SPA после авторизации (содержит #divScrollArea, #divMainContent, #sectionHeader, #mainModal, #modalOffcanvas, #myOffcanvas). Меню строится динамически через menu_map.php с проверкой прав.
 js/_main.js — логика каркаса (fncChptLoad, fncBookNav, searchFunction). Инстансы: main_modal, modalOffcanvas, myOffcanvas (все через bootstrap.Modal/Offcanvas).
 css/style.css — базовые стили и универсальные компоненты
+modules_fncs.php — общие вспомогательные функции для PHP-фрагментов _books_X/ (не для app_X.php — это отдельный слой от fncs.php). Пример: fncFlattenGroupOptions, fncCollectForbiddenIds.
 
 ================================================================================
 Реальные функции fncs.php (важно — не выдумывать несуществующие)
@@ -122,6 +123,7 @@ fncLog(string $text) — запись в лог
 fncQuery(string $sql, array $params = []) — выполняет prepared statement, возвращает $stmt или false при ошибке
 fncLoadPermissions(int $user_id, ?int $obj_id = null): array
 fncCan(array $perms, string $slug): bool
+fncApiAuth(string $session_id, string $cntrl_token): array — авторизация внутри app_X.php, прямой SQL к БД без HTTP-петли к app.php
 
 Функции fncLastId() НЕ СУЩЕСТВУЕТ. Для получения ID последней вставленной записи:
 
@@ -829,6 +831,11 @@ $ses_info = [
 
 _new.php и _info.php НЕ дублируют логику проверки сессии вручную — используют fncRequireSession().
 
+Именование файлов одной вкладки карточки — базовое имя строго единообразно:
+{сущность}_info_{раздел}.php / _new.php / _info.php / .js
+Пример: nomenclature_info_packages.php, nomenclature_info_packages_new.php,
+nomenclature_info_packages_info.php, nomenclature_info_packages.js.
+
 Кросс-модульные переиспользуемые фрагменты (форма живёт в одном модуле,
 вызывается из нескольких) — тег <script> в конце файла отсутствует ВСЕГДА,
 без исключений (не только "вкладки карточки сложных сущностей" из общего
@@ -882,6 +889,21 @@ Layout определяется контентом — анализируетс�
 
 Генерация значений через кнопку — паттерн для полей логин/пароль: поле disabled по умолчанию, кнопка с иконкой bi-arrow-counterclockwise генерирует значение и снимает disabled с поля. Разметка через input-group.
 
+Чекбоксы-флаги — оформляются как Bootstrap switch:
+
+<div class="form-check form-switch">
+    <input type="checkbox"
+        class="form-check-input form-inp"
+        role="switch"
+        id="chkFieldName"
+        data-name="field_name"
+        data-type="check">
+    <label class="form-check-label" for="chkFieldName">Текст метки</label>
+</div>
+
+Существующий CSS-override .form-check-input:checked (--accent-color) уже
+покрывает form-switch без дополнительных правок стилей.
+
 ================================================================================
 Стандарт форм — data-type и валидация
 ================================================================================
@@ -927,25 +949,42 @@ confirm() — только при удалении/увольнении (нео�
 fncCheckNewItem(infoLoadFunction) — только если нужен auto-open новой записи
 .off("click").on("click", ...) — при повторной привязке обработчиков
 
+fncMyAjax(action, module, params, return_data) — return_data=1 обязателен, если
+.done() читает data.sccss/data.msg из ответа. При return_data=0 (или без
+аргумента) main_request_modules.php вообще не выводит тело ответа — .done()
+получает пустую строку, и проверка data.sccss окажется ложно-отрицательной
+(симптом: действие на сервере прошло успешно, а фронт показывает "Не удалось").
+return_data=0 уместен только когда .done() не анализирует содержимое ответа.
+
 searchFunction() в _main.js:
 
-function searchFunction() {
-    $("#inpSearchVal").keyup(function() {
-        let val = $(this).val();
-        if (val.length > 0) {
-            $(".itemTr").addClass("d-none");
-            val = val.toLowerCase();
-            $(".itemTr").each(function() {
-                let item_id = +$(this).data("id");
-                if ($(`.itemName[data-id=${item_id}]`).html().toLowerCase().includes(val)) {
-                    $(this).removeClass("d-none");
-                }
-            });
-        } else {
-            $(".itemTr").removeClass("d-none");
-        }
-    });
+function fncApplySearchFilter() {
+    let val = $("#inpSearchVal").val();
+    if (val.length > 0) {
+        $(".itemTr").addClass("d-none");
+        val = val.toLowerCase();
+        $(".itemTr").each(function() {
+            let item_id = +$(this).data("id");
+            if ($(`.itemName[data-id=${item_id}]`).html().toLowerCase().includes(val)) {
+                $(this).removeClass("d-none");
+            }
+        });
+    } else {
+        $(".itemTr").removeClass("d-none");
+    }
 }
+
+function searchFunction() {
+    $("#inpSearchVal").off("keyup").on("keyup", fncApplySearchFilter);
+    fncApplySearchFilter();
+}
+
+Логика вынесена в fncApplySearchFilter(); searchFunction() теперь и вешает
+keyup, и сразу применяет фильтр по текущему значению поля при каждом вызове —
+иначе при программной перезагрузке списка (например после сохранения карточки)
+уже введённый текст в поле визуально остаётся, но список показывает все
+строки без фильтрации. .off("keyup") обязателен — #inpSearchVal статичен
+в toolbar, а searchFunction() может вызываться повторно.
 
 Вызывается ВНУТРИ колбэка .load() в listLoadFunction() (список каждый раз
 перерисовывается заново, поиск должен переинициализироваться на свежих

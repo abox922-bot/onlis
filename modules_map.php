@@ -42,6 +42,7 @@
               ['key' => 'objects',        'slug' => 'objects.manage.view', 'title' => 'Объекты',          'file' => 'objects',      'default' => true],
               ['key' => 'objects_groups', 'slug' => 'objects.manage.view', 'title' => 'Группы объектов',  'file' => 'objects_groups'],
               ['key' => 'object_types',   'slug' => 'objects.manage.view', 'title' => 'Типы объектов',    'file' => 'object_types'],
+              ['key' => 'workstations',   'slug' => 'objects.manage.view', 'title' => 'Рабочие станции',  'file' => 'workstations'],
           ],
       ],
 

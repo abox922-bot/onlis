@@ -76,7 +76,7 @@ switch ($action) {
             exit;
         }
         $stmt = fncQuery(
-            "SELECT ot.id, ot.name, ot.organization_id, ot.is_active,
+            "SELECT ot.id, ot.name, ot.is_operational, ot.organization_id, ot.is_active,
                     oo.short_name, oo.name AS org_name
              FROM object_types ot
              LEFT JOIN organizations oo ON oo.id = ot.organization_id
@@ -97,7 +97,8 @@ switch ($action) {
             exit;
         }
 
-        $name            = fncValFind('name', $params);
+        $name           = fncValFind('name', $params);
+        $is_operational = (int)fncValFind('is_operational', $params);
         $organization_id = fncValFind('organization_id', $params);
 
         if (!$organization_id) {
@@ -110,9 +111,9 @@ switch ($action) {
 
         global $pdo;
         $stmt = fncQuery(
-            "INSERT INTO object_types (organization_id, name, created_by)
-             VALUES (?, ?, ?)",
-            [$organization_id, $name, $user_id]
+            "INSERT INTO object_types (organization_id, name, is_operational, created_by)
+             VALUES (?, ?, ?, ?)",
+            [$organization_id, $name, $is_operational, $user_id]
         );
         $result = $stmt
             ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
@@ -127,7 +128,7 @@ switch ($action) {
         }
         $id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT ot.id, ot.name, ot.is_active,
+            "SELECT ot.id, ot.name, ot.is_operational, ot.is_active,
                     ot.organization_id, oo.short_name, oo.name AS org_name
              FROM object_types ot
              LEFT JOIN organizations oo ON oo.id = ot.organization_id
@@ -156,16 +157,17 @@ switch ($action) {
             exit;
         }
 
-        $name = fncValFind('name', $params);
+        $name           = fncValFind('name', $params);
+        $is_operational = (int)fncValFind('is_operational', $params);
 
         if (fncCan($perms, 'objects')) {
             $organization_id = fncValFind('organization_id', $params);
             $organization_id = $organization_id ?: null;
 
             $stmt = fncQuery(
-                "UPDATE object_types SET name = ?, organization_id = ?, updated_at = NOW(), updated_by = ?
+                "UPDATE object_types SET name = ?, is_operational = ?, organization_id = ?, updated_at = NOW(), updated_by = ?
                  WHERE id = ?",
-                [$name, $organization_id, $user_id, $id]
+                [$name, $is_operational, $organization_id, $user_id, $id]
             );
         } else {
             if ($row['organization_id'] === null) {
@@ -173,9 +175,9 @@ switch ($action) {
                 exit;
             }
             $stmt = fncQuery(
-                "UPDATE object_types SET name = ?, updated_at = NOW(), updated_by = ?
+                "UPDATE object_types SET name = ?, is_operational = ?, updated_at = NOW(), updated_by = ?
                  WHERE id = ?",
-                [$name, $user_id, $id]
+                [$name, $is_operational, $user_id, $id]
             );
         }
 
@@ -738,6 +740,136 @@ switch ($action) {
         );
         $result = ['sccss' => (bool)$stmt];
         break;
+
+    //--------------------------------------------------------------------------
+    case 'workstations_list':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $stmt = fncQuery("SELECT id, name, has_pos_access FROM workstations ORDER BY name");
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+    //--------------------------------------------------------------------------
+    case 'workstation_info':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery("SELECT id, name, has_pos_access FROM workstations WHERE id = ?", [$id]);
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'new_workstation':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $name           = fncValFind('name', $params);
+        $has_pos_access = (int)fncValFind('has_pos_access', $params);
+        if (!$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите название']);
+            exit;
+        }
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO workstations (name, has_pos_access, created_by) VALUES (?, ?, ?)",
+            [$name, $has_pos_access, $user_id]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось создать станцию'];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'upd_workstation':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id             = (int)fncValFind('id', $params);
+        $name           = fncValFind('name', $params);
+        $has_pos_access = (int)fncValFind('has_pos_access', $params);
+        if (!$id || !$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите название']);
+            exit;
+        }
+        $stmt = fncQuery(
+            "UPDATE workstations SET name = ?, has_pos_access = ?, updated_at = NOW(), updated_by = ? WHERE id = ?",
+            [$name, $has_pos_access, $user_id, $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'object_type_workstations_list':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $type_id = (int)($_POST['type_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT otw.id, w.name, w.has_pos_access
+             FROM object_type_workstations otw
+             LEFT JOIN workstations w ON w.id = otw.workstation_id
+             WHERE otw.type_id = ?
+             ORDER BY w.name",
+            [$type_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'object_type_workstations_available':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $type_id = (int)($_POST['type_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT id, name, has_pos_access FROM workstations
+             WHERE id NOT IN (
+                 SELECT workstation_id FROM object_type_workstations WHERE type_id = ?
+             )
+             ORDER BY name",
+            [$type_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+        
+    //--------------------------------------------------------------------------
+    case 'new_object_type_workstation':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $type_id        = (int)fncValFind('type_id', $params);
+        $workstation_id = (int)fncValFind('workstation_id', $params);
+        if (!$type_id || !$workstation_id) {
+            echo json_encode(['sccss' => false]);
+            exit;
+        }
+        $stmt = fncQuery(
+            "INSERT INTO object_type_workstations (type_id, workstation_id, created_by) VALUES (?, ?, ?)",
+            [$type_id, $workstation_id, $user_id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'del_object_type_workstation':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)fncValFind('id', $params);
+        if (!$id) { echo json_encode(['sccss' => false]); exit; }
+        $stmt = fncQuery("DELETE FROM object_type_workstations WHERE id = ?", [$id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
     //--------------------------------------------------------------------------
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);

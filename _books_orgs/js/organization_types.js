@@ -179,8 +179,9 @@ function typeRequisitesListLoad(organization_type_id) {
     let path = new URL("./_books_orgs/organization_type_requisites_list.php", url);
     $("#divReqsList").load(path.href, {organization_type_id}, function(){
         if (canDo('organizations')) {
-            $(".itemReqTr").off("click").on("click", function(){
-                if (confirm("Удалить реквизит из набора?")) {
+            $(".itemReqTr").off("click").on("click", async function(){
+                let confirmed = await fncConfirm("Удалить реквизит из набора?");
+                if (confirmed) {
                     fncMyAjax("del_organization_type_requisite", "orgs", [{name: "id", value: $(this).data("id")}], 0)
                         .always(function(){
                             typeRequisitesListLoad(organization_type_id);

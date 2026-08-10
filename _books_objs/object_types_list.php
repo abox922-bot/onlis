@@ -25,8 +25,13 @@ $can_edit_system = fncCan($result['rules'], 'objects');
             <?php foreach ($list as $value): ?>
                 <?php $is_clickable = !empty($value['organization_id']) || $can_edit_system; ?>
                 <tr class="<?php echo $is_clickable ? 'itemTr' : ''; ?>" data-id="<?php echo (int)$value['id']; ?>">
-                    <td class="py-2 itemName" data-id="<?php echo (int)$value['id']; ?>">
-                        <?php echo htmlspecialchars($value['name']); ?>
+                    <td class="py-2">
+                      <span class="itemName" data-id="<?php echo (int)$value['id']; ?>">
+                          <?php echo htmlspecialchars($value['name']); ?>
+                      </span>
+                      <div class="text-muted" style="font-size: 0.8rem;">
+                          <?php echo !empty($value['is_operational']) ? 'Операционный' : 'Административный'; ?>
+                      </div>
                     </td>
                 </tr>
             <?php endforeach; ?>
