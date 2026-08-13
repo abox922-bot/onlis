@@ -39,19 +39,19 @@ $can_manage = fncCan($result['rules'], 'nomenclature.manage');
             </div>
         <?php else: ?>
             <div class="col-12 mb-3">
-                <label class="my-input-label">Калорийность, ккал</label>
+                <label class="my-input-label">Калорийность</label>
                 <div class="form-context"><?php echo htmlspecialchars($info['calories']); ?></div>
             </div>
             <div class="col-4 mb-3">
-                <label class="my-input-label">Белки, г</label>
+                <label class="my-input-label">Белки</label>
                 <div class="form-context"><?php echo htmlspecialchars($info['proteins']); ?></div>
             </div>
             <div class="col-4 mb-3">
-                <label class="my-input-label">Жиры, г</label>
+                <label class="my-input-label">Жиры</label>
                 <div class="form-context"><?php echo htmlspecialchars($info['fats']); ?></div>
             </div>
             <div class="col-4 mb-3">
-                <label class="my-input-label">Углеводы, г</label>
+                <label class="my-input-label">Углеводы</label>
                 <div class="form-context"><?php echo htmlspecialchars($info['carbohydrates']); ?></div>
             </div>
         <?php endif; ?>
@@ -73,7 +73,7 @@ $can_manage = fncCan($result['rules'], 'nomenclature.manage');
             </div>
 
             <div class="col-12 mb-3">
-                <label for="inpCalories" class="my-input-label">Калорийность, ккал</label>
+                <label for="inpCalories" class="my-input-label">Калорийность</label>
                 <input type="text"
                     class="form-in form-inp"
                     id="inpCalories"
@@ -85,7 +85,7 @@ $can_manage = fncCan($result['rules'], 'nomenclature.manage');
             </div>
 
             <div class="col-4 mb-3">
-                <label for="inpProteins" class="my-input-label">Белки, г</label>
+                <label for="inpProteins" class="my-input-label">Белки</label>
                 <input type="text"
                     class="form-in form-inp"
                     id="inpProteins"
@@ -97,7 +97,7 @@ $can_manage = fncCan($result['rules'], 'nomenclature.manage');
             </div>
 
             <div class="col-4 mb-3">
-                <label for="inpFats" class="my-input-label">Жиры, г</label>
+                <label for="inpFats" class="my-input-label">Жиры</label>
                 <input type="text"
                     class="form-in form-inp"
                     id="inpFats"
@@ -109,7 +109,7 @@ $can_manage = fncCan($result['rules'], 'nomenclature.manage');
             </div>
 
             <div class="col-4 mb-3">
-                <label for="inpCarbohydrates" class="my-input-label">Углеводы, г</label>
+                <label for="inpCarbohydrates" class="my-input-label">Углеводы</label>
                 <input type="text"
                     class="form-in form-inp"
                     id="inpCarbohydrates"

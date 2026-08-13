@@ -68,7 +68,7 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
 
         <?php if (!$info['is_produced']): ?>
             <?php $has_nutrition_data = !empty($info['has_nutrition_data']); ?>
-            <div class="col-12 mb-3">
+            <div class="col-12 mb-4">
                 <div class="form-group-label mb-2">Пищевая продукция</div>
                 <div class="btn-group" role="group">
                     <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodYes" value="1" <?php echo ((int)$info['is_food_product'] === 1) ? 'checked' : ''; ?>>
@@ -132,24 +132,6 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
                         </option>
                     <?php endforeach; ?>
                 </select>
-            </div>
-        <?php endif; ?>
-
-        <?php if (!$info['is_produced']): ?>
-            <div class="col-12 mb-3">
-                <div class="form-check form-switch">
-                    <input type="checkbox"
-                        class="form-check-input form-inp"
-                        role="switch"
-                        id="chkSellable"
-                        data-name="is_sellable"
-                        data-type="check"
-                        <?php echo $info['is_sellable'] ? 'checked' : ''; ?>>
-                    <label class="form-check-label" for="chkSellable">Является товаром</label>
-                </div>
-                <div class="text-muted mt-1">
-                    <small>Без дополнительных настроек товар не будет активен для продажи</small>
-                </div>
             </div>
         <?php endif; ?>
 

@@ -3,6 +3,10 @@
 // с общими таблицами (nomenclature_groups, nomenclature). Поэтому каждый
 // case проверяет права по обеим RBAC-веткам (nomenclature.* ИЛИ products.*)
 // как альтернативу — это архитектурное решение, не ошибка/недоделанный рефакторинг.
+// ВАЖНО: расширение прав на products.* сделано ТОЧЕЧНО только там, где логика
+// вкладки реально общая для Номенклатуры и Товаров (сейчас — только Принадлежность).
+// Упаковки, Состав и КБЖУ у Товаров будут работать по другому алгоритму —
+// это будут отдельные action'ы под products.*, не расширение существующих.
 require_once('./includes/fncs.php');
 require_once('./includes/request.php');
 
@@ -298,7 +302,7 @@ switch ($action) {
         break;
 
     case 'nomenclature_list':
-        if (!fncCan($perms, 'nomenclature.manage.view')) {
+        if (!fncCan($perms, 'nomenclature.manage.view') && !fncCan($perms, 'products.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -311,7 +315,9 @@ switch ($action) {
         $binds = [];
 
         if ($section === 'produced') {
-            $where[] = "n.is_produced = 1 AND n.is_sellable = 0";
+            $where[] = "n.is_produced = 1";
+        } elseif ($section === 'product') {
+            $where[] = "n.is_sellable = 1";
         } else {
             $where[] = "n.is_purchased = 1";
         }
@@ -385,7 +391,7 @@ switch ($action) {
         $description          = fncValFind('description', $params) ?: null;
         $unit_id              = (int)fncValFind('unit_id', $params);
         $default_supplier_id  = (int)fncValFind('default_supplier_id', $params) ?: null;
-        $is_sellable          = $section === 'purchased' ? (int)fncValFind('is_sellable', $params) : 0;
+        $is_sellable          = 0;
 
         if ($section === 'purchased') {
             $is_food_product_raw = fncValFind('is_food_product', $params);
@@ -455,8 +461,56 @@ switch ($action) {
             : ['sccss' => false, 'msg' => 'Не удалось создать позицию'];
         break;
 
+    case 'new_product':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        $name     = fncValFind('name', $params);
+        $group_id = (int)fncValFind('group_id', $params);
+        $unit_id  = (int)fncValFind('unit_id', $params);
+
+        $is_food_product_raw = fncValFind('is_food_product', $params);
+        if ($is_food_product_raw === null || $is_food_product_raw === '') {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите, является ли позиция пищевой продукцией']);
+            exit;
+        }
+        $is_food_product = (int)$is_food_product_raw;
+
+        if (!$name || !$group_id || !$unit_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $stmt = fncQuery("SELECT ng.type FROM nomenclature_groups ng WHERE ng.id = :id", ['id' => $group_id]);
+        $group = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$group || $group['type'] !== 'product') {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректная группа']);
+            exit;
+        }
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO nomenclature
+                (group_id, name, unit_id, is_purchased, is_produced, is_sellable, is_food_product, created_by)
+             VALUES
+                (:group_id, :name, :unit_id, 0, 0, 1, :is_food_product, :created_by)",
+            [
+                'group_id'        => $group_id,
+                'name'            => $name,
+                'unit_id'         => $unit_id,
+                'is_food_product' => $is_food_product,
+                'created_by'      => $user_id,
+            ]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось создать товар'];
+        break;
+
     case 'nomenclature_info':
-        if (!fncCan($perms, 'nomenclature.manage.view')) {
+        if (!fncCan($perms, 'nomenclature.manage.view') && !fncCan($perms, 'products.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -497,14 +551,18 @@ switch ($action) {
         $description          = fncValFind('description', $params) ?: null;
         $unit_id              = (int)fncValFind('unit_id', $params);
         $default_supplier_id  = (int)fncValFind('default_supplier_id', $params) ?: null;
-        $is_sellable          = $current['is_produced'] ? 0 : (int)fncValFind('is_sellable', $params);
+        $is_sellable          = 0;
 
-        $is_food_product_raw = fncValFind('is_food_product', $params);
-        if ($is_food_product_raw === null || $is_food_product_raw === '') {
-            echo json_encode(['sccss' => false, 'msg' => 'Укажите, является ли позиция пищевой продукцией']);
-            exit;
+        if ($current['is_produced']) {
+            $is_food_product = 1;
+        } else {
+            $is_food_product_raw = fncValFind('is_food_product', $params);
+            if ($is_food_product_raw === null || $is_food_product_raw === '') {
+                echo json_encode(['sccss' => false, 'msg' => 'Укажите, является ли позиция пищевой продукцией']);
+                exit;
+            }
+            $is_food_product = (int)$is_food_product_raw;
         }
-        $is_food_product = (int)$is_food_product_raw;
 
         if ((int)$current['is_food_product'] === 1 && $is_food_product === 0) {
             $stmt = fncQuery(
@@ -562,7 +620,7 @@ switch ($action) {
         break;
 
     case 'archive_nomenclature':
-        if (!fncCan($perms, 'nomenclature.manage')) {
+        if (!fncCan($perms, 'nomenclature.manage') && !fncCan($perms, 'products.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -579,7 +637,7 @@ switch ($action) {
         break;
 
     case 'restore_nomenclature':
-        if (!fncCan($perms, 'nomenclature.manage')) {
+        if (!fncCan($perms, 'nomenclature.manage') && !fncCan($perms, 'products.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -813,7 +871,7 @@ switch ($action) {
         break;
 
     case 'affiliation_info':
-        if (!fncCan($perms, 'nomenclature.manage.view')) {
+        if (!fncCan($perms, 'nomenclature.manage.view') && !fncCan($perms, 'products.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -855,7 +913,7 @@ switch ($action) {
         break;
 
     case 'upd_nomenclature_workstation':
-        if (!fncCan($perms, 'nomenclature.manage')) {
+        if (!fncCan($perms, 'nomenclature.manage') && !fncCan($perms, 'products.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
