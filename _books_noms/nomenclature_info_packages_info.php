@@ -1,6 +1,6 @@
 <?php
 require_once('../app/includes/session_guard.php');
-fncRequireSession();
+$result = fncRequireSession();
 
 $ses_info = [
     '_onlis_id' => $_COOKIE['_onlis_id'],
@@ -60,11 +60,13 @@ if (!is_array($info) || empty($info)) {
         <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>
+        <?php if (fncCan($result['rules'], 'nomenclature.manage')): ?>
         <div class="col-12 mt-3">
             <button type="submit" class="btn-action-main" id="btnSave">
                 <span id="btnSaveText">Сохранить</span>
                 <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
             </button>
         </div>
+        <?php endif; ?>
     </div>
 </form>

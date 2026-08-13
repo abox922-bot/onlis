@@ -1,11 +1,25 @@
 $(function(){
 
+    if (!canDo('nomenclature.manage')) {
+        $("#btnSave, #btnArchive, #btnRestore").hide();
+        $("#formInfo").off("submit");
+        return;
+    }
+
     $("#formInfo").off("submit").on("submit", function(e){
         e.preventDefault();
         e.stopImmediatePropagation();
+
+        let food_product_value = $("input[name='foodProductRadio']:checked").val();
+        if (food_product_value === undefined) {
+            fncShowFormError("Укажите, является ли позиция пищевой продукцией");
+            return;
+        }
+
         let item_id = +$("#inpNomenclatureId").val();
         let params_arr = [];
         params_arr.push({name: "id", value: item_id});
+        params_arr.push({name: "is_food_product", value: food_product_value});
         let crt_arr = fncParamsCrt(".form-inp", params_arr);
         if (crt_arr["all_good"]) {
             $("#btnSave").prop("disabled", true);

@@ -7,7 +7,7 @@ $ses_info = [
     'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
 ];
 
-$section  = 'purchased';
+$section  = $_POST['section'] ?? 'purchased';
 $status   = $_POST['status'] ?? 'active';
 $group_id = $_POST['group_id'] ?? '';
 
@@ -36,7 +36,14 @@ if (!is_array($result) || isset($result['sccss'])) {
                         <span class="itemName" data-id="<?php echo (int)$value['id']; ?>">
                             <?php echo htmlspecialchars($value['name']); ?>
                         </span>
-                        <?php if (!empty($value['group_name'])): ?>
+                        <?php if ($section === 'produced'): ?>
+                            <div class="text-muted">
+                                <small>
+                                    <?php $cnt = (int)($value['ingredients_count'] ?? 0); ?>
+                                    <?php echo $cnt; ?> <?php echo $cnt === 1 ? 'ингредиент' : ($cnt >= 2 && $cnt <= 4 ? 'ингредиента' : 'ингредиентов'); ?>
+                                </small>
+                            </div>
+                        <?php elseif (!empty($value['group_name'])): ?>
                             <div class="text-muted">
                                 <small><?php echo htmlspecialchars($value['group_name']); ?></small>
                             </div>

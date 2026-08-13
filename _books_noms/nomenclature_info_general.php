@@ -1,6 +1,6 @@
 <?php
 require_once('../app/includes/session_guard.php');
-fncRequireSession();
+$result = fncRequireSession();
 require_once('../modules_fncs.php');
 
 $ses_info = [
@@ -36,6 +36,13 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
 ?>
 <form id="formInfo">
     <div class="row">
+
+        <?php if ($info['is_produced']): ?>
+            <div class="col-12 mb-3">
+                <div class="form-context">Полуфабрикат</div>
+            </div>
+        <?php endif; ?>
+
         <div class="col-12 mb-3">
             <label for="inpName" class="my-input-label">Название</label>
             <input type="text"
@@ -59,19 +66,42 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
                 autocomplete="off">
         </div>
 
-        <div class="col-12 col-md-6 mb-3">
-            <label for="slctGroup" class="my-input-label">Группа</label>
-            <select class="form-in form-inp" id="slctGroup" data-name="group_id" data-type="select" data-required="1">
-                <option value="0">Выберите группу</option>
-                <?php foreach ($group_options as $opt): ?>
-                    <option value="<?php echo (int)$opt['id']; ?>" <?php echo ((int)$opt['id'] === (int)$info['group_id']) ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($opt['label']); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+        <?php if (!$info['is_produced']): ?>
+            <?php $has_nutrition_data = !empty($info['has_nutrition_data']); ?>
+            <div class="col-12 mb-3">
+                <div class="form-group-label mb-2">Пищевая продукция</div>
+                <div class="btn-group" role="group">
+                    <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodYes" value="1" <?php echo ((int)$info['is_food_product'] === 1) ? 'checked' : ''; ?>>
+                    <label class="btn" for="radioFoodYes">Да</label>
 
-        <div class="col-12 col-md-6 mb-3">
+                    <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodNo" value="0"
+                        <?php echo ((int)$info['is_food_product'] === 0) ? 'checked' : ''; ?>
+                        <?php echo $has_nutrition_data ? 'disabled' : ''; ?>>
+                    <label class="btn" for="radioFoodNo">Нет</label>
+                </div>
+                <?php if ($has_nutrition_data): ?>
+                    <div class="text-muted mt-1">
+                        <small>Чтобы изменить, сначала очистите данные КБЖУ на соответствующей вкладке</small>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (!$info['is_produced']): ?>
+            <div class="col-12 col-md-6 mb-3">
+                <label for="slctGroup" class="my-input-label">Группа</label>
+                <select class="form-in form-inp" id="slctGroup" data-name="group_id" data-type="select" data-required="1">
+                    <option value="0">Выберите группу</option>
+                    <?php foreach ($group_options as $opt): ?>
+                        <option value="<?php echo (int)$opt['id']; ?>" <?php echo ((int)$opt['id'] === (int)$info['group_id']) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($opt['label']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        <?php endif; ?>
+
+        <div class="col-12 <?php echo $info['is_produced'] ? '' : 'col-md-6'; ?> mb-3">
             <label for="slctUnit" class="my-input-label">Единица измерения</label>
             <select class="form-in form-inp" id="slctUnit" data-name="unit_id" data-type="select" data-required="1">
                 <option value="0">Выберите единицу</option>
@@ -91,17 +121,19 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
                 data-type="text"><?php echo htmlspecialchars($info['description'] ?? ''); ?></textarea>
         </div>
 
-        <div class="col-12 mb-3">
-            <label for="slctSupplier" class="my-input-label">Поставщик по умолчанию</label>
-            <select class="form-in form-inp" id="slctSupplier" data-name="default_supplier_id">
-                <option value="0">Не выбран</option>
-                <?php foreach ($suppliers as $supplier): ?>
-                    <option value="<?php echo (int)$supplier['id']; ?>" <?php echo ((int)$supplier['id'] === (int)$info['default_supplier_id']) ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($supplier['display_name']); ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </div>
+        <?php if (!$info['is_produced']): ?>
+            <div class="col-12 mb-3">
+                <label for="slctSupplier" class="my-input-label">Поставщик по умолчанию</label>
+                <select class="form-in form-inp" id="slctSupplier" data-name="default_supplier_id">
+                    <option value="0">Не выбран</option>
+                    <?php foreach ($suppliers as $supplier): ?>
+                        <option value="<?php echo (int)$supplier['id']; ?>" <?php echo ((int)$supplier['id'] === (int)$info['default_supplier_id']) ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($supplier['display_name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+        <?php endif; ?>
 
         <?php if (!$info['is_produced']): ?>
             <div class="col-12 mb-3">
@@ -130,6 +162,7 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
         <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>
+        <?php if (fncCan($result['rules'], 'nomenclature.manage')): ?>
         <div class="col-12 mt-3 d-flex gap-2">
             <button type="submit" class="btn-action-main" id="btnSave">
                 <span id="btnSaveText">Сохранить</span>
@@ -141,6 +174,7 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
                 <button type="button" class="btn-action-outline" id="btnRestore">Восстановить</button>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
 </form>
-<script src="./_books_noms/js/nomenclature_info_general.js?2026080701"></script>
+<script src="./_books_noms/js/nomenclature_info_general.js?2026081303"></script>

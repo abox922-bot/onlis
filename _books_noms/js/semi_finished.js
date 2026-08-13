@@ -1,19 +1,11 @@
 $(function(){
 
-    $("#btnToggleFilters").off("click").on("click", function(){
-        $("#divFiltersGroup").toggleClass("show");
-    });
-
     window.currentStatus = "active";
 
     $(".dropdown-item[data-status]").off("click").on("click", function(e){
         e.preventDefault();
         window.currentStatus = $(this).data("status");
         $("#btnStatusFilter").html($(this).text());
-        listLoadFunction();
-    });
-
-    $("#slctGroupFilter").off("change").on("change", function(){
         listLoadFunction();
     });
 
@@ -25,26 +17,18 @@ $(function(){
 
     if (canDo('nomenclature.manage')) {
         $("#btnFastNew").off("click").on("click", function(){
-            $("#mainModalLabel").html("Новая позиция номенклатуры");
+            $("#mainModalLabel").html("Новый полуфабрикат");
             $("#mainModalBody").html(spnr_loading);
             $("#mainModal").removeClass("modal-xl");
             fncHideFormError();
             main_modal.show();
-            let path = new URL("./_books_noms/nomenclature_new.php", url);
+            let path = new URL("./_books_noms/semi_finished_new.php", url);
             $("#mainModalBody").load(path.href, function(){
                 $("#formNew").submit(function(e){
                     e.preventDefault();
                     e.stopImmediatePropagation();
-
-                    let food_product_value = $("input[name='foodProductRadio']:checked").val();
-                    if (food_product_value === undefined) {
-                        fncShowFormError("Укажите, является ли позиция пищевой продукцией");
-                        return;
-                    }
-
                     let params_arr = [];
-                    params_arr.push({name: "section", value: "purchased"});
-                    params_arr.push({name: "is_food_product", value: food_product_value});
+                    params_arr.push({name: "section", value: "produced"});
                     let crt_arr = fncParamsCrt(".form-inp", params_arr);
                     if (crt_arr["all_good"]) {
                         $("#btnSave").prop("disabled", true);
@@ -74,12 +58,11 @@ $(function(){
 // ─────────────────────────────────────────────────────────────────────────────
 
 function listLoadFunction() {
-    let group_id = $("#slctGroupFilter").val() || "";
     let status = window.currentStatus || "active";
 
     $("#divChptContent").html(spnr_loading);
     let path = new URL("./_books_noms/nomenclature_list.php", url);
-    $("#divChptContent").load(path.href, {section: "purchased", group_id: group_id, status: status}, function(){
+    $("#divChptContent").load(path.href, {section: "produced", status: status}, function(){
         searchFunction();
         $(".itemTr").off("click").on("click", function(){
             infoLoadFunction(+$(this).data("id"));

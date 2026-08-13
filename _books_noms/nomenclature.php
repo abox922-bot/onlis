@@ -26,7 +26,7 @@ fncFlattenGroupOptions($tree, 0, [], $group_options);
         <div class="dropdown">
             <button class="btn-action-outline dropdown-toggle" type="button"
                 id="btnStatusFilter" data-bs-toggle="dropdown" aria-expanded="false">
-                <span id="spnStatusFilterLabel">Актуальные</span>
+                Актуальные
             </button>
             <ul class="dropdown-menu" aria-labelledby="btnStatusFilter">
                 <li><a class="dropdown-item" href="#" data-status="active">Актуальные</a></li>
@@ -56,4 +56,4 @@ fncFlattenGroupOptions($tree, 0, [], $group_options);
     <?php endif; ?>
 </div>
 <div id="divChptContent"></div>
-<script src="./_books_noms/js/nomenclature.js?2026080709"></script>
+<script src="./_books_noms/js/nomenclature.js?2026081300"></script>

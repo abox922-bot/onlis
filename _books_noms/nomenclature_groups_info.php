@@ -1,6 +1,6 @@
 <?php
 require_once('../app/includes/session_guard.php');
-fncRequireSession();
+$result = fncRequireSession();
 
 $ses_info = [
     '_onlis_id' => $_COOKIE['_onlis_id'],
@@ -60,6 +60,7 @@ fncFlattenGroupOptions($tree, 0, $forbidden_ids, $parent_options);
         <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>
+        <?php if (fncCan($result['rules'], 'nomenclature.manage')): ?>
         <div class="col-12 mt-3 d-flex gap-2">
             <button type="submit" class="btn-action-main" id="btnSave">
                 <span id="btnSaveText">Сохранить</span>
@@ -71,5 +72,6 @@ fncFlattenGroupOptions($tree, 0, $forbidden_ids, $parent_options);
                 <button type="button" class="btn-action-outline" id="btnRestore">Восстановить</button>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
     </div>
 </form>
