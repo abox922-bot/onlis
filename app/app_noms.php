@@ -7,6 +7,16 @@
 // вкладки реально общая для Номенклатуры и Товаров (сейчас — только Принадлежность).
 // Упаковки, Состав и КБЖУ у Товаров будут работать по другому алгоритму —
 // это будут отдельные action'ы под products.*, не расширение существующих.
+//
+// ВАЖНО: для каждой формы/карточки, которой нужно несколько источников данных
+// (сама позиция + справочник групп + справочник единиц + справочник поставщиков
+// и т.п.) — ОДИН объединяющий action на сервере (внутри себя делает несколько
+// fncQuery() к разным таблицам НАПРЯМУЮ, без HTTP-петли к другим app_X.php),
+// а не несколько отдельных send_request() с фронта. Несколько HTTP-запросов
+// подряд — это реальная сетевая задержка и точка отказа на каждый запрос,
+// особенно критично на плохом мобильном соединении. См. nomenclature_info_form,
+// group_info_form, nomenclature_new_form, product_info_form, product_new_form
+// как эталонный паттерн.
 require_once('./includes/fncs.php');
 require_once('./includes/request.php');
 
@@ -31,6 +41,59 @@ $params  = isset($_POST['params']) ? json_decode($_POST['params'], true) : [];
 if (!is_array($params)) $params = [];
 
 $result = [];
+
+// Вспомогательная функция сборки дерева групп из плоского списка строк.
+// Используется во всех объединяющих action'ах ниже, а не только в groups_list —
+// вынесена как локальная функция файла, чтобы не дублировать один и тот же
+// цикл сборки дерева в каждом case.
+function fncBuildGroupsTree($rows) {
+    $by_id = [];
+    foreach ($rows as $row) {
+        $row['children'] = [];
+        $by_id[$row['id']] = $row;
+    }
+    $tree = [];
+    foreach ($by_id as $id => $row) {
+        if ($row['parent_id'] && isset($by_id[$row['parent_id']])) {
+            $by_id[$row['parent_id']]['children'][] = &$by_id[$id];
+        } else {
+            $tree[] = &$by_id[$id];
+        }
+    }
+    unset($row);
+    return $tree;
+}
+
+// Вспомогательная функция получения списка поставщиков (контрагенты, не банки)
+// с корректным display_name (ИП без кавычек, юрлица в кавычках — как в
+// app_orgs.php:organizations_list). Прямой SQL, без HTTP-петли к app_orgs.php.
+function fncGetSuppliersList() {
+    $stmt = fncQuery(
+        "SELECT o.id, o.name, ot.abbreviation, ot.is_individual
+         FROM organizations o
+         LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+         WHERE o.is_contractor = 1 AND o.is_bank = 0 AND o.is_active = 1
+         ORDER BY o.name"
+    );
+    $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+    $suppliers = [];
+    foreach ($rows as $row) {
+        $suppliers[] = [
+            'id' => $row['id'],
+            'display_name' => $row['is_individual']
+                ? $row['abbreviation'] . ' ' . $row['name']
+                : $row['abbreviation'] . ' «' . $row['name'] . '»',
+        ];
+    }
+    return $suppliers;
+}
+
+// Вспомогательная функция получения списка единиц измерения. Прямой SQL,
+// без HTTP-петли к app_units.php.
+function fncGetUnitsList() {
+    $stmt = fncQuery("SELECT id, name, short_name, is_float FROM units ORDER BY name");
+    return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+}
 
 switch ($action) {
 
@@ -67,23 +130,7 @@ switch ($action) {
         $stmt = fncQuery($sql, $binds);
         $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
-        $by_id = [];
-        foreach ($rows as $row) {
-            $row['children'] = [];
-            $by_id[$row['id']] = $row;
-        }
-
-        $tree = [];
-        foreach ($by_id as $id => $row) {
-            if ($row['parent_id'] && isset($by_id[$row['parent_id']])) {
-                $by_id[$row['parent_id']]['children'][] = &$by_id[$id];
-            } else {
-                $tree[] = &$by_id[$id];
-            }
-        }
-        unset($row);
-
-        $result = $tree;
+        $result = fncBuildGroupsTree($rows);
         break;
 
     case 'group_info':
@@ -99,6 +146,43 @@ switch ($action) {
             ['id' => $id]
         );
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'group_info_form':
+        // Объединяет group_info + groups_list (для построения дерева "выбор
+        // родителя" с исключением себя/потомков на фронте) в один запрос.
+        if (!fncCan($perms, 'nomenclature.manage.view') && !fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT ng.id, ng.parent_id, ng.type, ng.name, ng.is_active
+             FROM nomenclature_groups ng
+             WHERE ng.id = :id",
+            ['id' => $id]
+        );
+        $info = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        if (empty($info)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Группа не найдена']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT ng.id, ng.parent_id, ng.type, ng.name, ng.is_active
+             FROM nomenclature_groups ng
+             WHERE ng.type = :type AND ng.is_active = 1
+             ORDER BY ng.name",
+            ['type' => $info['type']]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $tree = fncBuildGroupsTree($rows);
+
+        $result = [
+            'info' => $info,
+            'tree' => $tree,
+        ];
         break;
 
     case 'new_group':
@@ -362,6 +446,12 @@ switch ($action) {
                     FROM nomenclature n
                     WHERE " . implode(' AND ', $where) . "
                     ORDER BY n.name";
+        } elseif ($section === 'product') {
+            $sql = "SELECT n.id, n.name, n.is_active, n.is_online_sale, ng.name AS group_name
+                    FROM nomenclature n
+                    LEFT JOIN nomenclature_groups ng ON ng.id = n.group_id
+                    WHERE " . implode(' AND ', $where) . "
+                    ORDER BY n.name";
         } else {
             $sql = "SELECT n.id, n.name, n.is_active, ng.name AS group_name
                     FROM nomenclature n
@@ -372,6 +462,22 @@ switch ($action) {
 
         $stmt = fncQuery($sql, $binds);
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    case 'nomenclature_new_form':
+        // Объединяет groups_list(type=nomenclature) + units_list для формы
+        // создания номенклатуры в один запрос.
+        if (!fncCan($perms, 'nomenclature.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $stmt = fncQuery("SELECT ng.id, ng.parent_id, ng.type, ng.name, ng.is_active FROM nomenclature_groups ng WHERE ng.type = 'nomenclature' AND ng.is_active = 1 ORDER BY ng.name");
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $result = [
+            'groups' => fncBuildGroupsTree($rows),
+            'units'  => fncGetUnitsList(),
+        ];
         break;
 
     case 'new_nomenclature':
@@ -461,6 +567,22 @@ switch ($action) {
             : ['sccss' => false, 'msg' => 'Не удалось создать позицию'];
         break;
 
+    case 'product_new_form':
+        // Объединяет groups_list(type=product) + units_list для формы
+        // создания товара в один запрос.
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $stmt = fncQuery("SELECT ng.id, ng.parent_id, ng.type, ng.name, ng.is_active FROM nomenclature_groups ng WHERE ng.type = 'product' AND ng.is_active = 1 ORDER BY ng.name");
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $result = [
+            'groups' => fncBuildGroupsTree($rows),
+            'units'  => fncGetUnitsList(),
+        ];
+        break;
+
     case 'new_product':
         if (!fncCan($perms, 'products.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -526,6 +648,43 @@ switch ($action) {
             ['id' => $id]
         );
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'nomenclature_info_form':
+        // Объединяет nomenclature_info + groups_list(type=nomenclature) +
+        // units_list + suppliers_list для карточки "Общая информация"
+        // номенклатуры в один запрос.
+        if (!fncCan($perms, 'nomenclature.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT n.id, n.group_id, n.name, n.display_name, n.description, n.unit_id,
+                    n.is_purchased, n.is_produced, n.is_sellable, n.is_food_product, n.default_supplier_id, n.is_active,
+                    u.short_name AS unit_short_name,
+                    (SELECT COUNT(*) FROM nomenclature_nutrition nn WHERE nn.nomenclature_id = n.id) AS has_nutrition_data
+             FROM nomenclature n
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE n.id = :id",
+            ['id' => $id]
+        );
+        $info = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        if (empty($info)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Позиция не найдена']);
+            exit;
+        }
+
+        $stmt = fncQuery("SELECT ng.id, ng.parent_id, ng.type, ng.name, ng.is_active FROM nomenclature_groups ng WHERE ng.type = 'nomenclature' AND ng.is_active = 1 ORDER BY ng.name");
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $result = [
+            'info'      => $info,
+            'groups'    => fncBuildGroupsTree($rows),
+            'units'     => fncGetUnitsList(),
+            'suppliers' => fncGetSuppliersList(),
+        ];
         break;
 
     case 'upd_nomenclature':
@@ -615,6 +774,147 @@ switch ($action) {
                 'updated_by'           => $user_id,
                 'id'                   => $id,
             ]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'product_info':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT n.id, n.group_id, n.name, n.description, n.unit_id, n.output_quantity, n.bonus_percent,
+                    n.is_online_sale, n.is_delivery_sale, n.is_food_product, n.is_active,
+                    u.short_name AS unit_short_name
+             FROM nomenclature n
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE n.id = :id",
+            ['id' => $id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'product_info_form':
+        // Объединяет product_info + groups_list(type=product) для карточки
+        // "Общая информация" товара в один запрос.
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT n.id, n.group_id, n.name, n.description, n.unit_id, n.output_quantity, n.bonus_percent,
+                    n.is_online_sale, n.is_delivery_sale, n.is_food_product, n.is_active,
+                    u.short_name AS unit_short_name
+             FROM nomenclature n
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE n.id = :id",
+            ['id' => $id]
+        );
+        $info = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        if (empty($info)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Товар не найден']);
+            exit;
+        }
+
+        $stmt = fncQuery("SELECT ng.id, ng.parent_id, ng.type, ng.name, ng.is_active FROM nomenclature_groups ng WHERE ng.type = 'product' AND ng.is_active = 1 ORDER BY ng.name");
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $result = [
+            'info'   => $info,
+            'groups' => fncBuildGroupsTree($rows),
+            'units'  => fncGetUnitsList(),
+        ];
+        break;
+
+    case 'upd_product':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id              = (int)fncValFind('id', $params);
+        $name            = fncValFind('name', $params);
+        $group_id        = (int)fncValFind('group_id', $params);
+        $unit_id         = (int)fncValFind('unit_id', $params);
+        $description     = fncValFind('description', $params) ?: null;
+        $output_quantity = fncValFind('output_quantity', $params) ?: null;
+        $bonus_percent   = fncValFind('bonus_percent', $params) ?: null;
+
+        $is_food_product_raw = fncValFind('is_food_product', $params);
+        if ($is_food_product_raw === null || $is_food_product_raw === '') {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите, является ли позиция пищевой продукцией']);
+            exit;
+        }
+        $is_food_product = (int)$is_food_product_raw;
+
+        if (!$id || !$name || !$group_id || !$unit_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $stmt = fncQuery("SELECT is_float FROM units WHERE id = :id", ['id' => $unit_id]);
+        $unit = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$unit) {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректная единица измерения']);
+            exit;
+        }
+        if ($unit['is_float']) {
+            $output_quantity = null;
+        }
+
+        if ($bonus_percent !== null && ((float)$bonus_percent < 0 || (float)$bonus_percent > 100)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Бонусы указываются в диапазоне от 0 до 100%']);
+            exit;
+        }
+
+        $stmt = fncQuery("SELECT ng.type FROM nomenclature_groups ng WHERE ng.id = :id", ['id' => $group_id]);
+        $group = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$group || $group['type'] !== 'product') {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректная группа']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "UPDATE nomenclature
+             SET group_id = :group_id, name = :name, unit_id = :unit_id, description = :description,
+                 output_quantity = :output_quantity, bonus_percent = :bonus_percent,
+                 is_food_product = :is_food_product, updated_by = :updated_by
+             WHERE id = :id",
+            [
+                'group_id'         => $group_id,
+                'name'             => $name,
+                'unit_id'          => $unit_id,
+                'description'      => $description,
+                'output_quantity'  => $output_quantity,
+                'bonus_percent'    => $bonus_percent,
+                'is_food_product'  => $is_food_product,
+                'updated_by'       => $user_id,
+                'id'               => $id,
+            ]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'upd_product_channel':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id      = (int)fncValFind('id', $params);
+        $channel = fncValFind('channel', $params);
+        $value   = (int)fncValFind('value', $params);
+
+        if (!$id || !in_array($channel, ['is_online_sale', 'is_delivery_sale'], true)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректные параметры']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "UPDATE nomenclature SET {$channel} = :value, updated_by = :updated_by WHERE id = :id",
+            ['value' => $value, 'updated_by' => $user_id, 'id' => $id]
         );
         $result = ['sccss' => (bool)$stmt];
         break;

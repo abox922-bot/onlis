@@ -113,14 +113,15 @@ function infoLoadFunction(item_id) {
                     $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                     fncMyAjax("upd_requisite_type", "orgs", crt_arr["params"], 0)
                         .done(function(){
+                            fncMarkItemEdited(item_id);
                             main_modal.hide();
                         })
                         .fail(function(){
                             fncBtnReset();
                         })
                         .always(function(){
-                            let country_id = window.countryPicker.getValue();
-                            listLoadFunction(country_id);
+                            //let country_id = window.countryPicker.getValue();
+                            //listLoadFunction(country_id);
                         });
                 }
             });

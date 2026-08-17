@@ -110,13 +110,14 @@ function infoLoadFunction(item_id) {
                 $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                 fncMyAjax("upd_street", "geo", crt_arr["params"], 0)
                     .done(function() {
+                        fncMarkItemEdited(item_id);
                         main_modal.hide();
                     })
                     .fail(function() {
                         fncBtnReset();
                     })
                     .always(function() {
-                        listLoadFunction(window.cityPicker.getValue());
+                        //listLoadFunction(window.cityPicker.getValue());
                     });
             }
         });

@@ -1,11 +1,11 @@
 $(function(){
 
-    if (!canDo('nomenclature.manage')) {
+    if (!canDo('products.manage')) {
         $(".slctWorkstation").prop("disabled", true);
         return;
     }
 
-    let nomenclature_id = +$("#inpAffiliationNomenclatureId").val();
+    let product_id = +$("#inpAffiliationProductId").val();
 
     $(".slctWorkstation").off("change").on("change", function(){
         let $select = $(this);
@@ -17,15 +17,15 @@ $(function(){
         $select.prop("disabled", true);
 
         fncMyAjax("upd_nomenclature_workstation", "noms", [
-            {name: "nomenclature_id", value: nomenclature_id},
+            {name: "nomenclature_id", value: product_id},
             {name: "object_type_id", value: type_id},
             {name: "workstation_id", value: workstation_id}
         ], 1)
             .done(function(data){
-                if (!data.sccss) {
-                    $(`#spnWorkstationError${type_id}`).removeClass("d-none").html(data.msg ?? "Не удалось сохранить привязку");
+                if (data.sccss) {
+                    fncMarkItemEdited(product_id);
                 } else {
-                  fncMarkItemEdited(nomenclature_id);
+                    $(`#spnWorkstationError${type_id}`).removeClass("d-none").html(data.msg ?? "Не удалось сохранить привязку");
                 }
             })
             .fail(function(){

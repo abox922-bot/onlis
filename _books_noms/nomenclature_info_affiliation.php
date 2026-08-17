@@ -48,4 +48,4 @@ $can_manage = fncCan($result['rules'], 'nomenclature.manage');
         <?php endforeach; ?>
     </div>
 <?php endif; ?>
-<script src="./_books_noms/js/nomenclature_info_affiliation.js?2026081303"></script>
+<script src="./_books_noms/js/nomenclature_info_affiliation.js?2026081600"></script>

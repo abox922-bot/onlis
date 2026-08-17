@@ -17,9 +17,7 @@ $(function(){
                             window.ingredientPicker.clear(true);
                             window.ingredientPicker.removeOption(value);
                             fncCompositionListLoad(nomenclature_id);
-                            if (typeof listLoadFunction === "function") {
-                                listLoadFunction();
-                            }
+                            fncMarkItemEdited(nomenclature_id);
                         }
                     });
             }
@@ -45,9 +43,7 @@ function fncCompositionListLoad(nomenclature_id) {
                 fncMyAjax("del_composition_item", "noms", [{name: "id", value: $(this).data("id")}], 1)
                     .always(function(){
                         fncCompositionListLoad(nomenclature_id);
-                        if (typeof listLoadFunction === "function") {
-                            listLoadFunction();
-                        }
+                        fncMarkItemEdited(nomenclature_id);
                     });
             });
         }

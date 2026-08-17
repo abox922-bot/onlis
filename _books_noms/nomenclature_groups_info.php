@@ -9,18 +9,16 @@ $ses_info = [
 
 $id = (int)($_POST['id'] ?? 0);
 
-$info = send_request(array_merge($ses_info, ['action' => 'group_info', 'id' => $id]), 'noms');
-if (!is_array($info) || empty($info)) {
+$form = send_request(array_merge($ses_info, ['action' => 'group_info_form', 'id' => $id]), 'noms');
+if (!is_array($form) || isset($form['sccss'])) {
     echo '<div class="empty-hint"><div class="empty-hint__text">Группа не найдена</div></div>';
     exit;
 }
 
-require_once('../modules_fncs.php');
+$info = $form['info'];
+$tree = $form['tree'];
 
-$tree = send_request(array_merge($ses_info, ['action' => 'groups_list', 'type' => 'nomenclature', 'status' => 'active']), 'noms');
-if (!is_array($tree) || isset($tree['sccss'])) {
-    $tree = [];
-}
+require_once('../modules_fncs.php');
 
 $forbidden_ids = fncCollectForbiddenIds($tree, $id);
 
@@ -60,7 +58,7 @@ fncFlattenGroupOptions($tree, 0, $forbidden_ids, $parent_options);
         <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>
-        <?php if (fncCan($result['rules'], 'nomenclature.manage')): ?>
+        <?php if (fncCan($result['rules'], 'nomenclature.manage') || fncCan($result['rules'], 'products.manage')): ?>
         <div class="col-12 mt-3 d-flex gap-2">
             <button type="submit" class="btn-action-main" id="btnSave">
                 <span id="btnSaveText">Сохранить</span>

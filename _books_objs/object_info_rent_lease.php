@@ -1,25 +1,20 @@
 <?php
 require_once('../app/includes/session_guard.php');
 fncRequireSession();
-
 $ses_info = [
     '_onlis_id' => $_COOKIE['_onlis_id'],
     'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
 ];
-
 $id = (int)($_POST['id'] ?? 0);
 
-$rent = send_request(array_merge($ses_info, ['action' => 'object_info_rent', 'id' => $id]), 'objs');
-if (!is_array($rent) || isset($rent['sccss'])) {
-    $rent = [];
+$form_data = send_request(array_merge($ses_info, ['action' => 'object_info_rent_lease_form', 'id' => $id]), 'objs');
+if (!is_array($form_data) || isset($form_data['sccss'])) {
+    $form_data = [];
 }
+$rent   = $form_data['rent'] ?? [];
+$owners = $form_data['owners'] ?? [];
 
 $is_rented = empty($rent['is_own_property']);
-
-$owners = send_request(array_merge($ses_info, ['action' => 'organizations_list', 'org_type' => 'contractor']), 'orgs');
-if (!is_array($owners) || isset($owners['sccss'])) {
-    $owners = [];
-}
 ?>
 <form id="formRentLease">
     <div class="row">
@@ -29,7 +24,6 @@ if (!is_array($owners) || isset($owners['sccss'])) {
                 <label class="form-check-label" for="chckInRent">Помещение в аренде</label>
             </div>
         </div>
-
         <div class="col-12 <?php echo $is_rented ? '' : 'd-none'; ?>" id="divRentInfo">
             <div class="row">
                 <div class="col-12 mb-3">
@@ -61,7 +55,6 @@ if (!is_array($owners) || isset($owners['sccss'])) {
                 </div>
             </div>
         </div>
-
         <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>

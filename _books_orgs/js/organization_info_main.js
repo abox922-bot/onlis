@@ -56,17 +56,15 @@ $(function(){
             fncMyAjax("upd_organization_main", "orgs", crt_arr["params"], 1)
                 .done(function(data){
                     if (data.sccss) {
-                        main_modal.hide();
+                        fncMarkItemEdited(id);
+                        //main_modal.hide();
                     } else {
-                        fncBtnReset();
                         fncShowFormError(data.msg ?? "Проверьте введённые данные");
                     }
                 })
-                .fail(function(){
-                    fncBtnReset();
-                })
                 .always(function(){
-                    listLoadFunction(org_type);
+                    //listLoadFunction(org_type);
+                    fncBtnReset();
                 });
         }
     });

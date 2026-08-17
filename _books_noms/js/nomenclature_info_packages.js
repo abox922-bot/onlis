@@ -23,6 +23,7 @@ $(function(){
                                 if (data.sccss) {
                                     modalOffcanvas.hide();
                                     fncPackagesListLoad(nomenclature_id);
+                                    fncMarkItemEdited(nomenclature_id);
                                 } else {
                                     fncBtnReset();
                                     fncShowFormError(data.msg ?? "Проверьте введённые данные");
@@ -75,6 +76,7 @@ function fncPackageInfoLoad(package_id, nomenclature_id) {
                             if (data.sccss) {
                                 modalOffcanvas.hide();
                                 fncPackagesListLoad(nomenclature_id);
+                                fncMarkItemEdited(nomenclature_id);
                             } else {
                                 fncBtnReset();
                                 fncShowFormError(data.msg ?? "Проверьте введённые данные");

@@ -41,4 +41,4 @@
         <div class="empty-hint__text">Выберите город для просмотра улиц</div>
     </div>
 
-    <script src="./_books_geo/js/streets.js?2026072900"></script>
+    <script src="./_books_geo/js/streets.js?2026081400"></script>

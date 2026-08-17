@@ -34,4 +34,4 @@
         <div class="empty-hint__text">Выберите страну для просмотра регионов</div>
     </div>
 
-    <script src="./_books_geo/js/regions.js?2026072900"></script>
+    <script src="./_books_geo/js/regions.js?2026081400"></script>

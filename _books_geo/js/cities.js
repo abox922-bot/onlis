@@ -118,14 +118,15 @@ function infoLoadFunction(item_id) {
                 $("#btnSave").prop("disabled", true);
                 $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                 fncMyAjax("upd_city", "geo", crt_arr["params"], 0)
-                    .done(function(data) {
+                    .done(function() {
+                      fncMarkItemEdited(item_id);
                       main_modal.hide();
                     })
                     .fail(function() {
                         fncBtnReset();
                     })
                     .always(function() {
-                      listLoadFunction(+$("#slctCountry").val(), +$("#slctRegion").val());
+                      //listLoadFunction(+$("#slctCountry").val(), +$("#slctRegion").val());
                     });
             }
         });

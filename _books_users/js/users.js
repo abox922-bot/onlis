@@ -149,7 +149,9 @@ function fncUserTabLoad(user_id, target) {
     $("#divUserInfoContent").load(path.href, {user_id}, function(){
         $(".inline-tab").prop("disabled", false);
         if (target === "person") {
-            fncInitPersonForm(user_id, listLoadFunction);
+            fncInitPersonForm(user_id, function(){
+              fncMarkItemEdited(user_id);
+            });
         }
         if (target === "access") {
             fncInitAccessForm(user_id, function(){

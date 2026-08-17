@@ -32,6 +32,9 @@ if (!is_array($result) || isset($result['sccss'])) {
             <?php foreach ($result as $value): ?>
                 <tr class="itemTr<?php echo $value['is_active'] ? '' : ' tree-row-archived'; ?>" data-id="<?php echo (int)$value['id']; ?>">
                     <td class="py-2">
+                        <?php if (!empty($value['is_online_sale'])): ?>
+                            <i class="bi bi-globe text-success" style="font-size: 0.85rem; margin-right: 4px;" title="Продажа онлайн"></i>
+                        <?php endif; ?>
                         <span class="itemName" data-id="<?php echo (int)$value['id']; ?>">
                             <?php echo htmlspecialchars($value['name']); ?>
                         </span>

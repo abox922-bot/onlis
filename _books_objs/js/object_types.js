@@ -112,11 +112,12 @@ function fncTypeTabLoad(type_id, target) {
                                 if (!data.sccss) {
                                     fncShowFormError(data.msg ?? "Проверьте введённые данные");
                                 }
+                                fncMarkItemEdited(type_id);
                             })
                             .fail(function(){ fncBtnReset(); })
                             .always(function(){
                                 fncBtnReset();
-                                listLoadFunction();
+                                //listLoadFunction();
                             });
                     }
                 });

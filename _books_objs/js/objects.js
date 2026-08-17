@@ -100,7 +100,8 @@ function fncObjectTabLoad(id, target) {
         $(".inline-tab").prop("disabled", false);
         if (target === "main") {
             fncInitObjectMainForm(id, function(){
-                listLoadFunction();
+                //listLoadFunction();
+                fncMarkItemEdited(id);
                 main_modal.hide();
             });
         }

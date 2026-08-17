@@ -81,7 +81,7 @@ function infoLoadFunction(item_id) {
                                 fncShowFormError(data.msg ?? "Проверьте введённые данные");
                                 fncBtnReset();
                             } else {
-                              listLoadFunction();
+                              fncMarkItemEdited(item_id);
                               main_modal.hide();
                             }
                         })

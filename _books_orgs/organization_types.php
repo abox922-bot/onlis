@@ -45,4 +45,4 @@ if (!is_array($countries) || isset($countries['sccss'])) {
     <div class="empty-hint__text">Выберите страну для просмотра ОПФ</div>
 </div>
 
-<script src="./_books_orgs/js/organization_types.js?2026081000"></script>
+<script src="./_books_orgs/js/organization_types.js?2026081400"></script>

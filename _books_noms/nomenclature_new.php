@@ -8,17 +8,15 @@ $ses_info = [
     'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
 ];
 
-$tree = send_request(array_merge($ses_info, ['action' => 'groups_list', 'type' => 'nomenclature', 'status' => 'active']), 'noms');
-if (!is_array($tree) || isset($tree['sccss'])) {
-    $tree = [];
+$form = send_request(array_merge($ses_info, ['action' => 'nomenclature_new_form']), 'noms');
+if (!is_array($form) || isset($form['sccss'])) {
+    $form = ['groups' => [], 'units' => []];
 }
-$group_options = [];
-fncFlattenGroupOptions($tree, 0, [], $group_options);
 
-$units = send_request(array_merge($ses_info, ['action' => 'units_list']), 'unt');
-if (!is_array($units) || isset($units['sccss'])) {
-    $units = [];
-}
+$group_options = [];
+fncFlattenGroupOptions($form['groups'], 0, [], $group_options);
+
+$units = $form['units'];
 ?>
 <form id="formNew">
     <div class="row">

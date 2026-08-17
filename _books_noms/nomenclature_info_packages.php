@@ -52,4 +52,4 @@ if (!is_array($packages) || isset($packages['sccss'])) {
         <?php endif; ?>
     </div>
 </div>
-<script src="./_books_noms/js/nomenclature_info_packages.js?2026081303"></script>
+<script src="./_books_noms/js/nomenclature_info_packages.js?2026081600"></script>

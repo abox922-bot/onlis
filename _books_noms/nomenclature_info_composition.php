@@ -35,4 +35,4 @@ $can_manage = fncCan($result['rules'], 'nomenclature.manage');
     </div>
     <div class="col-12" id="divCompositionList"></div>
 </div>
-<script src="./_books_noms/js/nomenclature_info_composition.js?2026081303"></script>
+<script src="./_books_noms/js/nomenclature_info_composition.js?2026081400"></script>

@@ -7,6 +7,7 @@
     --bs-body-bg: #eeeeee;
     --card-bg: #ffffff;
     --accent-color: #000000;
+    --danger-color: #dc3545;
     --text-main: #333333;
     --text-muted: #555555;
     --bg-hover: #f5f5f5;
@@ -157,7 +158,7 @@ body {
 }
 
 #spanUsersName { font-weight: 700; }
-#spnQuit { color: #dc3545 !important; }
+#spnQuit { color: var(--danger-color) !important; }
 #spnQuit:hover { background-color: rgba(220, 53, 69, 0.1); }
 
 /* =============================================================================
@@ -212,13 +213,13 @@ body {
     transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
-    border: 1px solid #dc3545;
+    border: 1px solid var(--danger-color);
     background: transparent;
-    color: #dc3545;
+    color: var(--danger-color);
     font-family: var(--bs-body-font-family);
 }
 .btn-danger-action:hover {
-    background: #dc3545;
+    background: var(--danger-color);
     color: #fff;
 }
 
@@ -254,7 +255,7 @@ input[type="date"].form-in, input[type="time"].form-in {
     color: #212529;
 }
 .form-in.is-invalid {
-    border-color: #dc3545 !important;
+    border-color: var(--danger-color) !important;
     box-shadow: 0 0 0 4px rgba(220, 53, 69, 0.1);
 }
 input.form-in, select.form-in { height: 42px; }
@@ -339,6 +340,14 @@ textarea.form-in { min-height: 100px; resize: vertical; }
 }
 .table-hover tbody tr:hover td { background-color: var(--bg-hover) !important; color: var(--accent-color); }
 .itemTr, .listTr { cursor: pointer; }
+.item-edited .itemName::after {
+    content: "• изменено";
+    color: var(--danger-color);
+    display: block;
+    margin-top: 2px;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
 
 /* =============================================================================
    7. ВСПОМОГАТЕЛЬНЫЕ СТИЛИ

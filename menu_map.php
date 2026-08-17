@@ -34,8 +34,8 @@ return [
         'title' => 'Справочники',
         'icon'  => 'bi-journal-bookmark',
         'items' => [
-            ['slug' => 'nomenclature.manage.view',  'module' => 'nomenclature',   'title' => 'Номенклатура',      'icon' => 'bi-boxes'],
             ['slug' => 'products.manage.view',      'module' => 'products',       'title' => 'Товары',            'icon' => 'bi-cart3'],
+            ['slug' => 'nomenclature.manage.view',  'module' => 'nomenclature',   'title' => 'Номенклатура',      'icon' => 'bi-boxes'],
             ['slug' => 'users.manage.view',         'module' => 'users',          'title' => 'Сотрудники',        'icon' => 'bi-people'],
             ['slug' => 'objects.manage.view',       'module' => 'objects',        'title' => 'Объекты',           'icon' => 'bi-shop'],
             ['slug' => 'organizations.manage.view', 'module' => 'organizations',  'title' => 'Организации',       'icon' => 'bi-building'],

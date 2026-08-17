@@ -77,11 +77,8 @@ function infoLoadFunction(item_id) {
                 $("#btnSave").prop("disabled", true);
                 $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                 fncMyAjax("upd_country", "geo", crt_arr["params"], 0)
-                    .done(function(data) {
-                      $("#mainModal").one("hidden.bs.modal", function(){
-                          localStorage.setItem('new_item', data.id);
-                          listLoadFunction();
-                      });
+                    .done(function() {
+                      fncMarkItemEdited(item_id);
                       main_modal.hide();
                     })
                     .fail(function() {

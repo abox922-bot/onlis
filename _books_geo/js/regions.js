@@ -92,13 +92,14 @@ function infoLoadFunction(item_id) {
                 $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
                 fncMyAjax("upd_region", "geo", crt_arr["params"], 0)
                     .done(function(data) {
+                      fncMarkItemEdited(item_id);
                       main_modal.hide();
                     })
                     .fail(function() {
                         fncBtnReset();
                     })
                     .always(function() {
-                      listLoadFunction($("#slctCountry").val());
+                      //listLoadFunction($("#slctCountry").val());
                     });
             }
         });

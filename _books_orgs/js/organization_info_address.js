@@ -120,9 +120,12 @@ $(function(){
             $("#btnSave").prop("disabled", true);
             $("#btnSaveText, #divSaveLoading").toggleClass("d-none");
             fncMyAjax("upd_organization_address", "orgs", crt_arr["params"], 0)
-                .done(function(){ main_modal.hide(); })
-                .fail(function(){ fncBtnReset(); })
-                .always(function(){ listLoadFunction(org_type); });
+                //.done(function(){ main_modal.hide(); })
+                //.fail(function(){ fncBtnReset(); })
+                .always(function(){
+                  fncBtnReset();
+                  //listLoadFunction(org_type);
+                });
         }
     });
 

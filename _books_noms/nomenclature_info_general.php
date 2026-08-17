@@ -10,29 +10,18 @@ $ses_info = [
 
 $id = (int)($_POST['id'] ?? 0);
 
-$info = send_request(array_merge($ses_info, ['action' => 'nomenclature_info', 'id' => $id]), 'noms');
-if (!is_array($info) || empty($info)) {
+$form = send_request(array_merge($ses_info, ['action' => 'nomenclature_info_form', 'id' => $id]), 'noms');
+if (!is_array($form) || isset($form['sccss'])) {
     echo '<div class="empty-hint"><div class="empty-hint__text">Позиция не найдена</div></div>';
     exit;
 }
 
-$tree = send_request(array_merge($ses_info, ['action' => 'groups_list', 'type' => 'nomenclature', 'status' => 'active']), 'noms');
-if (!is_array($tree) || isset($tree['sccss'])) {
-    $tree = [];
-}
+$info      = $form['info'];
+$units     = $form['units'];
+$suppliers = array_filter($form['suppliers'], fn($s) => empty($s['is_bank']));
+
 $group_options = [];
-fncFlattenGroupOptions($tree, 0, [], $group_options);
-
-$units = send_request(array_merge($ses_info, ['action' => 'units_list']), 'unt');
-if (!is_array($units) || isset($units['sccss'])) {
-    $units = [];
-}
-
-$suppliers = send_request(array_merge($ses_info, ['action' => 'organizations_list', 'org_type' => 'contractor']), 'orgs');
-if (!is_array($suppliers) || isset($suppliers['sccss'])) {
-    $suppliers = [];
-}
-$suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
+fncFlattenGroupOptions($form['groups'], 0, [], $group_options);
 ?>
 <form id="formInfo">
     <div class="row">
@@ -68,7 +57,7 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
 
         <?php if (!$info['is_produced']): ?>
             <?php $has_nutrition_data = !empty($info['has_nutrition_data']); ?>
-            <div class="col-12 mb-4">
+            <div class="col-12 mb-3">
                 <div class="form-group-label mb-2">Пищевая продукция</div>
                 <div class="btn-group" role="group">
                     <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodYes" value="1" <?php echo ((int)$info['is_food_product'] === 1) ? 'checked' : ''; ?>>
@@ -159,4 +148,4 @@ $suppliers = array_filter($suppliers, fn($s) => empty($s['is_bank']));
         <?php endif; ?>
     </div>
 </form>
-<script src="./_books_noms/js/nomenclature_info_general.js?2026081303"></script>
+<script src="./_books_noms/js/nomenclature_info_general.js?2026081601"></script>

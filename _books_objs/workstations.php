@@ -15,4 +15,4 @@ $result = fncRequireSession();
     <?php endif; ?>
 </div>
 <div id="divChptContent"></div>
-<script src="./_books_objs/js/workstations.js?2026081002"></script>
+<script src="./_books_objs/js/workstations.js?2026081400"></script>

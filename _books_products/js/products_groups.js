@@ -114,8 +114,8 @@ function infoLoadFunction(item_id) {
                 fncMyAjax("archive_group", "noms", [{name: "id", value: item_id}], 1)
                     .done(function(data){
                         if (data.sccss) {
-                            main_modal.hide();
                             listLoadFunction();
+                            main_modal.hide();
                         } else {
                             fncShowFormError(data.msg ?? "Не удалось архивировать группу");
                             $("#btnArchive").prop("disabled", false);
@@ -131,8 +131,8 @@ function infoLoadFunction(item_id) {
                 fncMyAjax("restore_group", "noms", [{name: "id", value: item_id}], 1)
                     .done(function(data){
                         if (data.sccss) {
-                            main_modal.hide();
                             listLoadFunction();
+                            main_modal.hide();
                         } else {
                             fncShowFormError(data.msg ?? "Не удалось восстановить группу");
                             $("#btnRestore").prop("disabled", false);

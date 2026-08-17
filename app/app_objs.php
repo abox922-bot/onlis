@@ -49,6 +49,40 @@ switch ($action) {
         break;
 
     //--------------------------------------------------------------------------
+    case 'object_new_form':
+        if (!fncCan($perms, 'objects.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT o.id, o.name, o.short_name, ot.abbreviation, ot.is_individual
+             FROM organizations o
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             WHERE o.is_contractor = 0 AND o.is_bank = 0 AND o.is_active = 1
+             ORDER BY o.name"
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        foreach ($rows as $key => $row) {
+            $rows[$key]['display_name'] = $row['is_individual']
+                ? $row['abbreviation'] . ' ' . $row['name']
+                : $row['abbreviation'] . ' «' . $row['name'] . '»';
+        }
+
+        $stmt = fncQuery(
+            "SELECT ot.id, ot.name, ot.is_active
+             FROM object_types ot
+             ORDER BY ot.organization_id IS NULL DESC, ot.is_active DESC, ot.name"
+        );
+        $types = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $result = [
+            'organizations' => $rows,
+            'types'         => $types,
+        ];
+        break;
+
+    //--------------------------------------------------------------------------
     case 'new_object':
         if (!fncCan($perms, 'objects.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -143,6 +177,53 @@ switch ($action) {
         break;
 
     //--------------------------------------------------------------------------
+    case 'object_types_info_main_form':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT ot.id, ot.name, ot.is_operational, ot.is_active,
+                    ot.organization_id, oo.short_name, oo.name AS org_name
+             FROM object_types ot
+             LEFT JOIN organizations oo ON oo.id = ot.organization_id
+             WHERE ot.id = ?",
+            [$id]
+        );
+        $type = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        if ($type) {
+            $type['org_display'] = $type['organization_id'] ? ($type['short_name'] ?: $type['org_name']) : null;
+        }
+
+        $can_edit_system = fncCan($perms, 'objects');
+        $organizations = [];
+        if ($can_edit_system) {
+            $stmt = fncQuery(
+                "SELECT o.id, o.name, o.short_name, ot.abbreviation, ot.is_individual
+                 FROM organizations o
+                 LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+                 WHERE o.is_contractor = 0 AND o.is_bank = 0 AND o.is_active = 1
+                 ORDER BY o.name"
+            );
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            foreach ($rows as $key => $row) {
+                $rows[$key]['display_name'] = $row['is_individual']
+                    ? $row['abbreviation'] . ' ' . $row['name']
+                    : $row['abbreviation'] . ' «' . $row['name'] . '»';
+            }
+            $organizations = $rows;
+        }
+
+        $result = [
+            'type'            => $type,
+            'can_edit_system' => $can_edit_system,
+            'organizations'   => $organizations,
+        ];
+        break;
+
+    //--------------------------------------------------------------------------
     case 'upd_object_type':
         if (!fncCan($perms, 'objects.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -182,6 +263,62 @@ switch ($action) {
         }
 
         $result = ['sccss' => (bool)$stmt];
+        break;
+
+    //--------------------------------------------------------------------------
+    case 'object_info_main_form':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT o.name, o.type_id, o.area, o.is_stock,
+                    o.is_active, o.organization_id,
+                    oo.short_name, oo.name AS org_name
+             FROM objects o
+             LEFT JOIN organizations oo ON oo.id = o.organization_id
+             WHERE o.id = ?",
+            [$id]
+        );
+        $object = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        if ($object) {
+            $object['org_display'] = $object['short_name'] ?: $object['org_name'];
+        }
+
+        $stmt = fncQuery(
+            "SELECT ot.id, ot.name, ot.is_active
+             FROM object_types ot
+             ORDER BY ot.organization_id IS NULL DESC, ot.is_active DESC, ot.name"
+        );
+        $types = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $can_edit_org = fncCan($perms, 'objects');
+        $organizations = [];
+        if ($can_edit_org) {
+            $stmt = fncQuery(
+                "SELECT o.id, o.name, o.short_name, ot.abbreviation, ot.is_individual
+                 FROM organizations o
+                 LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+                 WHERE o.is_contractor = 0 AND o.is_bank = 0 AND o.is_active = 1
+                 ORDER BY o.name"
+            );
+            $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+            foreach ($rows as $key => $row) {
+                $rows[$key]['display_name'] = $row['is_individual']
+                    ? $row['abbreviation'] . ' ' . $row['name']
+                    : $row['abbreviation'] . ' «' . $row['name'] . '»';
+            }
+            $organizations = $rows;
+        }
+
+        $result = [
+            'object'        => $object,
+            'types'         => $types,
+            'can_edit_org'  => $can_edit_org,
+            'organizations' => $organizations,
+        ];
         break;
 
     //--------------------------------------------------------------------------
@@ -245,6 +382,30 @@ switch ($action) {
         break;
 
     //--------------------------------------------------------------------------
+    case 'object_info_address_form':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT country_id, region_id, city_id, street_id, house, office
+             FROM objects WHERE id = ?",
+            [$id]
+        );
+        $address = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+
+        $stmt = fncQuery("SELECT id, name, full_name FROM countries ORDER BY name");
+        $countries = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $result = [
+            'address'   => $address,
+            'countries' => $countries,
+        ];
+        break;
+
+    //--------------------------------------------------------------------------
     case 'object_info_address':
         if (!fncCan($perms, 'objects.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -289,6 +450,41 @@ switch ($action) {
 
         $result = ['sccss' => (bool)$stmt];
         break;
+    //--------------------------------------------------------------------------
+    case 'object_info_rent_lease_form':
+        if (!fncCan($perms, 'objects.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT is_own_property, owner_organization_id, rent_amount, rent_day_of_month
+             FROM objects WHERE id = ?",
+            [$id]
+        );
+        $rent = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+
+        $stmt = fncQuery(
+            "SELECT o.id, o.name, o.short_name, ot.abbreviation, ot.is_individual
+             FROM organizations o
+             LEFT JOIN organization_types ot ON ot.id = o.organization_type_id
+             WHERE o.is_contractor = 1 AND o.is_active = 1
+             ORDER BY o.name"
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        foreach ($rows as $key => $row) {
+            $rows[$key]['display_name'] = $row['is_individual']
+                ? $row['abbreviation'] . ' ' . $row['name']
+                : $row['abbreviation'] . ' «' . $row['name'] . '»';
+        }
+
+        $result = [
+            'rent'   => $rent,
+            'owners' => $rows,
+        ];
+        break;
+
     //--------------------------------------------------------------------------
     case 'object_info_rent':
         if (!fncCan($perms, 'objects.manage.view')) {
@@ -838,7 +1034,7 @@ switch ($action) {
         );
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         break;
-        
+
     //--------------------------------------------------------------------------
     case 'new_object_type_workstation':
         if (!fncCan($perms, 'objects.manage')) {

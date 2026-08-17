@@ -1,6 +1,6 @@
 <?php
 require_once('../app/includes/session_guard.php');
-$result = fncRequireSession();
+fncRequireSession();
 
 $ses_info = [
     '_onlis_id' => $_COOKIE['_onlis_id'],
@@ -9,24 +9,14 @@ $ses_info = [
 
 $id = (int)($_POST['id'] ?? 0);
 
-$object = send_request(array_merge($ses_info, ['action' => 'object_main_info', 'id' => $id]), 'objs');
-if (!is_array($object) || isset($object['sccss'])) {
-    $object = [];
+$form_data = send_request(array_merge($ses_info, ['action' => 'object_info_main_form', 'id' => $id]), 'objs');
+if (!is_array($form_data) || isset($form_data['sccss'])) {
+    $form_data = [];
 }
-
-$types = send_request(array_merge($ses_info, ['action' => 'object_types_list']), 'objs');
-if (!is_array($types) || isset($types['sccss'])) {
-    $types = [];
-}
-
-$can_edit_org = fncCan($result['rules'], 'objects');
-
-if ($can_edit_org) {
-    $organizations = send_request(array_merge($ses_info, ['action' => 'organizations_list', 'org_type' => 'my']), 'orgs');
-    if (!is_array($organizations) || isset($organizations['sccss'])) {
-        $organizations = [];
-    }
-}
+$object        = $form_data['object'] ?? [];
+$types         = $form_data['types'] ?? [];
+$can_edit_org  = $form_data['can_edit_org'] ?? false;
+$organizations = $form_data['organizations'] ?? [];
 ?>
 <form id="formInfoMain">
     <div class="row">

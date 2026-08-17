@@ -26,6 +26,7 @@ $(function(){
                         fncMyAjax("new_unit", "unt", crt_arr["params"], 1)
                             .done(function(data){
                                 if (data.sccss) {
+                                    fncMarkItemEdited(item_id);
                                     main_modal.hide();
                                 } else {
                                     fncBtnReset();
@@ -33,7 +34,9 @@ $(function(){
                                 }
                             })
                             .fail(function(){ fncBtnReset(); })
-                            .always(function(){ listLoadFunction(); });
+                            .always(function(){
+                              //listLoadFunction();
+                            });
                     }
                 });
             });

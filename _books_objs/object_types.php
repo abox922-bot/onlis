@@ -19,4 +19,4 @@ $result = fncRequireSession();
     <i class="bi bi-tags empty-hint__icon"></i>
     <div class="empty-hint__text">Типы объектов не найдены</div>
 </div>
-<script src="./_books_objs/js/object_types.js?2026081002"></script>
+<script src="./_books_objs/js/object_types.js?2026081400"></script>

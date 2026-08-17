@@ -455,3 +455,7 @@ function fncInitObjectMainForm(object_id, onDone) {
     }
 }
 //==============================================================================
+function fncMarkItemEdited(item_id) {
+    $(`.itemTr[data-id="${item_id}"]`).addClass("item-edited");
+}
+//==============================================================================

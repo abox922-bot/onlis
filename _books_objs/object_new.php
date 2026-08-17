@@ -1,21 +1,17 @@
 <?php
 require_once('../app/includes/session_guard.php');
 fncRequireSession();
-
 $ses_info = [
     '_onlis_id' => $_COOKIE['_onlis_id'],
     'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
 ];
 
-$organizations = send_request(array_merge($ses_info, ['action' => 'organizations_list', 'org_type' => 'my']), 'orgs');
-if (!is_array($organizations) || isset($organizations['sccss'])) {
-    $organizations = [];
+$form_data = send_request(array_merge($ses_info, ['action' => 'object_new_form']), 'objs');
+if (!is_array($form_data) || isset($form_data['sccss'])) {
+    $form_data = [];
 }
-
-$types = send_request(array_merge($ses_info, ['action' => 'object_types_list']), 'objs');
-if (!is_array($types) || isset($types['sccss'])) {
-    $types = [];
-}
+$organizations = $form_data['organizations'] ?? [];
+$types         = $form_data['types'] ?? [];
 ?>
 <form id="formNew">
     <div class="row">
@@ -53,7 +49,6 @@ if (!is_array($types) || isset($types['sccss'])) {
                 data-required="1"
                 autocomplete="off">
         </div>
-
         <div class="col-12 mt-2 d-none" id="divFormError">
             <div class="form-error-msg" id="spnFormError"></div>
         </div>

@@ -9,15 +9,12 @@ $ses_info = [
 
 $id = (int)($_POST['id'] ?? 0);
 
-$address = send_request(array_merge($ses_info, ['action' => 'object_info_address', 'id' => $id]), 'objs');
-if (!is_array($address) || isset($address['sccss'])) {
-    $address = [];
+$form_data = send_request(array_merge($ses_info, ['action' => 'object_info_address_form', 'id' => $id]), 'objs');
+if (!is_array($form_data) || isset($form_data['sccss'])) {
+    $form_data = [];
 }
-
-$countries = send_request(array_merge($ses_info, ['action' => 'countries_list']), 'geo');
-if (!is_array($countries) || isset($countries['sccss'])) {
-    $countries = [];
-}
+$address   = $form_data['address'] ?? [];
+$countries = $form_data['countries'] ?? [];
 ?>
 <form id="formInfo">
     <div class="row">

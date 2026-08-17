@@ -16,6 +16,7 @@ $(function(){
                     .done(function(data){
                         if (data.sccss) {
                             fncNomenclatureTabLoad(nomenclature_id, "nutrition");
+                            fncMarkItemEdited(nomenclature_id);
                         } else {
                             fncShowFormError(data.msg ?? "Проверьте введённые данные");
                             fncBtnReset();
@@ -38,6 +39,7 @@ $(function(){
             .done(function(data){
                 if (data.sccss) {
                     fncNomenclatureTabLoad(nomenclature_id, "nutrition");
+                    fncMarkItemEdited(nomenclature_id);
                 } else {
                     fncShowFormError(data.msg ?? "Не удалось очистить данные");
                     $("#btnClearNutrition").prop("disabled", false);
