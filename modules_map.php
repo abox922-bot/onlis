@@ -67,6 +67,7 @@
           'sections' => [
               ['key' => 'products',         'slug' => 'products.manage.view', 'title' => 'Товары',          'file' => 'products',       'default' => true],
               ['key' => 'products_groups',  'slug' => 'products.manage.view', 'title' => 'Группы товаров',  'file' => 'products_groups'],
+              ['key' => 'wishes',           'slug' => 'products.manage.view', 'title' => 'Пожелания',       'file' => 'wishes'],
           ],
       ],
 

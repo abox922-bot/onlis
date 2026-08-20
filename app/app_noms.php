@@ -5,18 +5,18 @@
 // как альтернативу — это архитектурное решение, не ошибка/недоделанный рефакторинг.
 // ВАЖНО: расширение прав на products.* сделано ТОЧЕЧНО только там, где логика
 // вкладки реально общая для Номенклатуры и Товаров (сейчас — только Принадлежность).
-// Упаковки, Состав и КБЖУ у Товаров будут работать по другому алгоритму —
-// это будут отдельные action'ы под products.*, не расширение существующих.
 //
-// ВАЖНО: для каждой формы/карточки, которой нужно несколько источников данных
-// (сама позиция + справочник групп + справочник единиц + справочник поставщиков
-// и т.п.) — ОДИН объединяющий action на сервере (внутри себя делает несколько
-// fncQuery() к разным таблицам НАПРЯМУЮ, без HTTP-петли к другим app_X.php),
-// а не несколько отдельных send_request() с фронта. Несколько HTTP-запросов
-// подряд — это реальная сетевая задержка и точка отказа на каждый запрос,
-// особенно критично на плохом мобильном соединении. См. nomenclature_info_form,
-// group_info_form, nomenclature_new_form, product_info_form, product_new_form
-// как эталонный паттерн.
+// ВАЖНО: для каждой формы/карточки, которой нужно несколько источников данных —
+// ОДИН объединяющий action на сервере (внутри себя делает несколько fncQuery()
+// к разным таблицам напрямую, без HTTP-петли к другим app_X.php), а не несколько
+// отдельных send_request() с фронта.
+//
+// product_type ENUM('food','non_food','service') — единое поле для ВСЕЙ
+// nomenclature (сырьё/ПФ/товары), заменяет собой бывший is_food_product.
+// Для Номенклатуры и ПФ используется только 'food'/'non_food' (интерфейс —
+// как раньше, выбор из двух). Для Товаров — все три варианта, включая
+// 'service' (услуга: нет Выхода, Состава, Упаковки, КБЖУ; единица измерения
+// принудительно берётся из units.is_default_for_service на сервере).
 require_once('./includes/fncs.php');
 require_once('./includes/request.php');
 
@@ -42,10 +42,6 @@ if (!is_array($params)) $params = [];
 
 $result = [];
 
-// Вспомогательная функция сборки дерева групп из плоского списка строк.
-// Используется во всех объединяющих action'ах ниже, а не только в groups_list —
-// вынесена как локальная функция файла, чтобы не дублировать один и тот же
-// цикл сборки дерева в каждом case.
 function fncBuildGroupsTree($rows) {
     $by_id = [];
     foreach ($rows as $row) {
@@ -64,9 +60,6 @@ function fncBuildGroupsTree($rows) {
     return $tree;
 }
 
-// Вспомогательная функция получения списка поставщиков (контрагенты, не банки)
-// с корректным display_name (ИП без кавычек, юрлица в кавычках — как в
-// app_orgs.php:organizations_list). Прямой SQL, без HTTP-петли к app_orgs.php.
 function fncGetSuppliersList() {
     $stmt = fncQuery(
         "SELECT o.id, o.name, ot.abbreviation, ot.is_individual
@@ -88,14 +81,22 @@ function fncGetSuppliersList() {
     return $suppliers;
 }
 
-// Вспомогательная функция получения списка единиц измерения. Прямой SQL,
-// без HTTP-петли к app_units.php.
 function fncGetUnitsList() {
     $stmt = fncQuery("SELECT id, name, short_name, is_float FROM units ORDER BY name");
     return $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 }
 
+function fncGetServiceUnitId() {
+    $stmt = fncQuery("SELECT id FROM units WHERE is_default_for_service = 1 LIMIT 1");
+    $row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+    return $row ? (int)$row['id'] : null;
+}
+
 switch ($action) {
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ГРУППЫ (nomenclature_groups) — общие для Номенклатуры и Товаров
+    // ═══════════════════════════════════════════════════════════════════════
 
     case 'groups_list':
         if (!fncCan($perms, 'nomenclature.manage.view') && !fncCan($perms, 'products.manage.view')) {
@@ -149,8 +150,6 @@ switch ($action) {
         break;
 
     case 'group_info_form':
-        // Объединяет group_info + groups_list (для построения дерева "выбор
-        // родителя" с исключением себя/потомков на фронте) в один запрос.
         if (!fncCan($perms, 'nomenclature.manage.view') && !fncCan($perms, 'products.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
@@ -177,11 +176,10 @@ switch ($action) {
             ['type' => $info['type']]
         );
         $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
-        $tree = fncBuildGroupsTree($rows);
 
         $result = [
             'info' => $info,
-            'tree' => $tree,
+            'tree' => fncBuildGroupsTree($rows),
         ];
         break;
 
@@ -385,6 +383,10 @@ switch ($action) {
         $result = ['sccss' => (bool)$stmt];
         break;
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // НОМЕНКЛАТУРА / ПФ / ТОВАРЫ — общий список и создание/редактирование
+    // ═══════════════════════════════════════════════════════════════════════
+
     case 'nomenclature_list':
         if (!fncCan($perms, 'nomenclature.manage.view') && !fncCan($perms, 'products.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -465,8 +467,6 @@ switch ($action) {
         break;
 
     case 'nomenclature_new_form':
-        // Объединяет groups_list(type=nomenclature) + units_list для формы
-        // создания номенклатуры в один запрос.
         if (!fncCan($perms, 'nomenclature.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
@@ -500,14 +500,13 @@ switch ($action) {
         $is_sellable          = 0;
 
         if ($section === 'purchased') {
-            $is_food_product_raw = fncValFind('is_food_product', $params);
-            if ($is_food_product_raw === null || $is_food_product_raw === '') {
+            $product_type = fncValFind('product_type', $params);
+            if (!in_array($product_type, ['food', 'non_food'], true)) {
                 echo json_encode(['sccss' => false, 'msg' => 'Укажите, является ли позиция пищевой продукцией']);
                 exit;
             }
-            $is_food_product = (int)$is_food_product_raw;
         } else {
-            $is_food_product = 1;
+            $product_type = 'food';
         }
 
         if (!$name || !$unit_id) {
@@ -544,10 +543,10 @@ switch ($action) {
         $stmt = fncQuery(
             "INSERT INTO nomenclature
                 (group_id, name, display_name, description, unit_id,
-                 is_purchased, is_produced, is_sellable, is_food_product, default_supplier_id, created_by)
+                 is_purchased, is_produced, is_sellable, product_type, default_supplier_id, created_by)
              VALUES
                 (:group_id, :name, :display_name, :description, :unit_id,
-                 :is_purchased, :is_produced, :is_sellable, :is_food_product, :default_supplier_id, :created_by)",
+                 :is_purchased, :is_produced, :is_sellable, :product_type, :default_supplier_id, :created_by)",
             [
                 'group_id'             => $group_id,
                 'name'                 => $name,
@@ -557,7 +556,7 @@ switch ($action) {
                 'is_purchased'         => $is_purchased,
                 'is_produced'          => $is_produced,
                 'is_sellable'          => $is_sellable,
-                'is_food_product'      => $is_food_product,
+                'product_type'         => $product_type,
                 'default_supplier_id'  => $default_supplier_id,
                 'created_by'           => $user_id,
             ]
@@ -568,8 +567,6 @@ switch ($action) {
         break;
 
     case 'product_new_form':
-        // Объединяет groups_list(type=product) + units_list для формы
-        // создания товара в один запрос.
         if (!fncCan($perms, 'products.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
@@ -589,16 +586,24 @@ switch ($action) {
             exit;
         }
 
-        $name     = fncValFind('name', $params);
-        $group_id = (int)fncValFind('group_id', $params);
-        $unit_id  = (int)fncValFind('unit_id', $params);
+        $name         = fncValFind('name', $params);
+        $group_id     = (int)fncValFind('group_id', $params);
+        $product_type = fncValFind('product_type', $params);
 
-        $is_food_product_raw = fncValFind('is_food_product', $params);
-        if ($is_food_product_raw === null || $is_food_product_raw === '') {
-            echo json_encode(['sccss' => false, 'msg' => 'Укажите, является ли позиция пищевой продукцией']);
+        if (!in_array($product_type, ['food', 'non_food', 'service'], true)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите тип товара']);
             exit;
         }
-        $is_food_product = (int)$is_food_product_raw;
+
+        if ($product_type === 'service') {
+            $unit_id = fncGetServiceUnitId();
+            if (!$unit_id) {
+                echo json_encode(['sccss' => false, 'msg' => 'Не настроена единица измерения по умолчанию для услуг']);
+                exit;
+            }
+        } else {
+            $unit_id = (int)fncValFind('unit_id', $params);
+        }
 
         if (!$name || !$group_id || !$unit_id) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
@@ -615,15 +620,15 @@ switch ($action) {
         global $pdo;
         $stmt = fncQuery(
             "INSERT INTO nomenclature
-                (group_id, name, unit_id, is_purchased, is_produced, is_sellable, is_food_product, created_by)
+                (group_id, name, unit_id, is_purchased, is_produced, is_sellable, product_type, created_by)
              VALUES
-                (:group_id, :name, :unit_id, 0, 0, 1, :is_food_product, :created_by)",
+                (:group_id, :name, :unit_id, 0, 0, 1, :product_type, :created_by)",
             [
-                'group_id'        => $group_id,
-                'name'            => $name,
-                'unit_id'         => $unit_id,
-                'is_food_product' => $is_food_product,
-                'created_by'      => $user_id,
+                'group_id'     => $group_id,
+                'name'         => $name,
+                'unit_id'      => $unit_id,
+                'product_type' => $product_type,
+                'created_by'   => $user_id,
             ]
         );
         $result = $stmt
@@ -639,7 +644,7 @@ switch ($action) {
         $id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
             "SELECT n.id, n.group_id, n.name, n.display_name, n.description, n.unit_id,
-                    n.is_purchased, n.is_produced, n.is_sellable, n.is_food_product, n.default_supplier_id, n.is_active,
+                    n.is_purchased, n.is_produced, n.is_sellable, n.product_type, n.default_supplier_id, n.is_active,
                     u.short_name AS unit_short_name,
                     (SELECT COUNT(*) FROM nomenclature_nutrition nn WHERE nn.nomenclature_id = n.id) AS has_nutrition_data
              FROM nomenclature n
@@ -651,9 +656,6 @@ switch ($action) {
         break;
 
     case 'nomenclature_info_form':
-        // Объединяет nomenclature_info + groups_list(type=nomenclature) +
-        // units_list + suppliers_list для карточки "Общая информация"
-        // номенклатуры в один запрос.
         if (!fncCan($perms, 'nomenclature.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
@@ -662,7 +664,7 @@ switch ($action) {
 
         $stmt = fncQuery(
             "SELECT n.id, n.group_id, n.name, n.display_name, n.description, n.unit_id,
-                    n.is_purchased, n.is_produced, n.is_sellable, n.is_food_product, n.default_supplier_id, n.is_active,
+                    n.is_purchased, n.is_produced, n.is_sellable, n.product_type, n.default_supplier_id, n.is_active,
                     u.short_name AS unit_short_name,
                     (SELECT COUNT(*) FROM nomenclature_nutrition nn WHERE nn.nomenclature_id = n.id) AS has_nutrition_data
              FROM nomenclature n
@@ -698,7 +700,7 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT n.is_produced, n.group_id, n.is_food_product FROM nomenclature n WHERE n.id = :id", ['id' => $id]);
+        $stmt = fncQuery("SELECT n.is_produced, n.group_id, n.product_type FROM nomenclature n WHERE n.id = :id", ['id' => $id]);
         $current = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
         if (!$current) {
             echo json_encode(['sccss' => false, 'msg' => 'Позиция не найдена']);
@@ -713,17 +715,16 @@ switch ($action) {
         $is_sellable          = 0;
 
         if ($current['is_produced']) {
-            $is_food_product = 1;
+            $product_type = 'food';
         } else {
-            $is_food_product_raw = fncValFind('is_food_product', $params);
-            if ($is_food_product_raw === null || $is_food_product_raw === '') {
+            $product_type = fncValFind('product_type', $params);
+            if (!in_array($product_type, ['food', 'non_food'], true)) {
                 echo json_encode(['sccss' => false, 'msg' => 'Укажите, является ли позиция пищевой продукцией']);
                 exit;
             }
-            $is_food_product = (int)$is_food_product_raw;
         }
 
-        if ((int)$current['is_food_product'] === 1 && $is_food_product === 0) {
+        if ($current['product_type'] === 'food' && $product_type !== 'food') {
             $stmt = fncQuery(
                 "SELECT COUNT(*) AS cnt FROM nomenclature_nutrition nn WHERE nn.nomenclature_id = :id",
                 ['id' => $id]
@@ -759,7 +760,7 @@ switch ($action) {
         $stmt = fncQuery(
             "UPDATE nomenclature
              SET group_id = :group_id, name = :name, display_name = :display_name, description = :description,
-                 unit_id = :unit_id, is_sellable = :is_sellable, is_food_product = :is_food_product,
+                 unit_id = :unit_id, is_sellable = :is_sellable, product_type = :product_type,
                  default_supplier_id = :default_supplier_id, updated_by = :updated_by
              WHERE id = :id",
             [
@@ -769,7 +770,7 @@ switch ($action) {
                 'description'          => $description,
                 'unit_id'              => $unit_id,
                 'is_sellable'          => $is_sellable,
-                'is_food_product'      => $is_food_product,
+                'product_type'         => $product_type,
                 'default_supplier_id'  => $default_supplier_id,
                 'updated_by'           => $user_id,
                 'id'                   => $id,
@@ -786,7 +787,7 @@ switch ($action) {
         $id = (int)($_POST['id'] ?? 0);
         $stmt = fncQuery(
             "SELECT n.id, n.group_id, n.name, n.description, n.unit_id, n.output_quantity, n.bonus_percent,
-                    n.is_online_sale, n.is_delivery_sale, n.is_food_product, n.is_active,
+                    n.is_online_sale, n.is_delivery_sale, n.product_type, n.is_active,
                     u.short_name AS unit_short_name
              FROM nomenclature n
              LEFT JOIN units u ON u.id = n.unit_id
@@ -797,8 +798,6 @@ switch ($action) {
         break;
 
     case 'product_info_form':
-        // Объединяет product_info + groups_list(type=product) для карточки
-        // "Общая информация" товара в один запрос.
         if (!fncCan($perms, 'products.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
@@ -807,7 +806,7 @@ switch ($action) {
 
         $stmt = fncQuery(
             "SELECT n.id, n.group_id, n.name, n.description, n.unit_id, n.output_quantity, n.bonus_percent,
-                    n.is_online_sale, n.is_delivery_sale, n.is_food_product, n.is_active,
+                    n.is_online_sale, n.is_delivery_sale, n.product_type, n.is_active,
                     u.short_name AS unit_short_name
              FROM nomenclature n
              LEFT JOIN units u ON u.id = n.unit_id
@@ -838,31 +837,62 @@ switch ($action) {
         $id              = (int)fncValFind('id', $params);
         $name            = fncValFind('name', $params);
         $group_id        = (int)fncValFind('group_id', $params);
-        $unit_id         = (int)fncValFind('unit_id', $params);
         $description     = fncValFind('description', $params) ?: null;
         $output_quantity = fncValFind('output_quantity', $params) ?: null;
         $bonus_percent   = fncValFind('bonus_percent', $params) ?: null;
+        $product_type    = fncValFind('product_type', $params);
 
-        $is_food_product_raw = fncValFind('is_food_product', $params);
-        if ($is_food_product_raw === null || $is_food_product_raw === '') {
-            echo json_encode(['sccss' => false, 'msg' => 'Укажите, является ли позиция пищевой продукцией']);
+        if (!in_array($product_type, ['food', 'non_food', 'service'], true)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите тип товара']);
             exit;
         }
-        $is_food_product = (int)$is_food_product_raw;
 
-        if (!$id || !$name || !$group_id || !$unit_id) {
+        $stmt = fncQuery("SELECT product_type FROM nomenclature WHERE id = :id", ['id' => $id]);
+        $current = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$current) {
+            echo json_encode(['sccss' => false, 'msg' => 'Товар не найден']);
+            exit;
+        }
+        if ($current['product_type'] === 'food' && $product_type !== 'food') {
+            $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM nomenclature_nutrition WHERE nomenclature_id = :id", ['id' => $id]);
+            $has_nutrition = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] > 0 : false;
+            if ($has_nutrition) {
+                echo json_encode(['sccss' => false, 'msg' => 'Сначала очистите данные КБЖУ на соответствующей вкладке']);
+                exit;
+            }
+        }
+
+        if ($product_type === 'service') {
+            $unit_id = fncGetServiceUnitId();
+            if (!$unit_id) {
+                echo json_encode(['sccss' => false, 'msg' => 'Не настроена единица измерения по умолчанию для услуг']);
+                exit;
+            }
+            $output_quantity = null;
+        } else {
+            $unit_id = (int)fncValFind('unit_id', $params);
+            if (!$unit_id) {
+                echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+                exit;
+            }
+            if ($product_type === 'non_food') {
+                $output_quantity = null;
+            } else {
+                $stmt = fncQuery("SELECT is_float FROM units WHERE id = :id", ['id' => $unit_id]);
+                $unit = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+                if (!$unit) {
+                    echo json_encode(['sccss' => false, 'msg' => 'Некорректная единица измерения']);
+                    exit;
+                }
+                if ($unit['is_float']) {
+                    $output_quantity = null;
+                }
+            }
+        }
+
+        if (!$id || !$name || !$group_id) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
             exit;
-        }
-
-        $stmt = fncQuery("SELECT is_float FROM units WHERE id = :id", ['id' => $unit_id]);
-        $unit = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
-        if (!$unit) {
-            echo json_encode(['sccss' => false, 'msg' => 'Некорректная единица измерения']);
-            exit;
-        }
-        if ($unit['is_float']) {
-            $output_quantity = null;
         }
 
         if ($bonus_percent !== null && ((float)$bonus_percent < 0 || (float)$bonus_percent > 100)) {
@@ -881,7 +911,7 @@ switch ($action) {
             "UPDATE nomenclature
              SET group_id = :group_id, name = :name, unit_id = :unit_id, description = :description,
                  output_quantity = :output_quantity, bonus_percent = :bonus_percent,
-                 is_food_product = :is_food_product, updated_by = :updated_by
+                 product_type = :product_type, updated_by = :updated_by
              WHERE id = :id",
             [
                 'group_id'         => $group_id,
@@ -890,7 +920,7 @@ switch ($action) {
                 'description'      => $description,
                 'output_quantity'  => $output_quantity,
                 'bonus_percent'    => $bonus_percent,
-                'is_food_product'  => $is_food_product,
+                'product_type'     => $product_type,
                 'updated_by'       => $user_id,
                 'id'               => $id,
             ]
@@ -952,6 +982,10 @@ switch ($action) {
         );
         $result = ['sccss' => (bool)$stmt];
         break;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // УПАКОВКИ (nomenclature_packages) — только Номенклатура/ПФ
+    // ═══════════════════════════════════════════════════════════════════════
 
     case 'package_list':
         if (!fncCan($perms, 'nomenclature.manage.view')) {
@@ -1089,6 +1123,10 @@ switch ($action) {
         $result = ['sccss' => (bool)$stmt];
         break;
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // КБЖУ (nomenclature_nutrition) — только Номенклатура/ПФ
+    // ═══════════════════════════════════════════════════════════════════════
+
     case 'nutrition_info':
         if (!fncCan($perms, 'nomenclature.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -1096,7 +1134,7 @@ switch ($action) {
         }
         $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT nn.calories, nn.proteins, nn.fats, nn.carbohydrates, n.is_produced, n.is_food_product, u.is_float AS unit_is_float
+            "SELECT nn.calories, nn.proteins, nn.fats, nn.carbohydrates, n.is_produced, n.product_type, u.is_float AS unit_is_float
              FROM nomenclature n
              LEFT JOIN nomenclature_nutrition nn ON nn.nomenclature_id = n.id
              LEFT JOIN units u ON u.id = n.unit_id
@@ -1122,13 +1160,13 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT n.is_produced, n.is_food_product FROM nomenclature n WHERE n.id = :id", ['id' => $nomenclature_id]);
+        $stmt = fncQuery("SELECT n.is_produced, n.product_type FROM nomenclature n WHERE n.id = :id", ['id' => $nomenclature_id]);
         $nom_check = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
         if ($nom_check && $nom_check['is_produced']) {
             echo json_encode(['sccss' => false, 'msg' => 'КБЖУ полуфабриката рассчитывается автоматически и не редактируется вручную']);
             exit;
         }
-        if ($nom_check && !$nom_check['is_food_product']) {
+        if ($nom_check && $nom_check['product_type'] !== 'food') {
             echo json_encode(['sccss' => false, 'msg' => 'Позиция не является пищевой продукцией']);
             exit;
         }
@@ -1169,6 +1207,10 @@ switch ($action) {
         $stmt = fncQuery("DELETE FROM nomenclature_nutrition WHERE nomenclature_id = :nomenclature_id", ['nomenclature_id' => $nomenclature_id]);
         $result = ['sccss' => (bool)$stmt];
         break;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ПРИНАДЛЕЖНОСТЬ (nomenclature_workstations) — Номенклатура И Товары
+    // ═══════════════════════════════════════════════════════════════════════
 
     case 'affiliation_info':
         if (!fncCan($perms, 'nomenclature.manage.view') && !fncCan($perms, 'products.manage.view')) {
@@ -1262,6 +1304,10 @@ switch ($action) {
         $result = ['sccss' => (bool)$stmt];
         break;
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // СОСТАВ (nomenclature_composition) — только для ПФ
+    // ═══════════════════════════════════════════════════════════════════════
+
     case 'composition_list':
         if (!fncCan($perms, 'nomenclature.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -1339,6 +1385,392 @@ switch ($action) {
             exit;
         }
         $stmt = fncQuery("DELETE FROM nomenclature_composition WHERE id = :id", ['id' => $id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ОПЦИИ (nomenclature_options) — дерево вариантов товара, только Товары
+    // ═══════════════════════════════════════════════════════════════════════
+
+    case 'options_tree':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT no.id, no.parent_id, no.name, no.product_id, n.name AS product_name, n.is_active AS product_is_active
+             FROM nomenclature_options no
+             LEFT JOIN nomenclature n ON n.id = no.product_id
+             WHERE no.nomenclature_id = :nomenclature_id
+             ORDER BY no.name",
+            ['nomenclature_id' => $nomenclature_id]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $by_id = [];
+        foreach ($rows as $row) {
+            $row['children'] = [];
+            $by_id[$row['id']] = $row;
+        }
+        $tree = [];
+        foreach ($by_id as $id => $row) {
+            if ($row['parent_id'] && isset($by_id[$row['parent_id']])) {
+                $by_id[$row['parent_id']]['children'][] = &$by_id[$id];
+            } else {
+                $tree[] = &$by_id[$id];
+            }
+        }
+        unset($row);
+
+        $result = $tree;
+        break;
+
+    case 'option_info':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT id, nomenclature_id, parent_id, name, product_id FROM nomenclature_options WHERE id = :id",
+            ['id' => $id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'new_option':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
+        $parent_id       = (int)fncValFind('parent_id', $params) ?: null;
+        $name            = fncValFind('name', $params);
+        $product_id      = (int)fncValFind('product_id', $params) ?: null;
+
+        if (!$nomenclature_id || !$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите название']);
+            exit;
+        }
+
+        if ($parent_id) {
+            $stmt = fncQuery("SELECT id, product_id FROM nomenclature_options WHERE id = :id AND nomenclature_id = :nomenclature_id", ['id' => $parent_id, 'nomenclature_id' => $nomenclature_id]);
+            $parent = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+            if (!$parent) {
+                echo json_encode(['sccss' => false, 'msg' => 'Некорректный родительский узел']);
+                exit;
+            }
+            if ($parent['product_id']) {
+                echo json_encode(['sccss' => false, 'msg' => 'У этого узла уже привязан товар — сначала отвяжите его, чтобы добавить дочерние опции']);
+                exit;
+            }
+        }
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO nomenclature_options (nomenclature_id, parent_id, name, product_id, created_by)
+             VALUES (:nomenclature_id, :parent_id, :name, :product_id, :created_by)",
+            [
+                'nomenclature_id' => $nomenclature_id,
+                'parent_id'       => $parent_id,
+                'name'            => $name,
+                'product_id'      => $product_id,
+                'created_by'      => $user_id,
+            ]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось создать опцию'];
+        break;
+
+    case 'upd_option':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id         = (int)fncValFind('id', $params);
+        $name       = fncValFind('name', $params);
+        $product_id = (int)fncValFind('product_id', $params) ?: null;
+
+        if (!$id || !$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите название']);
+            exit;
+        }
+
+        if ($product_id) {
+            $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM nomenclature_options WHERE parent_id = :id", ['id' => $id]);
+            $children_count = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] : 0;
+            if ($children_count > 0) {
+                echo json_encode(['sccss' => false, 'msg' => 'Нельзя привязать товар к узлу, у которого есть дочерние опции']);
+                exit;
+            }
+        }
+
+        $stmt = fncQuery(
+            "UPDATE nomenclature_options SET name = :name, product_id = :product_id, updated_by = :updated_by WHERE id = :id",
+            ['name' => $name, 'product_id' => $product_id, 'updated_by' => $user_id, 'id' => $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'del_option':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указан узел']);
+            exit;
+        }
+
+        $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM nomenclature_options WHERE parent_id = :id", ['id' => $id]);
+        $children_count = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] : 0;
+        if ($children_count > 0) {
+            echo json_encode(['sccss' => false, 'msg' => 'Сначала удалите дочерние опции (' . $children_count . ')']);
+            exit;
+        }
+
+        $stmt = fncQuery("DELETE FROM nomenclature_options WHERE id = :id", ['id' => $id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'option_products_available':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $exclude_id = (int)($_POST['exclude_option_id'] ?? 0);
+
+        $sql = "SELECT n.id, n.name
+                FROM nomenclature n
+                WHERE n.is_sellable = 1
+                  AND n.is_active = 1
+                  AND n.id NOT IN (SELECT product_id FROM nomenclature_options WHERE product_id IS NOT NULL";
+        $binds = [];
+        if ($exclude_id) {
+            $sql .= " AND id != :exclude_id";
+            $binds['exclude_id'] = $exclude_id;
+        }
+        $sql .= ") ORDER BY n.name";
+
+        $stmt = fncQuery($sql, $binds);
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ПОЖЕЛАНИЯ (wishes, nomenclature_wishes) — только Товары
+    // ═══════════════════════════════════════════════════════════════════════
+
+    case 'wishes_list':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $status = fncValFind('status', $params) ?: ($_POST['status'] ?? 'active');
+
+        $where = [];
+        if ($status === 'active') {
+            $where[] = "w.is_active = 1";
+        }
+
+        $sql = "SELECT w.id, w.name, w.is_active FROM wishes w";
+        if ($where) {
+            $sql .= " WHERE " . implode(' AND ', $where);
+        }
+        $sql .= " ORDER BY w.name";
+
+        $stmt = fncQuery($sql);
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    case 'wish_info':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery("SELECT w.id, w.name, w.is_active FROM wishes w WHERE w.id = :id", ['id' => $id]);
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'new_wish':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $name = fncValFind('name', $params);
+        if (!$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите название']);
+            exit;
+        }
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO wishes (name, created_by) VALUES (:name, :created_by)",
+            ['name' => $name, 'created_by' => $user_id]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось создать пожелание'];
+        break;
+
+    case 'upd_wish':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id   = (int)fncValFind('id', $params);
+        $name = fncValFind('name', $params);
+        if (!$id || !$name) {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите название']);
+            exit;
+        }
+        $stmt = fncQuery(
+            "UPDATE wishes SET name = :name, updated_by = :updated_by WHERE id = :id",
+            ['name' => $name, 'updated_by' => $user_id, 'id' => $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'archive_wish':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указано пожелание']);
+            exit;
+        }
+        $stmt = fncQuery(
+            "UPDATE wishes SET is_active = 0, updated_by = :updated_by WHERE id = :id",
+            ['updated_by' => $user_id, 'id' => $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'restore_wish':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указано пожелание']);
+            exit;
+        }
+        $stmt = fncQuery(
+            "UPDATE wishes SET is_active = 1, updated_by = :updated_by WHERE id = :id",
+            ['updated_by' => $user_id, 'id' => $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'new_group_wish':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $group_id = (int)fncValFind('group_id', $params);
+        $wish_id  = (int)fncValFind('wish_id', $params);
+        if (!$group_id || !$wish_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Выберите пожелание']);
+            exit;
+        }
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO nomenclature_wishes (wish_id, group_id, created_by) VALUES (:wish_id, :group_id, :created_by)",
+            ['wish_id' => $wish_id, 'group_id' => $group_id, 'created_by' => $user_id]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось добавить пожелание'];
+        break;
+
+    case 'del_group_wish':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указано пожелание']);
+            exit;
+        }
+        $stmt = fncQuery("DELETE FROM nomenclature_wishes WHERE id = :id AND group_id IS NOT NULL", ['id' => $id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'group_wishes_list':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $group_id = (int)($_POST['group_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT nw.id, w.id AS wish_id, w.name
+             FROM nomenclature_wishes nw
+             LEFT JOIN wishes w ON w.id = nw.wish_id
+             WHERE nw.group_id = :group_id AND w.is_active = 1
+             ORDER BY w.name",
+            ['group_id' => $group_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    case 'group_wishes_available':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $group_id = (int)($_POST['group_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT w.id, w.name
+             FROM wishes w
+             WHERE w.is_active = 1
+               AND w.id NOT IN (
+                   SELECT nw.wish_id FROM nomenclature_wishes nw WHERE nw.group_id = :group_id
+               )
+             ORDER BY w.name",
+            ['group_id' => $group_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+    case 'new_nomenclature_wish':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
+        $wish_id         = (int)fncValFind('wish_id', $params);
+        if (!$nomenclature_id || !$wish_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Выберите пожелание']);
+            exit;
+        }
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO nomenclature_wishes (wish_id, nomenclature_id, created_by) VALUES (:wish_id, :nomenclature_id, :created_by)",
+            ['wish_id' => $wish_id, 'nomenclature_id' => $nomenclature_id, 'created_by' => $user_id]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось добавить пожелание'];
+        break;
+
+    case 'del_nomenclature_wish':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указано пожелание']);
+            exit;
+        }
+        $stmt = fncQuery("DELETE FROM nomenclature_wishes WHERE id = :id AND nomenclature_id IS NOT NULL", ['id' => $id]);
         $result = ['sccss' => (bool)$stmt];
         break;
 

@@ -56,4 +56,4 @@ fncFlattenGroupOptions($tree, 0, [], $group_options);
     <?php endif; ?>
 </div>
 <div id="divChptContent"></div>
-<script src="./_books_noms/js/nomenclature.js?2026081300"></script>
+<script src="./_books_noms/js/nomenclature.js?2026081800"></script>

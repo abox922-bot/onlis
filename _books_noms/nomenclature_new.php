@@ -54,11 +54,11 @@ $units = $form['units'];
         <div class="col-12 mb-3">
             <div class="form-group-label mb-2">Пищевая продукция</div>
             <div class="btn-group" role="group">
-                <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodYes" value="1">
-                <label class="btn" for="radioFoodYes">Да</label>
+                <input type="radio" class="btn-check" name="productTypeRadio" id="radioFood" value="food">
+                <label class="btn" for="radioFood">Да</label>
 
-                <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodNo" value="0">
-                <label class="btn" for="radioFoodNo">Нет</label>
+                <input type="radio" class="btn-check" name="productTypeRadio" id="radioNonFood" value="non_food">
+                <label class="btn" for="radioNonFood">Нет</label>
             </div>
         </div>
 

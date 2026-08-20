@@ -27,6 +27,9 @@ foreach ($units as $u) {
     }
 }
 
+$show_unit   = $info['product_type'] !== 'service';
+$show_output = $info['product_type'] === 'food' && !$unit_is_float;
+
 $group_options = [];
 fncFlattenGroupOptions($form['groups'], 0, [], $group_options);
 
@@ -68,6 +71,20 @@ $can_manage = fncCan($result['rules'], 'products.manage');
     <div class="row">
 
         <div class="col-12 mb-3">
+            <div class="form-group-label mb-2">Тип товара</div>
+            <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="productTypeRadio" id="radioFood" value="food" <?php echo ($info['product_type'] === 'food') ? 'checked' : ''; ?>>
+                <label class="btn" for="radioFood">Пищевой</label>
+
+                <input type="radio" class="btn-check" name="productTypeRadio" id="radioNonFood" value="non_food" <?php echo ($info['product_type'] === 'non_food') ? 'checked' : ''; ?>>
+                <label class="btn" for="radioNonFood">Непищевой</label>
+
+                <input type="radio" class="btn-check" name="productTypeRadio" id="radioService" value="service" <?php echo ($info['product_type'] === 'service') ? 'checked' : ''; ?>>
+                <label class="btn" for="radioService">Услуга</label>
+            </div>
+        </div>
+        
+        <div class="col-12 mb-3">
             <label for="inpName" class="my-input-label">Название</label>
             <input type="text"
                 class="form-in form-inp"
@@ -91,9 +108,9 @@ $can_manage = fncCan($result['rules'], 'products.manage');
             </select>
         </div>
 
-        <div class="col-12 <?php echo $unit_is_float ? '' : 'col-md-6'; ?> mb-3" id="divUnitWrap">
+        <div class="col-12 <?php echo $show_output ? 'col-md-6' : ''; ?> mb-3 <?php echo $show_unit ? '' : 'd-none'; ?>" id="divUnitWrap">
             <label for="slctUnit" class="my-input-label">Единица измерения</label>
-            <select class="form-in form-inp" id="slctUnit" data-name="unit_id" data-type="select" data-required="1">
+            <select class="form-in form-inp" id="slctUnit" data-name="unit_id" data-type="select" <?php echo $show_unit ? 'data-required="1"' : ''; ?>>
                 <option value="0">Выберите единицу</option>
                 <?php foreach ($units as $unit): ?>
                     <option value="<?php echo (int)$unit['id']; ?>"
@@ -105,7 +122,7 @@ $can_manage = fncCan($result['rules'], 'products.manage');
             </select>
         </div>
 
-        <div class="col-12 col-md-6 mb-3 <?php echo $unit_is_float ? 'd-none' : ''; ?>" id="divOutputQuantityWrap">
+        <div class="col-12 col-md-6 mb-3 <?php echo $show_output ? '' : 'd-none'; ?>" id="divOutputQuantityWrap">
             <label for="inpOutputQuantity" class="my-input-label">Выход (гр./мл.)</label>
             <input type="text"
                 class="form-in form-inp"
@@ -135,17 +152,6 @@ $can_manage = fncCan($result['rules'], 'products.manage');
                 data-type="text"><?php echo htmlspecialchars($info['description'] ?? ''); ?></textarea>
         </div>
 
-        <div class="col-12 mb-3">
-            <div class="form-group-label mb-2">Пищевая продукция</div>
-            <div class="btn-group" role="group">
-                <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodYes" value="1" <?php echo ((int)$info['is_food_product'] === 1) ? 'checked' : ''; ?>>
-                <label class="btn" for="radioFoodYes">Да</label>
-
-                <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodNo" value="0" <?php echo ((int)$info['is_food_product'] === 0) ? 'checked' : ''; ?>>
-                <label class="btn" for="radioFoodNo">Нет</label>
-            </div>
-        </div>
-
         <?php if (!$info['is_active']): ?>
             <div class="col-12 mb-3">
                 <div class="form-context">Товар в архиве</div>
@@ -171,4 +177,4 @@ $can_manage = fncCan($result['rules'], 'products.manage');
         <?php endif; ?>
     </div>
 </form>
-<script src="./_books_products/js/products_info_general.js?2026081603"></script>
+<script src="./_books_products/js/products_info_general.js?2026081800"></script>

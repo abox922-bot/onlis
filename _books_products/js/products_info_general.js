@@ -2,17 +2,32 @@ $(function(){
 
     let product_id = +$("#inpProductGeneralId").val();
 
-    $("#slctUnit").off("change").on("change", function(){
-        let is_float = +$(this).find("option:selected").data("is-float");
-        if (is_float) {
+    function fncUpdateOutputVisibility() {
+        let type_value = $("input[name='productTypeRadio']:checked").val();
+        let unit_is_float = +$("#slctUnit").find("option:selected").data("is-float");
+
+        if (type_value === "service") {
+            $("#divUnitWrap").addClass("d-none");
+            $("#slctUnit").removeAttr("data-required");
             $("#divOutputQuantityWrap").addClass("d-none");
             $("#inpOutputQuantity").val("");
-            $("#divUnitWrap").removeClass("col-md-6");
         } else {
-            $("#divOutputQuantityWrap").removeClass("d-none");
-            $("#divUnitWrap").addClass("col-md-6");
+            $("#divUnitWrap").removeClass("d-none");
+            $("#slctUnit").attr("data-required", "1");
+
+            if (type_value === "food" && !unit_is_float) {
+                $("#divOutputQuantityWrap").removeClass("d-none");
+                $("#divUnitWrap").addClass("col-md-6");
+            } else {
+                $("#divOutputQuantityWrap").addClass("d-none");
+                $("#inpOutputQuantity").val("");
+                $("#divUnitWrap").removeClass("col-md-6");
+            }
         }
-    });
+    }
+
+    $("input[name='productTypeRadio']").off("change").on("change", fncUpdateOutputVisibility);
+    $("#slctUnit").off("change").on("change", fncUpdateOutputVisibility);
 
     $("#chkOnlineSale").off("change").on("change", function(){
         let $chk = $(this);
@@ -75,15 +90,15 @@ $(function(){
         e.preventDefault();
         e.stopImmediatePropagation();
 
-        let food_product_value = $("input[name='foodProductRadio']:checked").val();
-        if (food_product_value === undefined) {
-            fncShowFormError("Укажите, является ли позиция пищевой продукцией");
+        let product_type_value = $("input[name='productTypeRadio']:checked").val();
+        if (product_type_value === undefined) {
+            fncShowFormError("Укажите тип товара");
             return;
         }
 
         let params_arr = [];
         params_arr.push({name: "id", value: product_id});
-        params_arr.push({name: "is_food_product", value: food_product_value});
+        params_arr.push({name: "product_type", value: product_type_value});
         let crt_arr = fncParamsCrt(".form-inp", params_arr);
         if (crt_arr["all_good"]) {
             $("#btnSave").prop("disabled", true);

@@ -32,18 +32,30 @@ $(function(){
             main_modal.show();
             let path = new URL("./_books_products/products_new.php", url);
             $("#mainModalBody").load(path.href, function(){
+
+                $("input[name='productTypeRadio']").off("change").on("change", function(){
+                    let type_value = $(this).val();
+                    if (type_value === "service") {
+                        $("#divUnitWrap").addClass("d-none");
+                        $("#slctUnit").removeAttr("data-required");
+                    } else {
+                        $("#divUnitWrap").removeClass("d-none");
+                        $("#slctUnit").attr("data-required", "1");
+                    }
+                });
+
                 $("#formNew").submit(function(e){
                     e.preventDefault();
                     e.stopImmediatePropagation();
 
-                    let food_product_value = $("input[name='foodProductRadio']:checked").val();
-                    if (food_product_value === undefined) {
-                        fncShowFormError("Укажите, является ли позиция пищевой продукцией");
+                    let product_type_value = $("input[name='productTypeRadio']:checked").val();
+                    if (product_type_value === undefined) {
+                        fncShowFormError("Укажите тип товара");
                         return;
                     }
 
                     let params_arr = [];
-                    params_arr.push({name: "is_food_product", value: food_product_value});
+                    params_arr.push({name: "product_type", value: product_type_value});
                     let crt_arr = fncParamsCrt(".form-inp", params_arr);
                     if (crt_arr["all_good"]) {
                         $("#btnSave").prop("disabled", true);

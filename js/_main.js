@@ -456,6 +456,13 @@ function fncInitObjectMainForm(object_id, onDone) {
 }
 //==============================================================================
 function fncMarkItemEdited(item_id) {
-    $(`.itemTr[data-id="${item_id}"]`).addClass("item-edited");
+    let $row = $(`.itemTr[data-id="${item_id}"]`);
+    $row.addClass("item-edited");
+    setTimeout(function(){
+        $row.addClass("item-edited-fading");
+        $row.one("transitionend", function(){
+            $row.removeClass("item-edited item-edited-fading");
+        });
+    }, 7000);
 }
 //==============================================================================

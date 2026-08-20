@@ -60,13 +60,13 @@ fncFlattenGroupOptions($form['groups'], 0, [], $group_options);
             <div class="col-12 mb-3">
                 <div class="form-group-label mb-2">Пищевая продукция</div>
                 <div class="btn-group" role="group">
-                    <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodYes" value="1" <?php echo ((int)$info['is_food_product'] === 1) ? 'checked' : ''; ?>>
-                    <label class="btn" for="radioFoodYes">Да</label>
+                    <input type="radio" class="btn-check" name="productTypeRadio" id="radioFood" value="food" <?php echo ($info['product_type'] === 'food') ? 'checked' : ''; ?>>
+                    <label class="btn" for="radioFood">Да</label>
 
-                    <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodNo" value="0"
-                        <?php echo ((int)$info['is_food_product'] === 0) ? 'checked' : ''; ?>
+                    <input type="radio" class="btn-check" name="productTypeRadio" id="radioNonFood" value="non_food"
+                        <?php echo ($info['product_type'] === 'non_food') ? 'checked' : ''; ?>
                         <?php echo $has_nutrition_data ? 'disabled' : ''; ?>>
-                    <label class="btn" for="radioFoodNo">Нет</label>
+                    <label class="btn" for="radioNonFood">Нет</label>
                 </div>
                 <?php if ($has_nutrition_data): ?>
                     <div class="text-muted mt-1">
@@ -148,4 +148,4 @@ fncFlattenGroupOptions($form['groups'], 0, [], $group_options);
         <?php endif; ?>
     </div>
 </form>
-<script src="./_books_noms/js/nomenclature_info_general.js?2026081601"></script>
+<script src="./_books_noms/js/nomenclature_info_general.js?2026081800"></script>

@@ -31,7 +31,7 @@ $units = $form['units'];
                 autocomplete="off">
         </div>
 
-        <div class="col-12 col-md-6 mb-3">
+        <div class="col-12 mb-3">
             <label for="slctGroup" class="my-input-label">Группа</label>
             <select class="form-in form-inp" id="slctGroup" data-name="group_id" data-type="select" data-required="1">
                 <option value="0">Выберите группу</option>
@@ -41,7 +41,21 @@ $units = $form['units'];
             </select>
         </div>
 
-        <div class="col-12 col-md-6 mb-3">
+        <div class="col-12 mb-3">
+            <div class="form-group-label mb-2">Тип товара</div>
+            <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="productTypeRadio" id="radioFood" value="food">
+                <label class="btn" for="radioFood">Пищевой</label>
+
+                <input type="radio" class="btn-check" name="productTypeRadio" id="radioNonFood" value="non_food">
+                <label class="btn" for="radioNonFood">Непищевой</label>
+
+                <input type="radio" class="btn-check" name="productTypeRadio" id="radioService" value="service">
+                <label class="btn" for="radioService">Услуга</label>
+            </div>
+        </div>
+
+        <div class="col-12 mb-3" id="divUnitWrap">
             <label for="slctUnit" class="my-input-label">Единица измерения</label>
             <select class="form-in form-inp" id="slctUnit" data-name="unit_id" data-type="select" data-required="1">
                 <option value="0">Выберите единицу</option>
@@ -49,17 +63,6 @@ $units = $form['units'];
                     <option value="<?php echo (int)$unit['id']; ?>"><?php echo htmlspecialchars($unit['name']); ?></option>
                 <?php endforeach; ?>
             </select>
-        </div>
-
-        <div class="col-12 mb-3">
-            <div class="form-group-label mb-2">Пищевая продукция</div>
-            <div class="btn-group" role="group">
-                <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodYes" value="1">
-                <label class="btn" for="radioFoodYes">Да</label>
-
-                <input type="radio" class="btn-check" name="foodProductRadio" id="radioFoodNo" value="0">
-                <label class="btn" for="radioFoodNo">Нет</label>
-            </div>
         </div>
 
         <div class="col-12 mt-2 d-none" id="divFormError">
