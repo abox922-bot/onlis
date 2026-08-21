@@ -449,7 +449,9 @@ switch ($action) {
                     WHERE " . implode(' AND ', $where) . "
                     ORDER BY n.name";
         } elseif ($section === 'product') {
-            $sql = "SELECT n.id, n.name, n.is_active, n.is_online_sale, ng.name AS group_name
+            $where[] = "n.id NOT IN (SELECT product_id FROM nomenclature_options WHERE product_id IS NOT NULL)";
+            $sql = "SELECT n.id, n.name, n.is_active, n.is_online_sale, ng.name AS group_name,
+                           (SELECT COUNT(*) FROM nomenclature_options no WHERE no.nomenclature_id = n.id) AS options_count
                     FROM nomenclature n
                     LEFT JOIN nomenclature_groups ng ON ng.id = n.group_id
                     WHERE " . implode(' AND ', $where) . "
@@ -1454,6 +1456,11 @@ switch ($action) {
             exit;
         }
 
+        if ($product_id && $product_id === $nomenclature_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нельзя привязать товар сам к себе']);
+            exit;
+        }
+
         if ($parent_id) {
             $stmt = fncQuery("SELECT id, product_id FROM nomenclature_options WHERE id = :id AND nomenclature_id = :nomenclature_id", ['id' => $parent_id, 'nomenclature_id' => $nomenclature_id]);
             $parent = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
@@ -1499,6 +1506,13 @@ switch ($action) {
         }
 
         if ($product_id) {
+            $stmt = fncQuery("SELECT nomenclature_id FROM nomenclature_options WHERE id = :id", ['id' => $id]);
+            $option_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+            if ($option_row && (int)$option_row['nomenclature_id'] === $product_id) {
+                echo json_encode(['sccss' => false, 'msg' => 'Нельзя привязать товар сам к себе']);
+                exit;
+            }
+
             $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM nomenclature_options WHERE parent_id = :id", ['id' => $id]);
             $children_count = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] : 0;
             if ($children_count > 0) {
@@ -1541,7 +1555,8 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
-        $exclude_id = (int)($_POST['exclude_option_id'] ?? 0);
+        $exclude_id      = (int)($_POST['exclude_option_id'] ?? 0);
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
 
         $sql = "SELECT n.id, n.name
                 FROM nomenclature n
@@ -1553,10 +1568,46 @@ switch ($action) {
             $sql .= " AND id != :exclude_id";
             $binds['exclude_id'] = $exclude_id;
         }
-        $sql .= ") ORDER BY n.name";
+        $sql .= ")";
+        if ($nomenclature_id) {
+            $sql .= " AND n.id != :nomenclature_id";
+            $binds['nomenclature_id'] = $nomenclature_id;
+        }
+        $sql .= " ORDER BY n.name";
 
         $stmt = fncQuery($sql, $binds);
         $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        break;
+
+
+    case 'option_parents_available':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT id, parent_id, name FROM nomenclature_options WHERE nomenclature_id = :nomenclature_id AND product_id IS NULL ORDER BY name",
+            ['nomenclature_id' => $nomenclature_id]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $by_id = [];
+        foreach ($rows as $row) {
+            $row['children'] = [];
+            $by_id[$row['id']] = $row;
+        }
+        $tree = [];
+        foreach ($by_id as $id => $row) {
+            if ($row['parent_id'] && isset($by_id[$row['parent_id']])) {
+                $by_id[$row['parent_id']]['children'][] = &$by_id[$id];
+            } else {
+                $tree[] = &$by_id[$id];
+            }
+        }
+        unset($row);
+
+        $result = $tree;
         break;
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -1772,6 +1823,29 @@ switch ($action) {
         }
         $stmt = fncQuery("DELETE FROM nomenclature_wishes WHERE id = :id AND nomenclature_id IS NOT NULL", ['id' => $id]);
         $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'product_role':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM nomenclature_options WHERE nomenclature_id = :id", ['id' => $id]);
+        $is_parent = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] > 0 : false;
+
+        $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM nomenclature_options WHERE product_id = :id", ['id' => $id]);
+        $is_option = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] > 0 : false;
+
+        $role = 'standalone';
+        if ($is_parent) {
+            $role = 'parent';
+        } elseif ($is_option) {
+            $role = 'option';
+        }
+
+        $result = ['role' => $role];
         break;
 
     default:

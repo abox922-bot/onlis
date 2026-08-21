@@ -95,14 +95,43 @@ function listLoadFunction() {
         $(".itemTr").off("click").on("click", function(){
             infoLoadFunction(+$(this).data("id"));
         });
+        $(".tree-toggle[data-options-toggle]").off("click").on("click", function(e){
+            e.stopPropagation();
+            fncToggleProductOptions($(this));
+        });
         fncCheckNewItem(function(id){ infoLoadFunction(id, "general"); });
     });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function fncToggleProductOptions($toggle) {
+    let nomenclature_id = $toggle.data("options-toggle");
+    let $container = $(`tr[data-options-container="${nomenclature_id}"]`);
+    let $content = $(`[data-options-content="${nomenclature_id}"]`);
+
+    $toggle.toggleClass("bi-chevron-right bi-chevron-down");
+    $container.toggleClass("d-none");
+
+    if (!$container.hasClass("d-none") && $content.is(":empty")) {
+        $content.html(spnr_loading);
+        let path = new URL("./_books_products/products_list_options.php", url);
+        $content.load(path.href, {nomenclature_id: nomenclature_id}, function(){
+            $(this).find(".itemOptionName").off("click").on("click", function(){
+                infoLoadFunction(+$(this).data("id"));
+            });
+            $(this).find(".tree-toggle:not([data-options-toggle])").off("click").on("click", function(e){
+                e.stopPropagation();
+                fncToggleOptionNode($(this));
+            });
+        });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function infoLoadFunction(item_id, target = "general") {
-    let item_name = $(`.itemName[data-id="${item_id}"]`).first().text().trim();
+    let item_name = $(`.itemName[data-id="${item_id}"], .itemOptionName[data-id="${item_id}"]`).first().text().trim();
     $("#mainModalBody").html(spnr_loading);
     $("#mainModalLabel").html(item_name);
     fncHideFormError();

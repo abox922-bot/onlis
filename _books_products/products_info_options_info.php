@@ -15,7 +15,7 @@ if (!is_array($info) || empty($info)) {
     exit;
 }
 
-$products = send_request(array_merge($ses_info, ['action' => 'option_products_available', 'exclude_option_id' => $id]), 'noms');
+$products = send_request(array_merge($ses_info, ['action' => 'option_products_available', 'exclude_option_id' => $id, 'nomenclature_id' => $info['nomenclature_id']]), 'noms');
 if (!is_array($products) || isset($products['sccss'])) {
     $products = [];
 }

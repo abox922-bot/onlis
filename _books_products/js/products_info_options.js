@@ -2,17 +2,9 @@ $(function(){
 
     let nomenclature_id = +$("#inpOptionsNomenclatureId").val();
 
-    if (window.canDo && canDo('products.manage')) {
-        $("#btnAddRootOption").off("click").on("click", function(){
-            fncOpenOptionForm(nomenclature_id, 0);
-        });
-
-        $(".btn-add-option-child").off("click").on("click", function(e){
-            e.stopPropagation();
-            let parent_id = $(this).data("parent-id");
-            fncOpenOptionForm(nomenclature_id, parent_id);
-        });
-    }
+    $("#btnAddOption").off("click").on("click", function(){
+        fncOpenOptionForm(nomenclature_id);
+    });
 
     $(".tree-toggle").off("click").on("click", function(e){
         e.stopPropagation();
@@ -20,11 +12,6 @@ $(function(){
     });
 
     $(".itemOptionName").off("click").on("click", function(){
-        let product_id = $(this).data("id");
-        infoLoadFunction(product_id, "general");
-    });
-
-    $(".optionGroupName").off("click").on("click", function(){
         let option_id = $(this).data("id");
         fncOpenOptionInfo(option_id, nomenclature_id);
     });
@@ -33,25 +20,17 @@ $(function(){
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function fncToggleOptionNode($toggle) {
-    $toggle.toggleClass("bi-chevron-right bi-chevron-down");
-    $toggle.closest(".tree-node").children(".tree-children").toggleClass("d-none");
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-function fncOpenOptionForm(nomenclature_id, parent_id) {
+function fncOpenOptionForm(nomenclature_id) {
     $("#modalOffcanvasLabel").html("Новая опция");
     $("#modalOffcanvasBody").html(spnr_loading);
     modalOffcanvas.show();
     let path = new URL("./_books_products/products_info_options_new.php", url);
-    $("#modalOffcanvasBody").load(path.href, {nomenclature_id: nomenclature_id, parent_id: parent_id}, function(){
+    $("#modalOffcanvasBody").load(path.href, {nomenclature_id: nomenclature_id}, function(){
         $("#formOptionNew").submit(function(e){
             e.preventDefault();
             e.stopImmediatePropagation();
             let params_arr = [];
             params_arr.push({name: "nomenclature_id", value: nomenclature_id});
-            params_arr.push({name: "parent_id", value: parent_id});
             let crt_arr = fncParamsCrt(".form-inp", params_arr);
             if (crt_arr["all_good"]) {
                 $("#btnSave").prop("disabled", true);

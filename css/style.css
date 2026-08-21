@@ -608,10 +608,22 @@ button:disabled {
     border-left: 1px solid #dcdcdc;
 }
 
+.table-hover tbody tr.tree-options-container:hover td {
+    background-color: #fff !important;
+}
+
+.table-hover tbody tr.tree-options-container td {
+    background-color: var(--bg-hover) !important;
+}
+
 .tree-name-wrap {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+.tree-name-wrap-options {
+    margin-left: 6px;
 }
 
 .tree-row-archived .itemName {
@@ -720,6 +732,18 @@ button:disabled {
     .custom-dropdown {
         flex: 1 0 100%;
         max-width: 100%;
+    }
+    .btn-group {
+        display: flex;
+        width: 100%;
+    }
+    .btn-group .btn {
+        flex: 1 1 0;
+        padding-left: 8px;
+        padding-right: 8px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 }
 

@@ -49,4 +49,4 @@ fncFlattenGroupOptions($tree, 0, [], $group_options);
     <?php endif; ?>
 </div>
 <div id="divChptContent"></div>
-<script src="./_books_products/js/products.js?2026081800"></script>
+<script src="./_books_products/js/products.js?2026082101"></script>

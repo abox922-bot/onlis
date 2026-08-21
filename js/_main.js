@@ -466,3 +466,8 @@ function fncMarkItemEdited(item_id) {
     }, 7000);
 }
 //==============================================================================
+function fncToggleOptionNode($toggle) {
+    $toggle.toggleClass("bi-chevron-right bi-chevron-down");
+    $toggle.closest(".tree-node").children(".tree-children").toggleClass("d-none");
+}
+//==============================================================================

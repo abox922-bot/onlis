@@ -1,6 +1,7 @@
 <?php
 require_once('../app/includes/session_guard.php');
 fncRequireSession();
+require_once('../modules_fncs.php');
 
 $ses_info = [
     '_onlis_id' => $_COOKIE['_onlis_id'],
@@ -8,15 +9,20 @@ $ses_info = [
 ];
 
 $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
-$parent_id       = (int)($_POST['parent_id'] ?? 0);
 
-$products = send_request(array_merge($ses_info, ['action' => 'option_products_available']), 'noms');
+$products = send_request(array_merge($ses_info, ['action' => 'option_products_available', 'nomenclature_id' => $nomenclature_id]), 'noms');
 if (!is_array($products) || isset($products['sccss'])) {
     $products = [];
 }
+
+$parents_tree = send_request(array_merge($ses_info, ['action' => 'option_parents_available', 'nomenclature_id' => $nomenclature_id]), 'noms');
+if (!is_array($parents_tree) || isset($parents_tree['sccss'])) {
+    $parents_tree = [];
+}
+$parent_options = [];
+fncFlattenGroupOptions($parents_tree, 0, [], $parent_options);
 ?>
 <input type="hidden" id="inpOptionNomenclatureId" value="<?php echo $nomenclature_id; ?>">
-<input type="hidden" id="inpOptionParentId" value="<?php echo $parent_id; ?>">
 <form id="formOptionNew">
     <div class="row">
         <div class="col-12 mb-3">
@@ -28,6 +34,16 @@ if (!is_array($products) || isset($products['sccss'])) {
                 data-type="text"
                 data-required="1"
                 autocomplete="off">
+        </div>
+
+        <div class="col-12 mb-3">
+            <label for="slctOptionParent" class="my-input-label">Родитель</label>
+            <select class="form-in form-inp" id="slctOptionParent" data-name="parent_id">
+                <option value="0">Без родителя</option>
+                <?php foreach ($parent_options as $opt): ?>
+                    <option value="<?php echo (int)$opt['id']; ?>"><?php echo htmlspecialchars($opt['label']); ?></option>
+                <?php endforeach; ?>
+            </select>
         </div>
 
         <div class="col-12 mb-3">
