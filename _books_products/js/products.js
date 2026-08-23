@@ -93,6 +93,7 @@ function listLoadFunction() {
     $("#divChptContent").load(path.href, {group_id: group_id, status: status}, function(){
         searchFunction();
         $(".itemTr").off("click").on("click", function(){
+            fncCollapseAllProductOptions();
             infoLoadFunction(+$(this).data("id"));
         });
         $(".tree-toggle[data-options-toggle]").off("click").on("click", function(e){
@@ -105,15 +106,30 @@ function listLoadFunction() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+function fncCollapseAllProductOptions() {
+    $(".product-row-wrap.is-expanded").removeClass("is-expanded");
+    $("[data-options-container]").addClass("d-none");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function fncToggleProductOptions($toggle) {
     let nomenclature_id = $toggle.data("options-toggle");
-    let $container = $(`tr[data-options-container="${nomenclature_id}"]`);
+    let $wrap = $(`[data-product-wrap="${nomenclature_id}"]`);
+    let $container = $(`[data-options-container="${nomenclature_id}"]`);
     let $content = $(`[data-options-content="${nomenclature_id}"]`);
+    let is_opening = $container.hasClass("d-none");
 
-    $toggle.toggleClass("bi-chevron-right bi-chevron-down");
-    $container.toggleClass("d-none");
+    fncCollapseAllProductOptions();
 
-    if (!$container.hasClass("d-none") && $content.is(":empty")) {
+    if (!is_opening) {
+        return;
+    }
+
+    $wrap.addClass("is-expanded");
+    $container.removeClass("d-none");
+
+    if ($content.is(":empty")) {
         $content.html(spnr_loading);
         let path = new URL("./_books_products/products_list_options.php", url);
         $content.load(path.href, {nomenclature_id: nomenclature_id}, function(){
@@ -123,6 +139,10 @@ function fncToggleProductOptions($toggle) {
             $(this).find(".tree-toggle:not([data-options-toggle])").off("click").on("click", function(e){
                 e.stopPropagation();
                 fncToggleOptionNode($(this));
+            });
+            $(this).find(".optionGroupToggleName").off("click").on("click", function(){
+                let $toggle = $(this).closest(".tree-row").find(".tree-toggle");
+                fncToggleOptionNode($toggle);
             });
         });
     }

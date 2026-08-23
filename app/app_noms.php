@@ -1401,7 +1401,8 @@ switch ($action) {
         }
         $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
         $stmt = fncQuery(
-            "SELECT no.id, no.parent_id, no.name, no.product_id, n.name AS product_name, n.is_active AS product_is_active
+            "SELECT no.id, no.parent_id, no.name, no.product_id, n.name AS product_name,
+                    n.is_active AS product_is_active, n.is_online_sale AS product_is_online_sale
              FROM nomenclature_options no
              LEFT JOIN nomenclature n ON n.id = no.product_id
              WHERE no.nomenclature_id = :nomenclature_id
@@ -1846,6 +1847,174 @@ switch ($action) {
         }
 
         $result = ['role' => $role];
+        break;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ПОЖЕЛАНИЯ (wishes, nomenclature_wishes) — только Товары
+    // ═══════════════════════════════════════════════════════════════════════
+
+    case 'product_composition_list':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT nc.id, n.id AS ingredient_id, n.name, nc.quantity, nc.is_critical, nc.is_visible,
+                    n.is_purchased, n.is_produced, n.product_type,
+                    u.short_name AS unit_short_name, u.is_float AS unit_is_float
+             FROM nomenclature_composition nc
+             LEFT JOIN nomenclature n ON n.id = nc.ingredient_id
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE nc.nomenclature_id = :nomenclature_id
+             ORDER BY n.name",
+            ['nomenclature_id' => $nomenclature_id]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $groups = [
+            ['key' => 'food',     'title' => 'Продукты',           'items' => []],
+            ['key' => 'produced', 'title' => 'Полуфабрикаты',      'items' => []],
+            ['key' => 'other',    'title' => 'Упаковка и прочее',  'items' => []],
+        ];
+
+        foreach ($rows as $row) {
+            $row['quantity_display'] = $row['unit_is_float'] ? $row['quantity'] : (string)(int)$row['quantity'];
+
+            if (!empty($row['is_produced'])) {
+                $groups[1]['items'][] = $row;
+            } elseif (!empty($row['is_purchased']) && $row['product_type'] === 'food') {
+                $groups[0]['items'][] = $row;
+            } else {
+                $groups[2]['items'][] = $row;
+            }
+        }
+
+        $result = array_values(array_filter($groups, fn($g) => !empty($g['items'])));
+        break;
+                        
+    case 'product_composition_item_info':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT nc.id, nc.nomenclature_id, nc.ingredient_id, n.name, nc.quantity, nc.is_critical, nc.is_visible, u.short_name AS unit_short_name
+             FROM nomenclature_composition nc
+             LEFT JOIN nomenclature n ON n.id = nc.ingredient_id
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE nc.id = :id",
+            ['id' => $id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'new_product_composition_item':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
+        $ingredient_id    = (int)fncValFind('ingredient_id', $params);
+        $quantity         = fncValFind('quantity', $params);
+
+        $is_critical_raw = fncValFind('is_critical', $params);
+        $is_visible_raw  = fncValFind('is_visible', $params);
+
+        if ($is_critical_raw === null || $is_critical_raw === '' || $is_visible_raw === null || $is_visible_raw === '') {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите критичность и видимость ингредиента']);
+            exit;
+        }
+
+        if (!$nomenclature_id || !$ingredient_id || !$quantity) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+        if ($nomenclature_id === $ingredient_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нельзя добавить позицию в свой же состав']);
+            exit;
+        }
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO nomenclature_composition (nomenclature_id, ingredient_id, quantity, is_critical, is_visible, created_by)
+             VALUES (:nomenclature_id, :ingredient_id, :quantity, :is_critical, :is_visible, :created_by)",
+            [
+                'nomenclature_id' => $nomenclature_id,
+                'ingredient_id'   => $ingredient_id,
+                'quantity'        => $quantity,
+                'is_critical'     => (int)$is_critical_raw,
+                'is_visible'      => (int)$is_visible_raw,
+                'created_by'      => $user_id,
+            ]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось добавить ингредиент'];
+        break;
+
+    case 'upd_product_composition_item':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id       = (int)fncValFind('id', $params);
+        $quantity = fncValFind('quantity', $params);
+
+        $is_critical_raw = fncValFind('is_critical', $params);
+        $is_visible_raw  = fncValFind('is_visible', $params);
+
+        if ($is_critical_raw === null || $is_critical_raw === '' || $is_visible_raw === null || $is_visible_raw === '') {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите критичность и видимость ингредиента']);
+            exit;
+        }
+
+        if (!$id || !$quantity) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "UPDATE nomenclature_composition SET quantity = :quantity, is_critical = :is_critical, is_visible = :is_visible WHERE id = :id",
+            ['quantity' => $quantity, 'is_critical' => (int)$is_critical_raw, 'is_visible' => (int)$is_visible_raw, 'id' => $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'del_product_composition_item':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указан ингредиент']);
+            exit;
+        }
+        $stmt = fncQuery("DELETE FROM nomenclature_composition WHERE id = :id", ['id' => $id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'product_composition_available':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT n.id, n.name
+             FROM nomenclature n
+             WHERE (n.is_purchased = 1 OR n.is_produced = 1)
+               AND n.is_active = 1
+               AND n.id != :nomenclature_id
+               AND n.id NOT IN (
+                   SELECT nc.ingredient_id FROM nomenclature_composition nc WHERE nc.nomenclature_id = :nomenclature_id2
+               )
+             ORDER BY n.name",
+            ['nomenclature_id' => $nomenclature_id, 'nomenclature_id2' => $nomenclature_id]
+        );
+        $result = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
         break;
 
     default:

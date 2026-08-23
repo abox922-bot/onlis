@@ -23,18 +23,21 @@ function fncRenderProductOptionsTree($nodes, $level = 0) {
             <div class="tree-row" data-id="<?php echo (int)$node['id']; ?>">
                 <?php if ($has_children): ?>
                     <i class="bi bi-chevron-right tree-toggle"></i>
-                <?php elseif ($is_leaf): ?>
-                    <i class="bi bi-box-seam text-muted tree-toggle-placeholder" style="font-size: 0.95rem; text-align: center;" title="Привязан товар"></i>
                 <?php else: ?>
                     <span class="tree-toggle-placeholder"></span>
                 <?php endif; ?>
                 <span class="tree-name-wrap tree-name-wrap-options">
                     <?php if ($is_leaf): ?>
                         <span class="itemOptionName<?php echo empty($node['product_is_active']) ? ' tree-row-archived' : ''; ?>" data-id="<?php echo (int)$node['product_id']; ?>">
+                            <?php if (!empty($node['product_is_online_sale'])): ?>
+                                <i class="bi bi-globe text-success" style="font-size: 0.85rem; margin-right: 4px;" title="Продажа онлайн"></i>
+                            <?php endif; ?>
                             <?php echo htmlspecialchars($node['product_name'] ?? $node['name']); ?>
                         </span>
+                    <?php elseif ($has_children): ?>
+                        <span class="optionGroupToggleName"><?php echo htmlspecialchars($node['name']); ?></span>
                     <?php else: ?>
-                      <span><?php echo htmlspecialchars($node['name']); ?></span>
+                        <span class="itemOptionEmptyName"><?php echo htmlspecialchars($node['name']); ?></span>
                     <?php endif; ?>
                 </span>
             </div>

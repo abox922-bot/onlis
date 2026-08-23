@@ -340,6 +340,7 @@ textarea.form-in { min-height: 100px; resize: vertical; }
 }
 .table-hover tbody tr:hover td { background-color: var(--bg-hover) !important; color: var(--accent-color); }
 .itemTr, .listTr { cursor: pointer; }
+
 .item-edited .itemName::after {
     content: "• изменено";
     color: var(--danger-color);
@@ -350,9 +351,83 @@ textarea.form-in { min-height: 100px; resize: vertical; }
     transition: opacity 0.6s ease;
     opacity: 1;
 }
-
 .item-edited-fading .itemName::after {
     opacity: 0;
+}
+
+/* --- Состав товара (карточный список, не таблица) --- */
+
+.composition-group-header {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+    padding: 16px 4px 8px;
+    margin-bottom: 4px;
+    border-bottom: 2px solid var(--accent-color);
+}
+.composition-group-header:first-child {
+    padding-top: 0;
+}
+
+.composition-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.composition-row:last-of-type {
+    border-bottom: none;
+}
+.composition-row:hover {
+    background-color: var(--bg-hover);
+}
+
+.composition-row__main {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.composition-row__title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.composition-row__name {
+    font-weight: 600;
+}
+
+.composition-row__calc {
+    margin-top: 2px;
+}
+
+.composition-row__unit-price {
+    color: var(--text-muted);
+}
+.composition-row__unit-price::before {
+    content: "× ";
+}
+
+.composition-row__sum {
+    flex-shrink: 0;
+    font-size: 0.95rem;
+}
+
+.composition-total {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 4px 4px;
+    margin-top: 4px;
+    border-top: 2px solid var(--border-color);
+    font-size: 1rem;
 }
 
 /* =============================================================================
@@ -569,7 +644,7 @@ button:disabled {
 }
 
 /* =============================================================================
-   12. ДЕРЕВО (иерархические справочники — группы номенклатуры и т.п.)
+   12. ДЕРЕВО (иерархические справочники — группы номенклатуры, опции товара)
    ============================================================================= */
 
 .tree-wrap {
@@ -583,7 +658,6 @@ button:disabled {
     cursor: pointer;
     border-radius: 6px;
 }
-
 .tree-row:hover {
     background: var(--bg-hover);
 }
@@ -608,14 +682,6 @@ button:disabled {
     border-left: 1px solid #dcdcdc;
 }
 
-.table-hover tbody tr.tree-options-container:hover td {
-    background-color: #fff !important;
-}
-
-.table-hover tbody tr.tree-options-container td {
-    background-color: var(--bg-hover) !important;
-}
-
 .tree-name-wrap {
     display: flex;
     align-items: center;
@@ -626,7 +692,13 @@ button:disabled {
     margin-left: 6px;
 }
 
-.tree-row-archived .itemName {
+.itemOptionName,
+.optionGroupToggleName {
+    cursor: pointer;
+}
+
+.tree-row-archived .itemName,
+.itemOptionName.tree-row-archived {
     opacity: 0.5;
     text-decoration: line-through;
 }
@@ -640,7 +712,120 @@ button:disabled {
 }
 
 /* =============================================================================
-   13. TOM SELECT
+   13. СПИСОК ТОВАРОВ (карточный список, с вложенным деревом опций)
+   ============================================================================= */
+
+   .product-list {
+       padding: 4px 0;
+   }
+
+   .product-row-wrap {
+       border-bottom: 1px solid var(--border-color);
+   }
+   .product-row-wrap:last-child {
+       border-bottom: none;
+   }
+
+   .product-row {
+       display: flex;
+       align-items: center;
+       gap: 10px;
+       padding: 12px 8px;
+       cursor: pointer;
+       transition: background-color 0.15s ease;
+       border-radius: 8px;
+   }
+   .product-row:hover {
+       background-color: var(--bg-hover);
+   }
+
+   .product-row-wrap.is-expanded .product-row {
+       background-color: var(--bg-hover);
+   }
+   .product-row-wrap.is-expanded .product-row .itemName {
+       font-weight: 700;
+   }
+   .product-row-wrap.is-expanded .product-row:hover {
+       background-color: var(--bg-hover);
+   }
+
+   .product-row__toggle {
+       flex: 0 0 32px;
+       width: 32px;
+       height: 32px;
+       display: flex;
+       align-items: center;
+       justify-content: center;
+       border: none;
+       background: transparent;
+       color: var(--accent-color);
+       font-size: 0.95rem;
+       border-radius: 50%;
+       transition: transform 0.15s ease, color 0.15s ease;
+   }
+   .product-row-wrap.is-expanded .product-row__toggle i {
+       transform: rotate(90deg);
+   }
+
+   .product-row__toggle-placeholder {
+       flex: 0 0 32px;
+       width: 32px;
+   }
+
+   .product-row__main {
+       flex: 1 1 auto;
+       min-width: 0;
+       display: flex;
+       align-items: center;
+       flex-wrap: wrap;
+       gap: 8px;
+   }
+
+   .product-row__main .itemName {
+       font-weight: 600;
+       font-size: 0.95rem;
+   }
+
+   .product-row__group {
+       font-size: 0.72rem;
+       font-weight: 600;
+       color: var(--text-muted);
+       background-color: var(--bg-hover);
+       padding: 3px 10px;
+       border-radius: 20px;
+       white-space: nowrap;
+   }
+
+   .product-row__badge {
+       flex-shrink: 0;
+       font-size: 1rem;
+   }
+
+   .product-row__options {
+       padding: 6px 12px 10px 44px;
+       position: relative;
+   }
+   .product-row__options::before {
+       content: "";
+       position: absolute;
+       left: 24px;
+       top: 0;
+       bottom: 10px;
+       width: 2px;
+       background-color: var(--border-color);
+   }
+
+   .product-row__options .tree-row {
+       padding: 8px 10px;
+   }
+
+   .itemOptionEmptyName {
+       color: var(--text-muted);
+       opacity: 0.6;
+   }
+
+/* =============================================================================
+   14. TOM SELECT
    ============================================================================= */
 
 .ts-wrapper { width: 100%; }
@@ -693,7 +878,7 @@ button:disabled {
 }
 
 /* =============================================================================
-   14. MODAL OFFCANVAS
+   15. MODAL OFFCANVAS
    ============================================================================= */
 
 #modalOffcanvas {
@@ -702,7 +887,7 @@ button:disabled {
 }
 
 /* =============================================================================
-   15. МЕДИАЗАПРОСЫ
+   16. МЕДИАЗАПРОСЫ
    ============================================================================= */
 
 @media (min-width: 768px) {
@@ -744,6 +929,20 @@ button:disabled {
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+    .product-row {
+        padding: 14px 6px;
+    }
+    .product-row__main {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .product-row__options {
+        padding-left: 36px;
+    }
+    .product-row__options::before {
+        left: 18px;
     }
 }
 
