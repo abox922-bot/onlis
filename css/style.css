@@ -697,6 +697,12 @@ button:disabled {
     cursor: pointer;
 }
 
+.itemOptionEmptyName {
+    color: var(--text-muted);
+    opacity: 0.6;
+    cursor: pointer;
+}
+
 .tree-row-archived .itemName,
 .itemOptionName.tree-row-archived {
     opacity: 0.5;
@@ -715,114 +721,147 @@ button:disabled {
    13. СПИСОК ТОВАРОВ (карточный список, с вложенным деревом опций)
    ============================================================================= */
 
-   .product-list {
-       padding: 4px 0;
-   }
+.product-list {
+    padding: 4px 0;
+}
 
-   .product-row-wrap {
-       border-bottom: 1px solid var(--border-color);
-   }
-   .product-row-wrap:last-child {
-       border-bottom: none;
-   }
+.product-row-wrap {
+    border-bottom: 1px solid var(--border-color);
+}
+.product-row-wrap:last-child {
+    border-bottom: none;
+}
 
-   .product-row {
-       display: flex;
-       align-items: center;
-       gap: 10px;
-       padding: 12px 8px;
-       cursor: pointer;
-       transition: background-color 0.15s ease;
-       border-radius: 8px;
-   }
-   .product-row:hover {
-       background-color: var(--bg-hover);
-   }
+.product-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 8px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border-radius: 8px;
+}
+.product-row:hover {
+    background-color: var(--bg-hover);
+}
 
-   .product-row-wrap.is-expanded .product-row {
-       background-color: var(--bg-hover);
-   }
-   .product-row-wrap.is-expanded .product-row .itemName {
-       font-weight: 700;
-   }
-   .product-row-wrap.is-expanded .product-row:hover {
-       background-color: var(--bg-hover);
-   }
+.product-row-wrap.is-expanded .product-row {
+    background-color: var(--bg-hover);
+}
+.product-row-wrap.is-expanded .product-row .itemName {
+    font-weight: 700;
+}
+.product-row-wrap.is-expanded .product-row:hover {
+    background-color: var(--bg-hover);
+}
 
-   .product-row__toggle {
-       flex: 0 0 32px;
-       width: 32px;
-       height: 32px;
-       display: flex;
-       align-items: center;
-       justify-content: center;
-       border: none;
-       background: transparent;
-       color: var(--accent-color);
-       font-size: 0.95rem;
-       border-radius: 50%;
-       transition: transform 0.15s ease, color 0.15s ease;
-   }
-   .product-row-wrap.is-expanded .product-row__toggle i {
-       transform: rotate(90deg);
-   }
+.product-row__toggle {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--accent-color);
+    font-size: 0.95rem;
+    border-radius: 50%;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+.product-row-wrap.is-expanded .product-row__toggle i {
+    transform: rotate(90deg);
+}
 
-   .product-row__toggle-placeholder {
-       flex: 0 0 32px;
-       width: 32px;
-   }
+.product-row__toggle-placeholder {
+    flex: 0 0 32px;
+    width: 32px;
+}
 
-   .product-row__main {
-       flex: 1 1 auto;
-       min-width: 0;
-       display: flex;
-       align-items: center;
-       flex-wrap: wrap;
-       gap: 8px;
-   }
+.product-row__main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
 
-   .product-row__main .itemName {
-       font-weight: 600;
-       font-size: 0.95rem;
-   }
+.product-row__main .itemName {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
 
-   .product-row__group {
-       font-size: 0.72rem;
-       font-weight: 600;
-       color: var(--text-muted);
-       background-color: var(--bg-hover);
-       padding: 3px 10px;
-       border-radius: 20px;
-       white-space: nowrap;
-   }
+.product-row__group {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    background-color: var(--bg-hover);
+    padding: 3px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
 
-   .product-row__badge {
-       flex-shrink: 0;
-       font-size: 1rem;
-   }
+.product-row__badge {
+    flex-shrink: 0;
+    font-size: 1rem;
+}
 
-   .product-row__options {
-       padding: 6px 12px 10px 44px;
-       position: relative;
-   }
-   .product-row__options::before {
-       content: "";
-       position: absolute;
-       left: 24px;
-       top: 0;
-       bottom: 10px;
-       width: 2px;
-       background-color: var(--border-color);
-   }
+.product-row__options {
+    padding: 6px 12px 10px 44px;
+    position: relative;
+}
+.product-row__options::before {
+    content: "";
+    position: absolute;
+    left: 24px;
+    top: 0;
+    bottom: 10px;
+    width: 2px;
+    background-color: var(--border-color);
+}
 
-   .product-row__options .tree-row {
-       padding: 8px 10px;
-   }
+.product-row__options .tree-row {
+    padding: 8px 10px;
+}
 
-   .itemOptionEmptyName {
-       color: var(--text-muted);
-       opacity: 0.6;
-   }
+/* --- Дополнения (степпер лимита) --- */
+
+.additions-toolbar__limit {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: var(--bg-hover);
+    border-radius: 10px;
+    padding: 6px 14px;
+}
+
+.additions-toolbar__limit-step {
+    border: none;
+    background-color: var(--card-bg);
+    color: var(--accent-color);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 1px 3px var(--shadow);
+}
+.additions-toolbar__limit-step:hover {
+    background-color: var(--accent-color);
+    color: #fff;
+}
+
+.additions-toolbar__limit-value {
+    min-width: 24px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.95rem;
+}
 
 /* =============================================================================
    14. TOM SELECT

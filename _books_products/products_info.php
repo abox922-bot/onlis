@@ -26,6 +26,7 @@ $role = is_array($role_data) && !empty($role_data['role']) ? $role_data['role'] 
     <?php if ($role !== 'option'): ?>
         <button type="button" class="inline-tab" data-target="options">Опции</button>
     <?php endif; ?>
+    <button type="button" class="inline-tab" data-target="wishes">Пожелания</button>
     <?php if ($role !== 'parent'): ?>
         <button type="button" class="inline-tab" data-target="nutrition">КБЖУ</button>
     <?php endif; ?>
