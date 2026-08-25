@@ -28,3 +28,10 @@ function fncCollectForbiddenIds($nodes, $exclude_id, $found = false) {
     }
     return $ids;
 }
+
+function fncFormatNumber($value, $decimals = 2) {
+    if ($value === null || $value === '') {
+        return '';
+    }
+    return number_format((float)$value, $decimals, ',', ' ');
+}

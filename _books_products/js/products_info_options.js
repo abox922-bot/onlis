@@ -6,12 +6,17 @@ $(function(){
         fncOpenOptionForm(nomenclature_id);
     });
 
-    $(".tree-toggle").off("click").on("click", function(e){
+    $(".optionsTreeToggle").off("click").on("click", function(e){
         e.stopPropagation();
         fncToggleOptionNode($(this));
     });
 
-    $(".itemOptionName").off("click").on("click", function(){
+    $(".optionGroupToggleName").off("click").on("click", function(){
+        let $toggle = $(this).closest(".tree-row").find(".optionsTreeToggle");
+        fncToggleOptionNode($toggle);
+    });
+
+    $(".optionsTreeItemName").off("click").on("click", function(){
         let option_id = $(this).data("id");
         fncOpenOptionInfo(option_id, nomenclature_id);
     });

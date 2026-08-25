@@ -22,16 +22,22 @@ function fncRenderOptionsTree($nodes, $level = 0) {
         <div class="tree-node">
             <div class="tree-row" data-id="<?php echo (int)$node['id']; ?>">
                 <?php if ($has_children): ?>
-                    <i class="bi bi-chevron-right tree-toggle"></i>
+                    <i class="bi bi-chevron-right optionsTreeToggle"></i>
                 <?php elseif ($is_leaf): ?>
                     <i class="bi bi-box-seam text-muted tree-toggle-placeholder" style="font-size: 0.95rem; text-align: center;" title="Привязан товар"></i>
                 <?php else: ?>
                     <span class="tree-toggle-placeholder"></span>
                 <?php endif; ?>
                 <span class="tree-name-wrap tree-name-wrap-options">
-                    <span class="itemOptionName<?php echo ($is_leaf && empty($node['product_is_active'])) ? ' tree-row-archived' : ''; ?>" data-id="<?php echo (int)$node['id']; ?>">
-                        <?php echo htmlspecialchars($node['name']); ?>
-                    </span>
+                    <?php if ($is_leaf): ?>
+                        <span class="optionsTreeItemName<?php echo empty($node['product_is_active']) ? ' tree-row-archived' : ''; ?>" data-id="<?php echo (int)$node['id']; ?>">
+                            <?php echo htmlspecialchars($node['name']); ?>
+                        </span>
+                    <?php elseif ($has_children): ?>
+                        <span class="optionGroupToggleName"><?php echo htmlspecialchars($node['name']); ?></span>
+                    <?php else: ?>
+                        <span class="itemOptionEmptyName"><?php echo htmlspecialchars($node['name']); ?></span>
+                    <?php endif; ?>
                 </span>
             </div>
             <?php if ($has_children): ?>
@@ -65,4 +71,4 @@ function fncRenderOptionsTree($nodes, $level = 0) {
         <?php fncRenderOptionsTree($tree); ?>
     </div>
 <?php endif; ?>
-<script src="./_books_products/js/products_info_options.js?2026082101"></script>
+<script src="./_books_products/js/products_info_options.js?2026082502"></script>

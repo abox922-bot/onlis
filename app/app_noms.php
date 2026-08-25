@@ -458,7 +458,7 @@ switch ($action) {
         } elseif ($section === 'product') {
             $where[] = "n.id NOT IN (SELECT product_id FROM nomenclature_options WHERE product_id IS NOT NULL)";
             $sql = "SELECT n.id, n.name, n.is_active, n.is_online_sale, ng.name AS group_name,
-                           (SELECT COUNT(*) FROM nomenclature_options no WHERE no.nomenclature_id = n.id) AS options_count
+                           (SELECT COUNT(*) FROM nomenclature_options no WHERE no.nomenclature_id = n.id AND no.product_id IS NOT NULL) AS options_count
                     FROM nomenclature n
                     LEFT JOIN nomenclature_groups ng ON ng.id = n.group_id
                     WHERE " . implode(' AND ', $where) . "

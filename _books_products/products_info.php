@@ -31,5 +31,6 @@ $is_service = $product_type === 'service';
     <?php if ($role !== 'parent' && !$is_service): ?>
         <button type="button" class="inline-tab" data-target="nutrition">КБЖУ</button>
     <?php endif; ?>
+    <button type="button" class="inline-tab" data-target="wishes">Пожелания</button>
 </div>
 <div id="divProductInfoContent"></div>

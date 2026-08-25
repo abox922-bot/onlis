@@ -471,3 +471,12 @@ function fncToggleOptionNode($toggle) {
     $toggle.closest(".tree-node").children(".tree-children").toggleClass("d-none");
 }
 //==============================================================================
+function fncFormatNumber(value, decimals = 2) {
+    if (value === null || value === undefined || value === '') {
+        return '';
+    }
+    let parts = Number(value).toFixed(decimals).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return parts.join(',');
+}
+//==============================================================================
