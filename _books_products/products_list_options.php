@@ -21,11 +21,6 @@ function fncRenderProductOptionsTree($nodes, $level = 0) {
         ?>
         <div class="tree-node">
             <div class="tree-row" data-id="<?php echo (int)$node['id']; ?>">
-                <?php if ($has_children): ?>
-                    <i class="bi bi-chevron-right tree-toggle"></i>
-                <?php else: ?>
-                    <span class="tree-toggle-placeholder"></span>
-                <?php endif; ?>
                 <span class="tree-name-wrap tree-name-wrap-options">
                     <?php if ($is_leaf): ?>
                         <span class="itemOptionName<?php echo empty($node['product_is_active']) ? ' tree-row-archived' : ''; ?>" data-id="<?php echo (int)$node['product_id']; ?>">
@@ -35,7 +30,10 @@ function fncRenderProductOptionsTree($nodes, $level = 0) {
                             <?php echo htmlspecialchars($node['product_name'] ?? $node['name']); ?>
                         </span>
                     <?php elseif ($has_children): ?>
-                        <span class="optionGroupToggleName"><?php echo htmlspecialchars($node['name']); ?></span>
+                        <span class="optionGroupToggleName">
+                            <?php echo htmlspecialchars($node['name']); ?>
+                            <i class="bi bi-chevron-right tree-toggle" style="margin-left: 6px;"></i>
+                        </span>
                     <?php else: ?>
                         <span class="itemOptionEmptyName"><?php echo htmlspecialchars($node['name']); ?></span>
                     <?php endif; ?>

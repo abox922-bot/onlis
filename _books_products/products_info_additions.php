@@ -11,7 +11,7 @@ $id = (int)($_POST['id'] ?? 0);
 
 $data = send_request(array_merge($ses_info, ['action' => 'product_additions_info', 'nomenclature_id' => $id]), 'noms');
 if (!is_array($data) || isset($data['sccss'])) {
-    $data = ['max_quantity' => null, 'items' => []];
+    $data = ['max_quantity' => null, 'is_parent' => false, 'items' => []];
 }
 
 $can_manage = fncCan($result['rules'], 'products.manage');
@@ -19,7 +19,26 @@ $can_manage = fncCan($result['rules'], 'products.manage');
 <input type="hidden" id="inpProductAdditionsId" value="<?php echo $id; ?>">
 
 <div class="row">
-
+    <?php if (empty($data['is_parent'])): ?>
+        <div class="col-12 mb-3">
+            <div class="card-content-wrapper" style="padding: 14px 16px;">
+                <div class="form-group-label mb-2">Максимальное количество одновременных дополнений</div>
+                <div class="additions-toolbar__limit">
+                    <?php if ($can_manage): ?>
+                        <button type="button" class="additions-toolbar__limit-step" id="btnMaxQuantityMinus">−</button>
+                    <?php endif; ?>
+                    <span class="additions-toolbar__limit-value" id="spnAdditionsMaxQuantity" data-value="<?php echo (int)($data['max_quantity'] ?? 0); ?>">
+                        <?php echo !empty($data['max_quantity']) ? (int)$data['max_quantity'] : '∞'; ?>
+                    </span>
+                    <?php if ($can_manage): ?>
+                        <button type="button" class="additions-toolbar__limit-step" id="btnMaxQuantityPlus">+</button>
+                    <?php endif; ?>
+                    <div class="spinner-border spinner-border-sm d-none" id="spnMaxQuantityLoading"></div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+    
     <?php if ($can_manage): ?>
         <div class="col-12 mb-3 d-flex justify-content-end">
             <button type="button" class="btn-action-main" id="btnAddAddition">
@@ -28,22 +47,6 @@ $can_manage = fncCan($result['rules'], 'products.manage');
             </button>
         </div>
     <?php endif; ?>
-
-    <div class="col-12 mb-3">
-        <label class="my-input-label">Максимальное количество одновременных дополнений</label>
-        <div class="additions-toolbar__limit">
-            <?php if ($can_manage): ?>
-                <button type="button" class="additions-toolbar__limit-step" id="btnMaxQuantityMinus">−</button>
-            <?php endif; ?>
-            <span class="additions-toolbar__limit-value" id="spnAdditionsMaxQuantity" data-value="<?php echo (int)($data['max_quantity'] ?? 0); ?>">
-                <?php echo !empty($data['max_quantity']) ? (int)$data['max_quantity'] : '∞'; ?>
-            </span>
-            <?php if ($can_manage): ?>
-                <button type="button" class="additions-toolbar__limit-step" id="btnMaxQuantityPlus">+</button>
-            <?php endif; ?>
-            <div class="spinner-border spinner-border-sm d-none" id="spnMaxQuantityLoading"></div>
-        </div>
-    </div>
 
     <div class="col-12">
         <?php if (!empty($data['items'])): ?>
@@ -73,4 +76,4 @@ $can_manage = fncCan($result['rules'], 'products.manage');
         <?php endif; ?>
     </div>
 </div>
-<script src="./_books_products/js/products_info_additions.js?2026082304"></script>
+<script src="./_books_products/js/products_info_additions.js?2026082310"></script>

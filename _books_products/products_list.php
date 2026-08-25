@@ -31,24 +31,31 @@ if (!is_array($result) || isset($result['sccss'])) {
         <?php foreach ($result as $value): ?>
             <?php $has_options = !empty($value['options_count']); ?>
             <div class="product-row-wrap" data-product-wrap="<?php echo (int)$value['id']; ?>">
-                <div class="product-row itemTr<?php echo $value['is_active'] ? '' : ' tree-row-archived'; ?>" data-id="<?php echo (int)$value['id']; ?>">
+              <div class="product-row itemTr<?php echo $value['is_active'] ? '' : ' tree-row-archived'; ?>" data-id="<?php echo (int)$value['id']; ?>">
+                  <div class="product-row__main">
+                      <span class="itemName" data-id="<?php echo (int)$value['id']; ?>">
+                          <?php if (!empty($value['is_online_sale'])): ?>
+                              <i class="bi bi-globe text-success" style="font-size: 0.85rem; margin-right: 4px;" title="Продажа онлайн"></i>
+                          <?php endif; ?>
+                          <?php echo htmlspecialchars($value['name']); ?>
+                      </span>
+                      <?php if ($has_options || !empty($value['group_name'])): ?>
+                          <span class="product-row__meta">
+                              <?php if ($has_options): ?>
+                                  <span class="product-row__options-badge" title="Есть варианты">
+                                      <i class="bi bi-diagram-3"></i> <?php echo (int)$value['options_count']; ?>
+                                  </span>
+                              <?php endif; ?>
+                              <?php if (!empty($value['group_name'])): ?>
+                                  <span class="product-row__group"><?php echo htmlspecialchars($value['group_name']); ?></span>
+                              <?php endif; ?>
+                          </span>
+                      <?php endif; ?>
+                  </div>
                     <?php if ($has_options): ?>
                         <button type="button" class="product-row__toggle tree-toggle" data-options-toggle="<?php echo (int)$value['id']; ?>">
                             <i class="bi bi-chevron-right"></i>
                         </button>
-                    <?php else: ?>
-                        <span class="product-row__toggle-placeholder"></span>
-                    <?php endif; ?>
-                    <div class="product-row__main">
-                        <span class="itemName" data-id="<?php echo (int)$value['id']; ?>">
-                            <?php echo htmlspecialchars($value['name']); ?>
-                        </span>
-                        <?php if (!empty($value['group_name'])): ?>
-                            <span class="product-row__group"><?php echo htmlspecialchars($value['group_name']); ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <?php if (!empty($value['is_online_sale'])): ?>
-                        <i class="bi bi-globe text-success product-row__badge" title="Продажа онлайн"></i>
                     <?php endif; ?>
                 </div>
                 <?php if ($has_options): ?>

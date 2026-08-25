@@ -654,10 +654,12 @@ button:disabled {
 .tree-row {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     padding: 6px 10px;
     cursor: pointer;
     border-radius: 6px;
 }
+
 .tree-row:hover {
     background: var(--bg-hover);
 }
@@ -763,19 +765,32 @@ button:disabled {
     align-items: center;
     justify-content: center;
     border: none;
-    background: transparent;
+    background: var(--bg-hover);
     color: var(--accent-color);
-    font-size: 0.95rem;
+    font-size: 1.05rem;
     border-radius: 50%;
-    transition: transform 0.15s ease, color 0.15s ease;
+    transition: transform 0.15s ease, background-color 0.15s ease;
 }
+
+.product-row__toggle:hover {
+    background: var(--border-color);
+}
+
 .product-row-wrap.is-expanded .product-row__toggle i {
     transform: rotate(90deg);
 }
 
-.product-row__toggle-placeholder {
-    flex: 0 0 32px;
-    width: 32px;
+.product-row__options-badge {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--accent-color);
+    background-color: var(--bg-hover);
+    padding: 2px 8px;
+    border-radius: 20px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .product-row__main {
@@ -802,11 +817,6 @@ button:disabled {
     white-space: nowrap;
 }
 
-.product-row__badge {
-    flex-shrink: 0;
-    font-size: 1rem;
-}
-
 .product-row__options {
     padding: 6px 12px 10px 44px;
     position: relative;
@@ -823,6 +833,13 @@ button:disabled {
 
 .product-row__options .tree-row {
     padding: 8px 10px;
+}
+
+.product-row__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
 /* --- Дополнения (степпер лимита) --- */
@@ -861,6 +878,36 @@ button:disabled {
     text-align: center;
     font-weight: 700;
     font-size: 0.95rem;
+}
+
+.base-price-input-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.base-price-input {
+    width: 100px;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 8px 30px 8px 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    background-color: #fff;
+    transition: all 0.2s ease-in-out;
+}
+.base-price-input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.05);
+    outline: none;
+}
+
+.base-price-currency {
+    position: absolute;
+    right: 12px;
+    color: var(--text-muted);
+    font-weight: 600;
+    pointer-events: none;
 }
 
 /* =============================================================================

@@ -1790,7 +1790,11 @@ switch ($action) {
             $role = 'option';
         }
 
-        $result = ['role' => $role];
+        $stmt = fncQuery("SELECT product_type FROM nomenclature WHERE id = :id", ['id' => $id]);
+        $product_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        $product_type = $product_row ? $product_row['product_type'] : null;
+
+        $result = ['role' => $role, 'product_type' => $product_type];
         break;
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -2062,6 +2066,9 @@ switch ($action) {
         $product_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
         $max_quantity = $product_row ? $product_row['additions_max_quantity'] : null;
 
+        $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM nomenclature_options WHERE nomenclature_id = :id", ['id' => $nomenclature_id]);
+        $is_parent = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] > 0 : false;
+
         $stmt = fncQuery(
             "SELECT no.nomenclature_id AS parent_id FROM nomenclature_options no WHERE no.product_id = :id LIMIT 1",
             ['id' => $nomenclature_id]
@@ -2105,6 +2112,7 @@ switch ($action) {
 
         $result = [
             'max_quantity' => $max_quantity,
+            'is_parent'    => $is_parent,
             'items'        => array_merge($own, $inherited),
         ];
         break;
@@ -2264,6 +2272,207 @@ switch ($action) {
             exit;
         }
         $stmt = fncQuery("DELETE FROM nomenclature_additions WHERE id = :id", ['id' => $id]);
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ЦЕНЫ.
+    // ═══════════════════════════════════════════════════════════════════════
+    case 'product_prices_info':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT price FROM nomenclature_prices WHERE nomenclature_id = :id AND object_type_id IS NULL AND object_id IS NULL",
+            ['id' => $nomenclature_id]
+        );
+        $base_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        $base_price = $base_row ? $base_row['price'] : null;
+
+        $stmt = fncQuery(
+            "SELECT np.id, np.price, ot.id AS object_type_id, ot.name AS object_type_name, NULL AS object_id, NULL AS object_name
+             FROM nomenclature_prices np
+             LEFT JOIN object_types ot ON ot.id = np.object_type_id
+             WHERE np.nomenclature_id = :id AND np.object_type_id IS NOT NULL
+             UNION ALL
+             SELECT np.id, np.price, NULL AS object_type_id, NULL AS object_type_name, o.id AS object_id, o.name AS object_name
+             FROM nomenclature_prices np
+             LEFT JOIN objects o ON o.id = np.object_id
+             WHERE np.nomenclature_id = :id2 AND np.object_id IS NOT NULL
+             ORDER BY object_type_name, object_name",
+            ['id' => $nomenclature_id, 'id2' => $nomenclature_id]
+        );
+        $variations = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $result = [
+            'base_price' => $base_price,
+            'variations' => $variations,
+        ];
+        break;
+
+    case 'price_variants_available':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT id, name FROM object_types
+             WHERE is_active = 1 AND is_operational = 1
+               AND id NOT IN (SELECT object_type_id FROM nomenclature_prices WHERE nomenclature_id = :id AND object_type_id IS NOT NULL)
+             ORDER BY name",
+            ['id' => $nomenclature_id]
+        );
+        $types = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $stmt = fncQuery(
+            "SELECT o.id, o.name
+             FROM objects o
+             LEFT JOIN object_types ot ON ot.id = o.type_id
+             WHERE ot.is_active = 1 AND ot.is_operational = 1
+               AND o.id NOT IN (SELECT object_id FROM nomenclature_prices WHERE nomenclature_id = :id AND object_id IS NOT NULL)
+             ORDER BY o.name",
+            ['id' => $nomenclature_id]
+        );
+        $objects = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $result = ['types' => $types, 'objects' => $objects];
+        break;
+
+    case 'upd_base_price':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
+        $price           = fncValFind('price', $params);
+
+        if (!$nomenclature_id || $price === null || $price === '') {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите цену']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT id FROM nomenclature_prices WHERE nomenclature_id = :id AND object_type_id IS NULL AND object_id IS NULL",
+            ['id' => $nomenclature_id]
+        );
+        $existing = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+
+        global $pdo;
+        if ($existing) {
+            $stmt = fncQuery(
+                "UPDATE nomenclature_prices SET price = :price, updated_by = :updated_by WHERE id = :id",
+                ['price' => $price, 'updated_by' => $user_id, 'id' => $existing['id']]
+            );
+        } else {
+            $stmt = fncQuery(
+                "INSERT INTO nomenclature_prices (nomenclature_id, price, created_by) VALUES (:nomenclature_id, :price, :created_by)",
+                ['nomenclature_id' => $nomenclature_id, 'price' => $price, 'created_by' => $user_id]
+            );
+        }
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'new_price_variation':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
+        $variant_type    = fncValFind('variant_type', $params);
+        $object_type_id  = (int)fncValFind('object_type_id', $params) ?: null;
+        $object_id       = (int)fncValFind('object_id', $params) ?: null;
+        $price           = fncValFind('price', $params);
+
+        if (!$nomenclature_id || $price === null || $price === '') {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите цену']);
+            exit;
+        }
+        if (!in_array($variant_type, ['object_type', 'object'], true)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите, для чего задаётся цена']);
+            exit;
+        }
+        if ($variant_type === 'object_type' && !$object_type_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Выберите тип объекта']);
+            exit;
+        }
+        if ($variant_type === 'object' && !$object_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Выберите объект']);
+            exit;
+        }
+
+        global $pdo;
+        $stmt = fncQuery(
+            "INSERT INTO nomenclature_prices (nomenclature_id, object_type_id, object_id, price, created_by)
+             VALUES (:nomenclature_id, :object_type_id, :object_id, :price, :created_by)",
+            [
+                'nomenclature_id' => $nomenclature_id,
+                'object_type_id'  => $variant_type === 'object_type' ? $object_type_id : null,
+                'object_id'       => $variant_type === 'object' ? $object_id : null,
+                'price'           => $price,
+                'created_by'      => $user_id,
+            ]
+        );
+        $result = $stmt
+            ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
+            : ['sccss' => false, 'msg' => 'Не удалось добавить цену'];
+        break;
+
+    case 'price_variation_info':
+        if (!fncCan($perms, 'products.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)($_POST['id'] ?? 0);
+        $stmt = fncQuery(
+            "SELECT np.id, np.price, np.object_type_id, ot.name AS object_type_name, np.object_id, o.name AS object_name
+             FROM nomenclature_prices np
+             LEFT JOIN object_types ot ON ot.id = np.object_type_id
+             LEFT JOIN objects o ON o.id = np.object_id
+             WHERE np.id = :id",
+            ['id' => $id]
+        );
+        $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        break;
+
+    case 'upd_price_variation':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id    = (int)fncValFind('id', $params);
+        $price = fncValFind('price', $params);
+
+        if (!$id || $price === null || $price === '') {
+            echo json_encode(['sccss' => false, 'msg' => 'Укажите цену']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "UPDATE nomenclature_prices SET price = :price, updated_by = :updated_by WHERE id = :id",
+            ['price' => $price, 'updated_by' => $user_id, 'id' => $id]
+        );
+        $result = ['sccss' => (bool)$stmt];
+        break;
+
+    case 'del_price_variation':
+        if (!fncCan($perms, 'products.manage')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указана цена']);
+            exit;
+        }
+        $stmt = fncQuery(
+            "DELETE FROM nomenclature_prices WHERE id = :id AND (object_type_id IS NOT NULL OR object_id IS NOT NULL)",
+            ['id' => $id]
+        );
         $result = ['sccss' => (bool)$stmt];
         break;
 

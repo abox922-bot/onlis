@@ -11,11 +11,13 @@ $id = (int)($_POST['id'] ?? 0);
 
 $role_data = send_request(array_merge($ses_info, ['action' => 'product_role', 'id' => $id]), 'noms');
 $role = is_array($role_data) && !empty($role_data['role']) ? $role_data['role'] : 'standalone';
+$product_type = is_array($role_data) ? ($role_data['product_type'] ?? null) : null;
+$is_service = $product_type === 'service';
 ?>
 <input type="hidden" id="inpProductId" value="<?php echo $id; ?>">
 <div class="inline-tabs mb-3">
     <button type="button" class="inline-tab" data-target="general">Общая информация</button>
-    <?php if ($role !== 'parent'): ?>
+    <?php if ($role !== 'parent' && !$is_service): ?>
         <button type="button" class="inline-tab" data-target="composition">Состав товара</button>
     <?php endif; ?>
     <button type="button" class="inline-tab" data-target="affiliation">Принадлежность</button>
@@ -26,8 +28,7 @@ $role = is_array($role_data) && !empty($role_data['role']) ? $role_data['role'] 
     <?php if ($role !== 'option'): ?>
         <button type="button" class="inline-tab" data-target="options">Опции</button>
     <?php endif; ?>
-    <button type="button" class="inline-tab" data-target="wishes">Пожелания</button>
-    <?php if ($role !== 'parent'): ?>
+    <?php if ($role !== 'parent' && !$is_service): ?>
         <button type="button" class="inline-tab" data-target="nutrition">КБЖУ</button>
     <?php endif; ?>
 </div>
