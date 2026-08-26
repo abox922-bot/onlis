@@ -36,7 +36,7 @@ function fncRenderOptionsTree($nodes, $level = 0) {
                     <?php elseif ($has_children): ?>
                         <span class="optionGroupToggleName"><?php echo htmlspecialchars($node['name']); ?></span>
                     <?php else: ?>
-                        <span class="itemOptionEmptyName"><?php echo htmlspecialchars($node['name']); ?></span>
+                        <span class="itemOptionEmptyName" data-id="<?php echo (int)$node['id']; ?>"><?php echo htmlspecialchars($node['name']); ?></span>
                     <?php endif; ?>
                 </span>
             </div>

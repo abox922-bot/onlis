@@ -16,7 +16,7 @@ $(function(){
         fncToggleOptionNode($toggle);
     });
 
-    $(".optionsTreeItemName").off("click").on("click", function(){
+    $(".optionsTreeItemName, .itemOptionEmptyName").off("click").on("click", function(){
         let option_id = $(this).data("id");
         fncOpenOptionInfo(option_id, nomenclature_id);
     });

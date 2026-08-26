@@ -17,7 +17,7 @@ if (!is_array($info) || isset($info['sccss'])) {
 $is_piece = !empty($info) && !$info['unit_is_float'];
 $basis_label = $is_piece ? 'Пищевая ценность на 1 шт' : 'Пищевая ценность на 100 г / 100 мл';
 $is_produced = !empty($info['is_produced']);
-$is_food_product = !empty($info['is_food_product']);
+$product_type = $info['product_type'];
 $has_values = isset($info['calories']) && $info['calories'] !== null;
 $can_manage = fncCan($result['rules'], 'nomenclature.manage');
 ?>
@@ -57,7 +57,7 @@ $can_manage = fncCan($result['rules'], 'nomenclature.manage');
         <?php endif; ?>
     </div>
 
-<?php elseif (!$is_food_product): ?>
+<?php elseif ($product_type !== "food"): ?>
 
     <div class="empty-hint">
         <i class="bi bi-slash-circle empty-hint__icon"></i>

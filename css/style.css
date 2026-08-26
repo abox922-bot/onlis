@@ -421,6 +421,11 @@ textarea.form-in { min-height: 100px; resize: vertical; }
     font-size: 0.95rem;
 }
 
+.composition-row__name.tree-row-archived {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
 .composition-total {
     display: flex;
     justify-content: space-between;

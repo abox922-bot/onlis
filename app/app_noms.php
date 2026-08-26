@@ -664,6 +664,49 @@ switch ($action) {
         $result = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
         break;
 
+    case 'nomenclature_applicability':
+        if (!fncCan($perms, 'nomenclature.manage.view')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+
+        $stmt = fncQuery("SELECT unit_id FROM nomenclature WHERE id = :id", ['id' => $nomenclature_id]);
+        $unit_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        $unit_short_name = null;
+        if ($unit_row && $unit_row['unit_id']) {
+            $stmt = fncQuery("SELECT short_name FROM units WHERE id = :id", ['id' => $unit_row['unit_id']]);
+            $u = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+            $unit_short_name = $u ? $u['short_name'] : null;
+        }
+
+        $stmt = fncQuery(
+            "SELECT n.id, n.name, n.is_active
+             FROM nomenclature_composition nc
+             LEFT JOIN nomenclature n ON n.id = nc.nomenclature_id
+             WHERE nc.ingredient_id = :id AND n.is_produced = 1
+             ORDER BY n.name",
+            ['id' => $nomenclature_id]
+        );
+        $in_semi_finished = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $stmt = fncQuery(
+            "SELECT n.id, n.name, n.is_active, nc.quantity
+             FROM nomenclature_composition nc
+             LEFT JOIN nomenclature n ON n.id = nc.nomenclature_id
+             WHERE nc.ingredient_id = :id AND n.is_sellable = 1
+             ORDER BY n.name",
+            ['id' => $nomenclature_id]
+        );
+        $in_products = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $result = [
+            'unit_short_name' => $unit_short_name,
+            'semi_finished'   => $in_semi_finished,
+            'products'        => $in_products,
+        ];
+        break;
+
     case 'nomenclature_info_form':
         if (!fncCan($perms, 'nomenclature.manage.view')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);

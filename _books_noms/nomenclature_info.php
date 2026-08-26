@@ -25,6 +25,8 @@ $is_produced = is_array($info) && !empty($info) && !empty($info['is_produced']);
     <?php if (!$is_produced): ?>
         <button type="button" class="inline-tab" data-target="packages">Тип упаковки</button>
     <?php endif; ?>
-    <button type="button" class="inline-tab" data-target="nutrition">КБЖУ</button>
+    <?php if (($info['product_type'] ?? null) === "food"): ?>
+        <button type="button" class="inline-tab" data-target="nutrition">КБЖУ</button>
+    <?php endif; ?>
 </div>
 <div id="divNomenclatureInfoContent"></div>
