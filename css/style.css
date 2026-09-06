@@ -624,6 +624,26 @@ button:disabled {
     display: contents;
 }
 
+/* Модификатор для разделов, где сворачивание фильтров нужно ВСЕГДА,
+   а не только на мобильной версии (см. Документы — 4 разнородных фильтра,
+   которые на десктопе выглядят громоздко в одну строку). Раскладка внутри —
+   обычная Bootstrap-сетка (row/col-*) в самой разметке раздела, а не flex —
+   это даёт управляемое число колонок на разных брейкпоинтах без доп. классов
+   здесь. */
+.toolbar-filters-toggle--always {
+    display: inline-flex !important;
+}
+
+.toolbar-filters-group--collapsible {
+    display: none;
+    width: 100%;
+    order: 3;
+    margin-top: 8px;
+}
+.toolbar-filters-group--collapsible.show {
+    display: block;
+}
+
 /* =============================================================================
    11. ПУСТОЕ СОСТОЯНИЕ (универсальное)
    ============================================================================= */
@@ -980,7 +1000,84 @@ button:disabled {
 }
 
 /* =============================================================================
-   16. МЕДИАЗАПРОСЫ
+   16. ДОКУМЕНТЫ (карточный список)
+   ============================================================================= */
+
+.doc-date-group {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bs-body-bg);
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.doc-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: pointer;
+    background: var(--card-bg);
+    transition: var(--transition);
+}
+.doc-card:hover {
+    background: var(--bg-hover);
+}
+
+.doc-card__main {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.doc-card__title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-left: 3px solid transparent;
+    padding-left: 8px;
+    margin-left: -11px;
+}
+.doc-card.is-posted .doc-card__title-row {
+    border-left-color: #198754;
+}
+
+.doc-card__title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-main);
+}
+
+.doc-card__counterparty {
+    font-size: 0.9rem;
+    margin-top: 2px;
+    color: var(--text-main);
+}
+
+.doc-card__meta {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 2px;
+}
+.doc-card__meta-line {
+    display: block;
+}
+
+.doc-card__sum {
+    font-weight: 700;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    margin-left: 12px;
+    color: var(--text-main);
+}
+
+/* =============================================================================
+   17. МЕДИАЗАПРОСЫ
    ============================================================================= */
 
 @media (min-width: 768px) {

@@ -17,6 +17,15 @@ $object        = $form_data['object'] ?? [];
 $types         = $form_data['types'] ?? [];
 $can_edit_org  = $form_data['can_edit_org'] ?? false;
 $organizations = $form_data['organizations'] ?? [];
+
+$selected_type = null;
+foreach ($types as $t) {
+    if ((int)$t['id'] === (int)($object['type_id'] ?? 0)) {
+        $selected_type = $t;
+        break;
+    }
+}
+$forced_stock = $selected_type && !empty($selected_type['is_operational']);
 ?>
 <form id="formInfoMain">
     <div class="row">
@@ -58,7 +67,9 @@ $organizations = $form_data['organizations'] ?? [];
                 <option value="0">Выберите тип</option>
                 <?php foreach ($types as $type): ?>
                     <?php if (!empty($type['is_active']) || (int)$type['id'] === (int)($object['type_id'] ?? 0)): ?>
-                        <option value="<?php echo (int)$type['id']; ?>" <?php echo ((int)$type['id'] === (int)($object['type_id'] ?? 0)) ? 'selected' : ''; ?>>
+                        <option value="<?php echo (int)$type['id']; ?>"
+                            data-operational="<?php echo (int)$type['is_operational']; ?>"
+                            <?php echo ((int)$type['id'] === (int)($object['type_id'] ?? 0)) ? 'selected' : ''; ?>>
                             <?php echo htmlspecialchars($type['name']); ?>
                         </option>
                     <?php endif; ?>
@@ -79,9 +90,10 @@ $organizations = $form_data['organizations'] ?? [];
 
         <div class="col-12 mb-3">
             <div class="form-check form-switch">
-                <input class="form-check-input form-inp" type="checkbox" role="switch"
+                <input class="form-check-input <?php echo $forced_stock ? '' : 'form-inp'; ?>" type="checkbox" role="switch"
                     id="chckIsStock" data-name="is_stock" data-type="check"
-                    <?php echo !empty($object['is_stock']) ? 'checked' : ''; ?>>
+                    <?php echo (!empty($object['is_stock']) || $forced_stock) ? 'checked' : ''; ?>
+                    <?php echo $forced_stock ? 'disabled' : ''; ?>>
                 <label class="form-check-label" for="chckIsStock">Используется как склад</label>
             </div>
         </div>

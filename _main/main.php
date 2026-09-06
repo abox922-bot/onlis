@@ -19,6 +19,31 @@ $user_name = htmlspecialchars($result['onl_name'], ENT_QUOTES, 'UTF-8');
           </div>
       </div>
 
+      <!-- Быстрый переход в Документы -->
+      <div class="col-12 col-md-6">
+          <div class="quick-link-card" data-module="inventory" data-ttl="Документы">
+              <div class="quick-link-card__icon">
+                  <i class="bi bi-file-earmark-text"></i>
+              </div>
+              <div class="quick-link-card__body">
+                  <div class="quick-link-card__title">Документы</div>
+                  <div class="quick-link-card__subtitle">Товароучёт и складские операции</div>
+              </div>
+              <i class="bi bi-chevron-right quick-link-card__arrow"></i>
+          </div>
+      </div>
+
+      <!-- Заглушка для симметрии -->
+      <div class="col-12 col-md-6">
+          <div class="skeleton-card" style="display: flex; align-items: center; gap: 16px; padding: 18px 20px;">
+              <div class="skeleton-icon" style="margin-bottom: 0;"><i class="bi bi-cash-stack"></i></div>
+              <div style="flex: 1 1 auto; min-width: 0;">
+                  <div class="skeleton-line skeleton-line--medium mb-2"></div>
+                  <div class="skeleton-line skeleton-line--short" style="margin-bottom: 0;"></div>
+              </div>
+          </div>
+      </div>
+
       <!-- Плитки-статистика (скелетон) -->
       <div class="col-6 col-md-3">
           <div class="skeleton-card">
@@ -148,4 +173,58 @@ $user_name = htmlspecialchars($result['onl_name'], ENT_QUOTES, 'UTF-8');
     border-radius: 8px;
     margin-bottom: 10px;
 }
+
+.quick-link-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: #198754;
+    color: #fff;
+    border-radius: 14px;
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 4px 15px rgba(25, 135, 84, 0.25);
+}
+.quick-link-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(25, 135, 84, 0.3);
+}
+.quick-link-card__icon {
+    font-size: 1.6rem;
+    width: 48px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.quick-link-card__body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.quick-link-card__title {
+    font-weight: 700;
+    font-size: 1.05rem;
+}
+.quick-link-card__subtitle {
+    font-size: 0.85rem;
+    opacity: 0.85;
+    margin-top: 2px;
+}
+.quick-link-card__arrow {
+    font-size: 1.2rem;
+    opacity: 0.8;
+    flex-shrink: 0;
+}
 </style>
+
+<script>
+$(function(){
+    $(".quick-link-card").off("click").on("click", function(){
+        fncChptLoad($(this).data("module"), $(this).data("ttl"));
+    });
+});
+</script>

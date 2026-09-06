@@ -91,12 +91,19 @@ switch ($action) {
         $organization_id = fncValFind('organization_id', $params);
         $type_id         = fncValFind('type_id', $params);
         $name            = fncValFind('name', $params);
+        $is_stock        = 0;
+
+        $stmt = fncQuery("SELECT is_operational FROM object_types WHERE id = ?", [$type_id]);
+        $type_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+        if ($type_row && $type_row['is_operational']) {
+            $is_stock = 1;
+        }
 
         global $pdo;
         $stmt = fncQuery(
-            "INSERT INTO objects (organization_id, type_id, name, created_by)
-             VALUES (?, ?, ?, ?)",
-            [$organization_id, $type_id, $name, $user_id]
+            "INSERT INTO objects (organization_id, type_id, name, is_stock, created_by)
+             VALUES (?, ?, ?, ?, ?)",
+            [$organization_id, $type_id, $name, $is_stock, $user_id]
         );
         $result = $stmt
             ? ['sccss' => true, 'id' => (int)$pdo->lastInsertId()]
@@ -288,7 +295,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT ot.id, ot.name, ot.is_active
+            "SELECT ot.id, ot.name, ot.is_active, ot.is_operational
              FROM object_types ot
              ORDER BY ot.organization_id IS NULL DESC, ot.is_active DESC, ot.name"
         );
@@ -355,8 +362,14 @@ switch ($action) {
         $name      = fncValFind('name', $params);
         $type_id   = fncValFind('type_id', $params);
         $area      = fncValFind('area', $params);
-        $is_stock  = fncValFind('is_stock', $params);
+        $is_stock  = (int)fncValFind('is_stock', $params);
         $is_active = fncValFind('is_active', $params);
+
+        $stmt = fncQuery("SELECT is_operational FROM object_types WHERE id = ?", [$type_id]);
+        $type_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+        if ($type_row && $type_row['is_operational']) {
+            $is_stock = 1;
+        }
 
         if (fncCan($perms, 'objects')) {
             $organization_id = fncValFind('organization_id', $params);

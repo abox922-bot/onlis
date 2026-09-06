@@ -14,7 +14,6 @@
           ],
       ],
 
-
       'geography' => [
           'folder'   => '_books_geo',
           'sections' => [
@@ -68,6 +67,22 @@
               ['key' => 'products',         'slug' => 'products.manage.view', 'title' => 'Товары',          'file' => 'products',       'default' => true],
               ['key' => 'products_groups',  'slug' => 'products.manage.view', 'title' => 'Группы товаров',  'file' => 'products_groups'],
               ['key' => 'wishes',           'slug' => 'products.manage.view', 'title' => 'Пожелания',       'file' => 'wishes'],
+          ],
+      ],
+
+      'inventory' => [
+          'folder'   => '_docs',
+          'sections' => [
+              ['key' => 'documents', 'slug_prefix' => 'inventory.documents.', 'title' => 'Документы', 'file' => 'documents', 'default' => true],
+          ],
+      ],
+
+      'settlements' => [
+          'folder'   => '_payments',
+          'sections' => [
+              ['key' => 'settlements',      'slug' => 'settlements.manage.view', 'title' => 'Взаиморасчёты', 'file' => 'settlements',      'default' => true],
+              ['key' => 'payments',         'slug' => 'settlements.manage.view', 'title' => 'Платежи',       'file' => 'payments'],
+              ['key' => 'reconciliations',  'slug' => 'settlements.manage.view', 'title' => 'Сверки',        'file' => 'reconciliations'],
           ],
       ],
 

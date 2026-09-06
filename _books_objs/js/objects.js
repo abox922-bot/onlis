@@ -99,6 +99,7 @@ function fncObjectTabLoad(id, target) {
     $("#divObjectInfoContent").load(path.href, {id}, function(){
         $(".inline-tab").prop("disabled", false);
         if (target === "main") {
+            stockToggle();
             fncInitObjectMainForm(id, function(){
                 //listLoadFunction();
                 fncMarkItemEdited(id);
@@ -107,3 +108,18 @@ function fncObjectTabLoad(id, target) {
         }
     });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function stockToggle() {
+    $("#slctType").off("change").on("change", function(){
+        let is_operational = +$(this).find("option:selected").data("operational") === 1;
+        if (is_operational) {
+            $("#chckIsStock").prop("checked", true).prop("disabled", true).removeClass("form-inp");
+        } else {
+            $("#chckIsStock").prop("disabled", false).addClass("form-inp");
+        }
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 <?php
   require_once('./app/includes/session_guard.php');
+  require_once('./modules_fncs.php');
   $result = fncRequireSession();
 
   $perms = $result['rules'] ?? [];
@@ -91,7 +92,7 @@
               <?php foreach ($menu as $group_key => $group): ?>
 
                   <?php if (!empty($group['single'])): ?>
-                      <?php $show = !isset($group['slug']) || fncCan($perms, $group['slug']); ?>
+                      <?php $show = fncMenuItemVisible($perms, $group); ?>
                       <?php if ($show): ?>
                           <li class="my-nav-item">
                               <a class="my-nav-link head-link">
@@ -107,7 +108,7 @@
                       <?php endif; ?>
 
                   <?php else: ?>
-                      <?php $visible = array_filter($group['items'], fn($item) => !isset($item['slug']) || fncCan($perms, $item['slug'])); ?>
+                      <?php $visible = array_filter($group['items'], fn($item) => fncMenuItemVisible($perms, $item)); ?>
                       <?php if ($visible): ?>
                           <li class="my-nav-item">
                               <a class="my-nav-link head-item head-link" data-target="<?php echo $group_key; ?>" style="cursor: pointer;">
@@ -150,4 +151,4 @@
 
     </div>
   </div>
-  <script src="./js/_main.js?2026082500"></script>
+  <script src="./js/_main.js?2026090200"></script>

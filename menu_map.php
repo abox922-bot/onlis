@@ -7,27 +7,12 @@ return [
         'module' => 'main',
         'onload' => 1,
     ],
-    'orders' => [
-        'title'  => 'Заказы',
-        'icon'   => 'bi-bag',
-        'slug'   => 'orders',
-        'single' => true,
-        'module' => 'orders',
-    ],
-    'finance' => [
-        'title' => 'Финансы',
-        'icon'  => 'bi-cash-stack',
+    'turnover' => [
+        'title' => 'Товарооборот',
+        'icon'  => 'bi-arrow-left-right',
         'items' => [
-            ['slug' => 'finance.payments',  'module' => 'payments',         'title' => 'Платежи',  'icon' => 'bi-credit-card'],
-            ['slug' => 'finance.reports',   'module' => 'finance_reports',  'title' => 'Отчёты',   'icon' => 'bi-bar-chart'],
-        ]
-    ],
-    'warehouse' => [
-        'title' => 'Склад',
-        'icon'  => 'bi-box-seam',
-        'items' => [
-            ['slug' => 'warehouse.documents', 'module' => 'documents', 'title' => 'Документы', 'icon' => 'bi-file-earmark-text'],
-            ['slug' => 'warehouse.totals',    'module' => 'totals',    'title' => 'Остатки',   'icon' => 'bi-archive'],
+            ['slug_prefix' => 'inventory.documents.', 'module' => 'inventory',   'title' => 'Документы',     'icon' => 'bi-file-earmark-text'],
+            ['slug' => 'settlements.manage.view',     'module' => 'settlements', 'title' => 'Взаиморасчёты', 'icon' => 'bi-cash-stack'],
         ]
     ],
     'reference' => [
