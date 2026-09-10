@@ -1,45 +1,37 @@
 <?php
 require_once('../app/includes/session_guard.php');
+require_once('../modules_fncs.php');
 fncRequireSession();
 
-// ВРЕМЕННЫЕ ТЕСТОВЫЕ ДАННЫЕ для оценки вёрстки — заменить на send_request к
-// app_docs.php (action documents_list), когда согласуем визуал.
-$result = [
-    ['id' => 1, 'code' => 'incoming_upd', 'type_name' => 'УПД', 'number' => '1316104', 'status' => 'posted',
-        'counterparty_name' => 'АО "Ирбитский молочный завод"', 'warehouse_in_name' => 'ONL.IS Coffee Ленина 82А', 'warehouse_out_name' => null,
-        'sum' => 45870.50, 'document_date' => '2026-09-05'],
-    ['id' => 2, 'code' => 'incoming_waybill', 'type_name' => 'Товарная накладная', 'number' => '2066586', 'status' => 'posted',
-        'counterparty_name' => 'АО "СМАК"', 'warehouse_in_name' => 'ONL.IS Coffee Ленина 82А', 'warehouse_out_name' => null,
-        'sum' => 12300.00, 'document_date' => '2026-09-05'],
-    ['id' => 3, 'code' => 'writeoff', 'type_name' => 'Списание', 'number' => '8842', 'status' => 'posted',
-        'counterparty_name' => null, 'warehouse_in_name' => null, 'warehouse_out_name' => 'ONL.IS Coffee Ленина 82А',
-        'sum' => 1540.00, 'document_date' => '2026-09-04'],
-    ['id' => 4, 'code' => 'stock_adjustment', 'type_name' => 'Оприходование', 'number' => '10001', 'status' => 'draft',
-        'counterparty_name' => null, 'warehouse_in_name' => 'ONL.IS Coffee Ленина 82А', 'warehouse_out_name' => null,
-        'sum' => 3200.00, 'document_date' => '2026-09-04'],
-    ['id' => 5, 'code' => 'realization', 'type_name' => 'Реализация', 'number' => '5316', 'status' => 'posted',
-        'counterparty_name' => null, 'warehouse_in_name' => null, 'warehouse_out_name' => 'ONL.IS Coffee Ленина 82А',
-        'sum' => 28450.00, 'document_date' => '2026-09-04'],
-    ['id' => 6, 'code' => 'sf_production', 'type_name' => 'Выпуск полуфабрикатов', 'number' => '19594', 'status' => 'posting',
-        'counterparty_name' => null, 'warehouse_in_name' => 'ONL.IS Coffee Ленина 82А', 'warehouse_out_name' => null,
-        'sum' => 0.00, 'document_date' => '2026-09-04'],
-    ['id' => 7, 'code' => 'transfer', 'type_name' => 'Перемещение', 'number' => '17953', 'status' => 'posted',
-        'counterparty_name' => null, 'warehouse_in_name' => 'ONL.IS Coffee Ленина 82А', 'warehouse_out_name' => 'Основной склад',
-        'sum' => 9800.00, 'document_date' => '2026-09-03'],
-    ['id' => 8, 'code' => 'incoming_receipt', 'type_name' => 'Товарный чек', 'number' => 'МН-29537', 'status' => 'posted',
-        'counterparty_name' => 'МАГАЗИН', 'warehouse_in_name' => 'ONL.IS Coffee Ленина 82А', 'warehouse_out_name' => null,
-        'sum' => 670.00, 'document_date' => '2026-09-03'],
+$ses_info = [
+    '_onlis_id' => $_COOKIE['_onlis_id'],
+    'x_token'   => $_SERVER['HTTP_X_CSRF_TOKEN'],
 ];
 
-// Группировка по дате — с человекочитаемыми ярлыками для сегодня/вчера
-$today     = date('Y-m-d');
-$yesterday = date('Y-m-d', strtotime('-1 day'));
+$date_from    = $_POST['date_from'] ?? '';
+$date_to      = $_POST['date_to'] ?? '';
+$type_code    = $_POST['type_code'] ?? '';
+$warehouse_id = $_POST['warehouse_id'] ?? '';
+
+$result = send_request(array_merge($ses_info, [
+    'action'       => 'documents_list',
+    'date_from'    => $date_from,
+    'date_to'      => $date_to,
+    'type_code'    => $type_code,
+    'warehouse_id' => $warehouse_id,
+]), 'docs');
+
+if (!is_array($result) || isset($result['sccss'])) {
+    $result = [];
+}
 
 $groups = [];
 foreach ($result as $row) {
     $groups[$row['document_date']][] = $row;
 }
-krsort($groups);
+
+$today     = date('Y-m-d');
+$yesterday = date('Y-m-d', strtotime('-1 day'));
 
 function fncDateGroupLabel($date, $today, $yesterday) {
     if ($date === $today) return 'Сегодня';
@@ -49,7 +41,6 @@ function fncDateGroupLabel($date, $today, $yesterday) {
     return (int)date('d', $ts) . ' ' . $months[(int)date('n', $ts)] . ' ' . date('Y', $ts);
 }
 ?>
-
 <?php if (empty($result)): ?>
     <div class="empty-hint">
         <i class="bi bi-file-earmark-text empty-hint__icon"></i>
@@ -66,8 +57,8 @@ function fncDateGroupLabel($date, $today, $yesterday) {
                             <?php echo htmlspecialchars($value['type_name']); ?> №<?php echo htmlspecialchars($value['number']); ?>
                         </div>
                     </div>
-                    <?php if ($value['counterparty_name']): ?>
-                        <div class="doc-card__counterparty"><?php echo htmlspecialchars($value['counterparty_name']); ?></div>
+                    <?php if ($value['counterparty_display_name']): ?>
+                        <div class="doc-card__counterparty"><?php echo htmlspecialchars($value['counterparty_display_name']); ?></div>
                     <?php endif; ?>
                     <div class="doc-card__meta">
                         <?php if ($value['warehouse_in_name']): ?>
@@ -78,7 +69,7 @@ function fncDateGroupLabel($date, $today, $yesterday) {
                         <?php endif; ?>
                     </div>
                 </div>
-                <div class="doc-card__sum"><?php echo number_format($value['sum'], 2, ',', ' '); ?> ₽</div>
+                <div class="doc-card__sum"><?php echo fncFormatNumber($value['sum']); ?> ₽</div>
             </div>
         <?php endforeach; ?>
     <?php endforeach; ?>

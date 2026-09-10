@@ -37,8 +37,10 @@ $(function(){
         main_modal._config.keyboard = true;
         $("html").css("overflow-y", "auto");
         $("#mainModal").addClass("modal-xl");
+        $("#mainModalFooter").addClass("d-none");
         $(".modal-dialog").addClass("modal-dialog-centered");
-        $("#mainModalBody").html("");
+        $("#mainModalBody, #mainModalFooter").html("");
+
     });
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     $(".my-menu-div-btn").click(function(){
@@ -170,6 +172,7 @@ function fncBookNav() {
 }
 //==============================================================================
 function fncChptLoad(module_key, chpt_header) {
+    localStorage.removeItem("new_item");
     $("#divMainContent").html(`<div class="col-12">${spnr_loading}</div>`);
     $("#sectionHeader").html(chpt_header);
     let path = new URL(`main_module.php?module=${module_key}`, url);

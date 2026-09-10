@@ -157,6 +157,11 @@ body {
     margin-bottom: 4px;
 }
 
+.my-nav-link,
+.my-nav-link__name {
+    user-select: none;
+}
+
 #spanUsersName { font-weight: 700; }
 #spnQuit { color: var(--danger-color) !important; }
 #spnQuit:hover { background-color: rgba(220, 53, 69, 0.1); }
@@ -222,7 +227,18 @@ body {
     background: var(--danger-color);
     color: #fff;
 }
-
+.btn-icon-danger {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    padding: 4px 8px;
+    flex-shrink: 0;
+    transition: color 0.15s ease;
+}
+.btn-icon-danger:hover {
+    color: var(--danger-color);
+}
 .badge-default {
     flex-shrink: 0;
     font-size: 0.72rem;
@@ -433,6 +449,12 @@ textarea.form-in { min-height: 100px; resize: vertical; }
     margin-top: 4px;
     border-top: 2px solid var(--border-color);
     font-size: 1rem;
+}
+.composition-row--clickable {
+    cursor: pointer;
+}
+.composition-row--clickable:hover {
+    background-color: var(--bg-hover);
 }
 
 /* =============================================================================
@@ -1076,6 +1098,63 @@ button:disabled {
     color: var(--text-main);
 }
 
+.doc-header-readonly {
+    user-select: none;
+}
+
+.doc-header-compact {
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+
+.doc-header-compact--clickable {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.doc-header-compact--clickable:hover {
+    background-color: var(--bg-hover);
+}
+
+.doc-header-compact__edit-icon {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.doc-header-compact__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 16px;
+    font-size: 0.85rem;
+    padding-right: 20px;
+}
+
+.doc-header-compact__field {
+    display: flex;
+    gap: 4px;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.doc-header-compact__label {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.doc-header-compact__icon {
+    display: none;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
 /* =============================================================================
    17. МЕДИАЗАПРОСЫ
    ============================================================================= */
@@ -1167,5 +1246,18 @@ button:disabled {
     }
     .toolbar-filters-group #btnStatusFilter {
         text-align: left;
+    }
+    .doc-header-compact__grid {
+        grid-template-columns: 1fr;
+    }
+    .doc-header-compact__field {
+        white-space: normal;
+        align-items: center;
+    }
+    .doc-header-compact__icon {
+        display: inline-flex;
+    }
+    .doc-header-compact__label {
+        display: none;
     }
 }

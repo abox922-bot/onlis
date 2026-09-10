@@ -28,6 +28,7 @@
       </div>
     </div>
   </div>
+
   <div class="row d-flex justify-content-end align-items-start" id="divScrollArea">
     <div class="col-12">
       <div class="row">
@@ -42,6 +43,7 @@
       </div>
     </div>
   </div>
+
   <div class="modal modal-xl fade" id="mainModal" tabindex="-1" data-bs-backdrop="static" aria-labelledby="mainModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
       <div class="modal-content">
@@ -57,6 +59,7 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body" id="mainModalBody"></div>
+        <div class="modal-footer d-none" id="mainModalFooter"></div>
       </div>
     </div>
   </div>
@@ -151,4 +154,4 @@
 
     </div>
   </div>
-  <script src="./js/_main.js?2026090200"></script>
+  <script src="./js/_main.js?2026091001"></script>

@@ -34,8 +34,7 @@ function fncLog(string $text)
 // Выполнение PDO-запроса
 // Возвращает PDOStatement или false при ошибке
 //==============================================================================
-function fncQuery(string $sql, array $params = [])
-{
+function fncQuery(string $sql, array $params = []) {
     global $pdo;
 
     try {
