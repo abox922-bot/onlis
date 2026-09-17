@@ -1,6 +1,5 @@
 <?php
 require_once('../app/includes/session_guard.php');
-require_once('../modules_fncs.php');
 fncRequireSession();
 
 $ses_info = [
@@ -10,7 +9,7 @@ $ses_info = [
 
 $id = (int)($_POST['id'] ?? 0);
 
-$data = send_request(array_merge($ses_info, ['action' => 'document_info_data', 'id' => $id]), 'docs');
+$data = send_request(array_merge($ses_info, ['action' => 'document_header_edit_data', 'id' => $id]), 'docs');
 if (!is_array($data) || isset($data['sccss'])) {
     echo '<div class="empty-hint"><div class="empty-hint__text">Документ не найден</div></div>';
     exit;
@@ -18,6 +17,7 @@ if (!is_array($data) || isset($data['sccss'])) {
 
 $info        = $data['info'];
 $is_empty    = $data['is_empty'];
+$is_draft    = $info['status'] === 'draft';
 $is_incoming = $info['direction'] === 'incoming';
 ?>
 <form id="formEditHeader">
@@ -50,6 +50,22 @@ $is_incoming = $info['direction'] === 'incoming';
         </div>
         <?php endif; ?>
 
+        <?php if ($info['warehouse_out_id']): ?>
+        <div class="col-12 mb-3">
+            <label class="my-input-label">Склад списания</label>
+            <?php if ($is_empty): ?>
+                <select class="form-in form-inp" id="slctDocWarehouseOut" data-name="warehouse_out_id" data-type="select" data-required="1">
+                    <?php foreach ($data['warehouses'] as $w): ?>
+                        <option value="<?php echo (int)$w['id']; ?>" data-organization="<?php echo (int)$w['organization_id']; ?>" <?php echo $w['id'] == $info['warehouse_out_id'] ? 'selected' : ''; ?>><?php echo htmlspecialchars($w['name']); ?></option>
+                    <?php endforeach; ?>
+                </select>
+            <?php else: ?>
+                <div class="form-context"><?php echo htmlspecialchars($info['warehouse_out_name'] ?? ''); ?></div>
+            <?php endif; ?>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($info['warehouse_in_id']): ?>
         <div class="col-12 mb-3">
             <label class="my-input-label">Склад поступления</label>
             <?php if ($is_empty): ?>
@@ -62,6 +78,8 @@ $is_incoming = $info['direction'] === 'incoming';
                 <div class="form-context"><?php echo htmlspecialchars($info['warehouse_in_name'] ?? ''); ?></div>
             <?php endif; ?>
         </div>
+        <?php endif; ?>
+
         <?php if ($is_incoming): ?>
         <div class="col-6 mb-3">
             <label for="inpDocNumber" class="my-input-label">Номер документа</label>
@@ -99,7 +117,9 @@ $is_incoming = $info['direction'] === 'incoming';
                 <span id="btnSaveText">Сохранить</span>
                 <div class="spinner-border spinner-border-sm d-none" id="divSaveLoading"></div>
             </button>
-            <button type="button" class="btn-danger-action" id="btnDeleteDocument">Удалить документ</button>
+            <?php if ($is_draft): ?>
+                <button type="button" class="btn-danger-action" id="btnDeleteDocument">Удалить документ</button>
+            <?php endif; ?>
         </div>
     </div>
 </form>

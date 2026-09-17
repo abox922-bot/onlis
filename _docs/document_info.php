@@ -10,18 +10,21 @@ $ses_info = [
 
 $id = (int)($_POST['id'] ?? 0);
 
-$data = send_request(array_merge($ses_info, ['action' => 'document_info_data', 'id' => $id]), 'docs');
+$data = send_request(array_merge($ses_info, ['action' => 'document_header_data', 'id' => $id]), 'docs');
 if (!is_array($data) || isset($data['sccss'])) {
     echo '<div class="empty-hint"><div class="empty-hint__text">Документ не найден</div></div>';
     exit;
 }
 
 $info        = $data['info'];
-$items       = $data['items'];
 $is_draft    = $info['status'] === 'draft';
 $is_incoming = $info['direction'] === 'incoming';
+$show_price  = $is_incoming || $info['code'] === 'stock_adjustment';
 ?>
-<input type="hidden" id="inpDocumentId" value="<?php echo (int)$info['id']; ?>">
+<input type="hidden" id="inpDocumentId" value="<?php echo (int)$info['id']; ?>"
+    data-warehouse-out-id="<?php echo (int)($info['warehouse_out_id'] ?? 0); ?>"
+    data-header-sum="<?php echo $is_incoming ? $info['sum'] : ''; ?>"
+    data-header-tax-sum="<?php echo $is_incoming ? $info['tax_sum'] : ''; ?>">
 
 <div class="doc-header-compact doc-header-readonly mb-3<?php echo $is_draft ? ' doc-header-compact--clickable' : ''; ?>" id="divDocHeader">
     <?php if ($is_draft): ?>
@@ -76,15 +79,19 @@ $is_incoming = $info['direction'] === 'incoming';
         <select id="slctItemNomenclature">
             <option value="">Выберите номенклатуру</option>
             <?php foreach ($data['nomenclature'] as $n): ?>
-                <option value="<?php echo (int)$n['id']; ?>"<?php if (isset($n['last_price']) && $n['last_price'] !== null): ?> data-price="<?php echo htmlspecialchars($n['last_price']); ?>"<?php endif; ?>><?php echo htmlspecialchars($n['name']); ?></option>
+                <option value="<?php echo (int)$n['id']; ?>"
+                    <?php if (isset($n['last_price']) && $n['last_price'] !== null): ?> data-price="<?php echo htmlspecialchars($n['last_price']); ?>"<?php endif; ?>
+                    <?php if (array_key_exists('stock_quantity', $n)): ?> data-stock="<?php echo $n['stock_quantity'] !== null ? htmlspecialchars($n['stock_quantity']) : '0'; ?>"<?php endif; ?>
+                ><?php echo htmlspecialchars($n['name']); ?></option>
             <?php endforeach; ?>
         </select>
     </div>
-    <div class="col-6 col-md-2 mb-2">
+    <div class="<?php echo $show_price ? 'col-6 col-md-2' : 'col-12 col-md-2'; ?> mb-2">
         <label class="my-input-label">Количество</label>
         <input type="text" class="form-in" id="inpItemQuantity" autocomplete="off">
+        <div class="text-muted" id="divStockHint" style="font-size: 0.78rem; display: none;"></div>
     </div>
-    <?php if ($is_incoming): ?>
+    <?php if ($show_price): ?>
     <div class="col-6 col-md-2 mb-2">
         <label class="my-input-label">Цена</label>
         <input type="text" class="form-in" id="inpItemPrice" autocomplete="off">
@@ -93,12 +100,33 @@ $is_incoming = $info['direction'] === 'incoming';
         <label class="my-input-label">Сумма</label>
         <input type="text" class="form-in" id="inpItemSum" autocomplete="off">
     </div>
+    <?php endif; ?>
+    <?php if ($is_incoming): ?>
     <div class="col-6 col-md-2 mb-2">
         <label class="my-input-label">НДС</label>
         <input type="text" class="form-in" id="inpItemTaxSum" autocomplete="off"
             <?php if ((float)$info['tax_sum'] === 0.0): ?>disabled value="0"<?php endif; ?>>
     </div>
     <?php endif; ?>
+
+    <?php $needs_batch_selection = !empty($info['warehouse_out_id']) && $info['code'] !== 'stock_adjustment'; ?>
+    <?php if ($needs_batch_selection): ?>
+    <div class="row mt-2 mb-2" id="divBatchSelectionRow" style="display: none;">
+        <div class="col-12">
+            <div class="form-context">
+                <div class="form-check form-switch">
+                    <input type="checkbox" class="form-check-input" role="switch" id="chkAutoBatch" checked>
+                    <label class="form-check-label" for="chkAutoBatch">Распределить по партиям автоматически</label>
+                </div>
+                <div class="mt-2 d-none" id="divManualBatchWrap">
+                    <button type="button" class="btn-action-outline btn-sm" id="btnSelectBatches">Выбрать партии</button>
+                    <span class="text-muted ms-2" id="spnBatchStatus" style="font-size: 0.85rem;"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <div class="col-12 mt-2 d-none" id="divItemFormError">
         <div class="form-error-msg" id="spnItemFormError"></div>
     </div>

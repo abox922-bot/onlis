@@ -17,28 +17,44 @@ if (!is_array($item) || isset($item['sccss'])) {
 }
 
 $is_incoming = $item['is_incoming'];
+$show_price  = $item['requires_price'];
+$has_batches = $item['has_batches'];
 ?>
+<?php if ($has_batches): ?>
+<div class="mb-3">
+    <div class="form-context"><?php echo htmlspecialchars($item['nomenclature_name']); ?></div>
+</div>
+<div class="mb-3">
+    <span class="text-muted">Количество:</span>
+    <strong><?php echo htmlspecialchars($item['quantity']); ?></strong>
+</div>
+<button type="button" class="btn-danger-action" id="btnDeleteItem"
+    data-nomenclature-id="<?php echo (int)$item['nomenclature_id']; ?>"
+    data-quantity="<?php echo htmlspecialchars($item['quantity']); ?>">Удалить строку</button>
+<?php else: ?>
 <form id="formEditItem">
     <div class="row">
         <div class="col-12 mb-3">
             <div class="form-context"><?php echo htmlspecialchars($item['nomenclature_name']); ?></div>
         </div>
 
-        <div class="col-12 mb-3">
+        <div class="col-12 col-md-3 mb-3">
             <label for="inpEditItemQuantity" class="my-input-label">Количество</label>
             <input type="text" class="form-in form-inp" id="inpEditItemQuantity" data-name="quantity" data-type="digits_double" data-required="1" value="<?php echo htmlspecialchars($item['quantity']); ?>">
         </div>
 
-        <?php if ($is_incoming): ?>
-        <div class="col-4 mb-3">
+        <?php if ($show_price): ?>
+        <div class="col-12 col-md-3 mb-3">
             <label for="inpEditItemPrice" class="my-input-label">Цена</label>
             <input type="text" class="form-in form-inp" id="inpEditItemPrice" data-name="price" data-type="digits_double" data-required="1" value="<?php echo number_format($item['price'], 2, '.', ''); ?>">
         </div>
-        <div class="col-4 mb-3">
+        <div class="col-12 col-md-3 mb-3">
             <label for="inpEditItemSum" class="my-input-label">Сумма</label>
             <input type="text" class="form-in form-inp" id="inpEditItemSum" data-name="sum" data-type="digits_double" data-required="1" value="<?php echo htmlspecialchars($item['sum']); ?>">
         </div>
-        <div class="col-4 mb-3">
+        <?php endif; ?>
+        <?php if ($is_incoming): ?>
+        <div class="col-12 col-md-3 mb-3">
             <label for="inpEditItemTaxSum" class="my-input-label">НДС</label>
             <input type="text" class="form-in form-inp" id="inpEditItemTaxSum" data-name="tax_sum" data-type="digits_double" data-required="1" value="<?php echo htmlspecialchars($item['tax_sum']); ?>"
                 <?php if ((float)$item['document_tax_sum'] === 0.0): ?>disabled<?php endif; ?>>
@@ -57,3 +73,4 @@ $is_incoming = $item['is_incoming'];
         </div>
     </div>
 </form>
+<?php endif; ?>
