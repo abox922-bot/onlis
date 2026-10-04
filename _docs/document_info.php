@@ -20,6 +20,10 @@ $info        = $data['info'];
 $is_draft    = $info['status'] === 'draft';
 $is_incoming = $info['direction'] === 'incoming';
 $show_price  = $is_incoming || $info['code'] === 'stock_adjustment';
+// Сумма/НДС в шапке: у incoming известны сразу (вводятся вручную при
+// создании), у return_to_supplier — только по факту проведения (как и
+// documents.sum у Списания — до посчитанного итога по строкам это 0).
+$show_total  = $is_incoming || (in_array($info['code'], ['return_to_supplier', 'supplier_correction'], true) && !$is_draft);
 ?>
 <input type="hidden" id="inpDocumentId" value="<?php echo (int)$info['id']; ?>"
     data-warehouse-out-id="<?php echo (int)($info['warehouse_out_id'] ?? 0); ?>"
@@ -62,7 +66,7 @@ $show_price  = $is_incoming || $info['code'] === 'stock_adjustment';
         </div>
         <?php endif; ?>
 
-        <?php if ($is_incoming): ?>
+        <?php if ($show_total): ?>
         <div class="doc-header-compact__field">
             <i class="bi bi-cash-coin doc-header-compact__icon"></i>
             <span class="doc-header-compact__label">Сумма:</span>

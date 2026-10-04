@@ -50,7 +50,7 @@ function fncDateGroupLabel($date, $today, $yesterday) {
     <?php foreach ($groups as $date => $items): ?>
         <div class="doc-date-group"><?php echo fncDateGroupLabel($date, $today, $yesterday); ?></div>
         <?php foreach ($items as $value): ?>
-            <div class="doc-card itemTr<?php echo $value['status'] === 'posted' ? ' is-posted' : ''; ?>" data-id="<?php echo (int)$value['id']; ?>">
+            <div class="doc-card itemTr<?php echo $value['status'] === 'posted' ? ' is-posted' : ''; ?>" data-id="<?php echo (int)$value['id']; ?>" data-type-code="<?php echo htmlspecialchars($value['code']); ?>">
                 <div class="doc-card__main">
                     <div class="doc-card__title-row">
                         <div class="doc-card__title itemName" data-id="<?php echo (int)$value['id']; ?>">
@@ -69,7 +69,12 @@ function fncDateGroupLabel($date, $today, $yesterday) {
                         <?php endif; ?>
                     </div>
                 </div>
-                <div class="doc-card__sum"><?php echo fncFormatNumber($value['sum']); ?> ₽</div>
+                <div class="text-end">
+                    <div class="doc-card__sum"><?php echo fncFormatNumber($value['sum']); ?> ₽</div>
+                    <?php if ((float)$value['tax_sum'] > 0): ?>
+                        <div class="text-muted" style="font-size: 0.78rem;">НДС: <?php echo fncFormatNumber($value['tax_sum']); ?> ₽</div>
+                    <?php endif; ?>
+                </div>
             </div>
         <?php endforeach; ?>
     <?php endforeach; ?>

@@ -252,16 +252,27 @@ function fncSubmitDocumentForm() {
 
 function infoLoadFunction(document_id) {
     let item_name = $(`.itemName[data-id="${document_id}"]`).first().text().trim();
+    let type_code = $(`.itemTr[data-id="${document_id}"]`).data("type-code");
+
     $("#mainModalBody").html(spnr_loading);
     $("#mainModalLabel").html(item_name);
     fncHideFormError();
     main_modal._config.backdrop = false;
     main_modal.show();
-    let path = new URL("./_docs/document_info.php", url);
-    $("#mainModalBody").load(path.href, {id: document_id}, function(){
-        fncInitDocumentInfo(document_id);
-        fncLoadDocumentItems(document_id);
-    });
+
+    if (type_code === "sf_production") {
+        let path = new URL("./_docs/production_info.php", url);
+        $("#mainModalBody").load(path.href, {id: document_id}, function(){
+            fncInitProductionInfo(document_id);
+            fncLoadProductionItems(document_id);
+        });
+    } else {
+        let path = new URL("./_docs/document_info.php", url);
+        $("#mainModalBody").load(path.href, {id: document_id}, function(){
+            fncInitDocumentInfo(document_id);
+            fncLoadDocumentItems(document_id);
+        });
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -571,7 +582,8 @@ function fncLoadDocumentItems(document_id) {
             if (is_draft) {
                 fncOpenItemEdit(clicked_item_id, document_id);
             } else {
-                fncOpenItemLedger(clicked_item_id);
+                let nomenclature_name = $(this).find(".composition-row__name").first().text().trim();
+                fncOpenItemLedger(clicked_item_id, nomenclature_name);
             }
         });
 
@@ -607,7 +619,8 @@ function fncUpdateDocumentFooter(document_id, has_items, is_incoming, is_draft, 
         return;
     }
 
-    let total_html = is_incoming
+    let show_tax = is_incoming || total_tax_sum > 0;
+    let total_html = show_tax
         ? `<div class="fw-bold">Итого: ${fncFormatNumber(total_sum)} ₽ <span class="text-muted fw-normal">(НДС: ${fncFormatNumber(total_tax_sum)} ₽)</span></div>`
         : `<div class="fw-bold">Итого: ${fncFormatNumber(total_sum)} ₽</div>`;
 
@@ -648,10 +661,34 @@ function fncUpdateDocumentFooter(document_id, has_items, is_incoming, is_draft, 
             $(this).html('<div class="spinner-border spinner-border-sm"></div>');
 
             fncMyAjax("post_document", "docs", [{name: "id", value: document_id}], 1)
-                .done(function(data){
+                .done(async function(data){
                     if (data.sccss) {
                         main_modal.hide();
                         listLoadFunction();
+                    } else if (data.needs_confirmation) {
+                        let confirmed_deviation = await fncConfirm(
+                            `Отклонение цены выпуска составляет ${data.deviation}%. Продолжить проведение?`
+                        );
+                        if (confirmed_deviation) {
+                            fncMyAjax("post_document", "docs", [
+                                {name: "id", value: document_id},
+                                {name: "confirm_override", value: "1"},
+                            ], 1)
+                                .done(function(data2){
+                                    if (data2.sccss) {
+                                        main_modal.hide();
+                                        listLoadFunction();
+                                    } else {
+                                        fncShowFormError(data2.msg ?? "Не удалось провести документ");
+                                        $("#btnPostDocument").prop("disabled", false).html("Провести");
+                                    }
+                                })
+                                .fail(function(){
+                                    $("#btnPostDocument").prop("disabled", false).html("Провести");
+                                });
+                        } else {
+                            $("#btnPostDocument").prop("disabled", false).html("Провести");
+                        }
                     } else {
                         fncShowFormError(data.msg ?? "Не удалось провести документ");
                         $("#btnPostDocument").prop("disabled", false).html("Провести");
@@ -834,4 +871,324 @@ function fncAddDocumentItem(document_id) {
             $("#btnAddItem").prop("disabled", false);
             $("#btnAddItemText, #divAddItemLoading").toggleClass("d-none");
         });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Выпуск ПФ (sf_production) — отдельная логика карточки, раз структура
+// строки принципиально другая (одна строка ПФ + вложенные строки
+// ингредиентов с собственным распределением по партиям), не вписывается
+// в fncInitDocumentInfo/fncLoadDocumentItems выше.
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fncInitProductionInfo(document_id) {
+    if ($("#slctProductionNomenclature").length) {
+        window.productionNomenclaturePicker = new TomSelect("#slctProductionNomenclature", {
+            maxOptions: null,
+            plugins: ["clear_button"],
+            onChange: function(value){
+                window.productionNomenclaturePicker.blur();
+                if (!value) return;
+
+                $("#modalOffcanvasBody").html(spnr_loading);
+                $("#modalOffcanvasLabel").html("Состав выпуска");
+                modalOffcanvas.show();
+                let path = new URL("./_docs/production_composition.php", url);
+                $("#modalOffcanvasBody").load(path.href, {document_id, nomenclature_id: value}, function(){
+                    fncInitProductionComposition(document_id);
+                });
+
+                window.productionNomenclaturePicker.clear();
+            }
+        });
+    }
+
+    if ($("#divDocHeader").hasClass("doc-header-compact--clickable")) {
+        $("#divDocHeader").off("click").on("click", function(){
+            $("#modalOffcanvasBody").html(spnr_loading);
+            $("#modalOffcanvasLabel").html("Удаление документа");
+            modalOffcanvas.show();
+            let path = new URL("./_docs/production_delete.php", url);
+            $("#modalOffcanvasBody").load(path.href, function(){
+                $("#btnDeleteDocument").off("click").on("click", async function(){
+                    let confirmed = await fncConfirm("Удалить документ безвозвратно?");
+                    if (!confirmed) return;
+                    $(this).prop("disabled", true);
+                    fncMyAjax("del_document", "docs", [{name: "id", value: document_id}], 1)
+                        .done(function(data){
+                            if (data.sccss) {
+                                modalOffcanvas.hide();
+                                main_modal.hide();
+                                listLoadFunction();
+                            } else {
+                                fncShowFormError(data.msg ?? "Не удалось удалить документ");
+                                $("#btnDeleteDocument").prop("disabled", false);
+                            }
+                        })
+                        .fail(function(){ $("#btnDeleteDocument").prop("disabled", false); });
+                });
+            });
+        });
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fncInitProductionComposition(document_id) {
+    $(".production-ingredient-input").off("input").on("input", function(){
+        fncNormalizeInp(this, "digits_double");
+        let available = parseFloat($(this).data("available")) || 0;
+        let entered = parseFloat($(this).val().replace(",", ".")) || 0;
+        $(this).toggleClass("is-invalid", entered > available);
+    });
+
+    $("#btnSaveProductionItem").off("click").on("click", function(){
+        $("#divProductionFormError").addClass("d-none");
+
+        if ($(".production-ingredient-input.is-invalid").length > 0) {
+            $("#spnProductionFormError").html("Одно из количеств превышает доступный остаток");
+            $("#divProductionFormError").removeClass("d-none");
+            return;
+        }
+
+        fncNormalizeInp("#inpProducedQuantity", "digits_double");
+        let produced_quantity = $("#inpProducedQuantity").val();
+        if (!produced_quantity || parseFloat(produced_quantity) <= 0) {
+            $("#spnProductionFormError").html("Укажите полученное количество ПФ");
+            $("#divProductionFormError").removeClass("d-none");
+            return;
+        }
+
+        let ingredients = [];
+        let has_empty = false;
+        $(".production-ingredient-input").each(function(){
+            let qty = parseFloat($(this).val().replace(",", ".")) || 0;
+            if (qty <= 0) {
+                has_empty = true;
+                return;
+            }
+            ingredients.push({nomenclature_id: $(this).data("nomenclature-id"), quantity: qty});
+        });
+
+        if (has_empty) {
+            $("#spnProductionFormError").html("Заполните количество по всем ингредиентам");
+            $("#divProductionFormError").removeClass("d-none");
+            return;
+        }
+
+        $("#btnSaveProductionItem").prop("disabled", true);
+
+        let nomenclature_id = $("#inpProductionNomenclatureId").val();
+
+        fncMyAjax("new_production_item", "docs", [
+            {name: "document_id", value: document_id},
+            {name: "nomenclature_id", value: nomenclature_id},
+            {name: "produced_quantity", value: produced_quantity},
+            {name: "ingredients", value: JSON.stringify(ingredients)},
+        ], 1)
+            .done(function(data){
+                if (data.sccss) {
+                    modalOffcanvas.hide();
+                    fncLoadProductionItems(document_id);
+                } else {
+                    $("#spnProductionFormError").html(data.msg ?? "Не удалось сохранить строку");
+                    $("#divProductionFormError").removeClass("d-none");
+                    $("#btnSaveProductionItem").prop("disabled", false);
+                }
+            })
+            .fail(function(){
+                $("#btnSaveProductionItem").prop("disabled", false);
+            });
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fncInitProductionItems(document_id) {
+    $(".ingredient-auto-batch").off("change").on("change", function(){
+        let ingredient_id = $(this).data("ingredient-id");
+        let mode = $(this).prop("checked") ? "auto" : "manual";
+        let $checkbox = $(this);
+        let $manualBlock = $checkbox.closest(".mb-2").find(".ingredient-manual-block");
+
+        $checkbox.prop("disabled", true);
+
+        fncMyAjax("upd_ingredient_batch_mode", "docs", [
+            {name: "ingredient_id", value: ingredient_id},
+            {name: "mode", value: mode},
+        ], 1)
+            .done(function(data){
+                if (data.sccss) {
+                    $manualBlock.toggleClass("d-none", mode === "auto");
+                    if (mode === "manual") {
+                        $manualBlock.find("span").text("Не распределено");
+                    }
+                } else {
+                    fncShowFormError(data.msg ?? "Не удалось переключить режим");
+                    $checkbox.prop("checked", !$checkbox.prop("checked"));
+                }
+            })
+            .always(function(){
+                $checkbox.prop("disabled", false);
+            });
+    });
+
+    $(".ingredient-select-batches").off("click").on("click", function(){
+        let ingredient_id = $(this).data("ingredient-id");
+        let quantity = $(this).data("quantity");
+
+        $("#modalOffcanvasBody").html(spnr_loading);
+        $("#modalOffcanvasLabel").html("Выбор партий");
+        modalOffcanvas.show();
+        let path = new URL("./_docs/production_ingredient_batch_select.php", url);
+        $("#modalOffcanvasBody").load(path.href, {ingredient_id, needed_quantity: quantity}, function(){
+            fncInitIngredientBatchSelection();
+        });
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fncInitIngredientBatchSelection() {
+    let ingredient_id = $("#inpIngredientBatchId").val();
+    let needed = parseFloat($("#inpIngredientBatchNeededQuantity").val()) || 0;
+
+    function fncFormatQuantity3(value) {
+        return value.toFixed(3).replace(".", ",");
+    }
+
+    function fncRecalcDistributed() {
+        let total = 0;
+        $(".batch-quantity-input").each(function(){
+            total += parseFloat($(this).val().replace(",", ".")) || 0;
+        });
+        $("#spnIngredientBatchDistributed").html(fncFormatQuantity3(total));
+        return total;
+    }
+
+    fncRecalcDistributed();
+
+    $(".batch-quantity-input").off("input").on("input", function(){
+        fncNormalizeInp(this, "digits_double");
+
+        let remaining = parseFloat($(this).closest(".composition-row").data("batch-remaining")) || 0;
+        let entered = parseFloat($(this).val().replace(",", ".")) || 0;
+        $(this).toggleClass("is-invalid", entered > remaining);
+
+        fncRecalcDistributed();
+    });
+
+    $("#btnConfirmIngredientBatches").off("click").on("click", function(){
+        let total = fncRecalcDistributed();
+        $("#divIngredientBatchFormError").addClass("d-none");
+
+        if ($(".batch-quantity-input.is-invalid").length > 0) {
+            $("#spnIngredientBatchFormError").html("Одна из партий превышает свой остаток");
+            $("#divIngredientBatchFormError").removeClass("d-none");
+            return;
+        }
+
+        if (Math.abs(total - needed) > 0.001) {
+            $("#spnIngredientBatchFormError").html("Сумма по партиям должна равняться " + fncFormatQuantity3(needed));
+            $("#divIngredientBatchFormError").removeClass("d-none");
+            return;
+        }
+
+        let distribution = [];
+        $(".composition-row[data-batch-id]").each(function(){
+            let qty = parseFloat($(this).find(".batch-quantity-input").val().replace(",", ".")) || 0;
+            if (qty > 0) {
+                distribution.push({batch_id: $(this).data("batch-id"), quantity: qty});
+            }
+        });
+
+        $("#btnConfirmIngredientBatches").prop("disabled", true);
+
+        fncMyAjax("save_ingredient_batches", "docs", [
+            {name: "ingredient_id", value: ingredient_id},
+            {name: "batches", value: JSON.stringify(distribution)},
+        ], 1)
+            .done(function(data){
+                if (data.sccss) {
+                    modalOffcanvas.hide();
+                    $(`.ingredient-select-batches[data-ingredient-id="${ingredient_id}"]`).next("span").text("Распределено");
+                } else {
+                    $("#spnIngredientBatchFormError").html(data.msg ?? "Не удалось сохранить распределение");
+                    $("#divIngredientBatchFormError").removeClass("d-none");
+                    $("#btnConfirmIngredientBatches").prop("disabled", false);
+                }
+            })
+            .fail(function(){
+                $("#btnConfirmIngredientBatches").prop("disabled", false);
+            });
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fncLoadProductionItems(document_id) {
+    $("#divProductionItemsList").html(spnr_loading);
+    let path = new URL("./_docs/production_info_items.php", url);
+    $("#divProductionItemsList").load(path.href, {id: document_id}, function(){
+        fncInitProductionItems(document_id);
+
+        let $inner = $("#divProductionItemsInner");
+        let has_items = $inner.data("has-items") === 1;
+        let is_draft  = $inner.data("is-draft") === 1;
+        let total_sum = parseFloat($inner.data("total-sum")) || 0;
+
+        $(".composition-row--clickable[data-production-item]").off("click").on("click", function(){
+            let item_id = +$(this).data("id");
+            if (is_draft) {
+                fncOpenProductionItemDelete(item_id, document_id);
+            } else {
+                fncOpenProductionItemLedger(item_id);
+            }
+        });
+
+        fncUpdateDocumentFooter(document_id, has_items, false, is_draft, total_sum, 0);
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fncOpenProductionItemDelete(item_id, document_id) {
+    $("#modalOffcanvasBody").html(`
+        <div class="mb-3 text-muted">Редактирование выпуска ПФ недоступно — при необходимости удалите строку и добавьте выпуск заново.</div>
+        <button type="button" class="btn-danger-action" id="btnDeleteProductionItem">Удалить строку</button>
+    `);
+    $("#modalOffcanvasLabel").html("Строка выпуска");
+    modalOffcanvas.show();
+
+    $("#btnDeleteProductionItem").off("click").on("click", async function(){
+        let confirmed = await fncConfirm("Удалить строку выпуска? Все резервы партий будут освобождены.");
+        if (!confirmed) return;
+        $(this).prop("disabled", true);
+        fncMyAjax("del_production_item", "docs", [{name: "id", value: item_id}], 1)
+            .done(function(data){
+                if (data.sccss) {
+                    modalOffcanvas.hide();
+                    fncLoadProductionItems(document_id);
+                } else {
+                    fncShowFormError(data.msg ?? "Не удалось удалить строку");
+                    $("#btnDeleteProductionItem").prop("disabled", false);
+                }
+            })
+            .fail(function(){ $("#btnDeleteProductionItem").prop("disabled", false); });
+    });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+function fncOpenProductionItemLedger(item_id) {
+    $("#modalOffcanvasBody").html(spnr_loading);
+    $("#modalOffcanvasLabel").html("Складские операции");
+    modalOffcanvas.show();
+    let path = new URL("./_docs/production_item_ledger.php", url);
+    $("#modalOffcanvasBody").load(path.href, {item_id: item_id}, function(){
+        $("[data-ledger-toggle]").off("click").on("click", function(){
+            let idx = $(this).data("ledger-toggle");
+            $(`#divLedgerDetailsExpense${idx}`).toggleClass("d-none");
+            $(`#chevronLedgerExpense${idx}`).toggleClass("bi-chevron-down bi-chevron-up");
+        });
+    });
 }

@@ -106,21 +106,35 @@ function fncFlipLastStockLedger($nomenclature_id, $warehouse_id) {
 // полуфабрикатов. Вызывающий код обязан находиться внутри уже открытой
 // транзакции и сам проверять результат на false — функция не бросает
 // исключений, только пробрасывает false от fncQuery дальше.
-function fncStockLedgerIn($document_id, $document_type_id, $document_item_id, $warehouse_id, $nomenclature_id, $quantity, $price, $sum) {
-    $prev_totals = fncFlipLastStockLedger($nomenclature_id, $warehouse_id);
-    if ($prev_totals === false) return false;
-    [$prev_quantity, $prev_sum] = $prev_totals;
+function fncStockLedgerIn($document_id, $document_type_id, $document_item_id, $warehouse_id, $nomenclature_id, $quantity, $price, $sum, $tax_sum = null) {
+    $stmt = fncQuery(
+        "SELECT id, total_quantity, total_sum
+         FROM stock_ledger
+         WHERE nomenclature_id = :nomenclature_id AND warehouse_id = :warehouse_id AND is_last = 1
+         LIMIT 1",
+        ['nomenclature_id' => $nomenclature_id, 'warehouse_id' => $warehouse_id]
+    );
+    if (!$stmt) return false;
+    $prev = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $prev_quantity = $prev ? (float)$prev['total_quantity'] : 0;
+    $prev_sum = $prev ? (float)$prev['total_sum'] : 0;
 
     $new_total_quantity = $prev_quantity + (float)$quantity;
     $new_total_sum = $prev_sum + (float)$sum;
 
+    if ($prev) {
+        $stmt = fncQuery("UPDATE stock_ledger SET is_last = 0 WHERE id = :id", ['id' => $prev['id']]);
+        if (!$stmt) return false;
+    }
+
     return fncQuery(
         "INSERT INTO stock_ledger
             (document_id, document_type_id, document_item_id, warehouse_id, nomenclature_id,
-             date, quantity, price, sum, quantity_remaining, total_quantity, total_sum, is_last)
+             date, quantity, price, sum, tax_sum, quantity_remaining, total_quantity, total_sum, is_last)
          VALUES
             (:document_id, :document_type_id, :document_item_id, :warehouse_id, :nomenclature_id,
-             NOW(), :quantity, :price, :sum, :quantity_remaining, :total_quantity, :total_sum, 1)",
+             NOW(), :quantity, :price, :sum, :tax_sum, :quantity_remaining, :total_quantity, :total_sum, 1)",
         [
             'document_id'        => $document_id,
             'document_type_id'   => $document_type_id,
@@ -130,11 +144,12 @@ function fncStockLedgerIn($document_id, $document_type_id, $document_item_id, $w
             'quantity'           => $quantity,
             'price'              => $price,
             'sum'                => $sum,
+            'tax_sum'            => $tax_sum,
             'quantity_remaining' => $quantity,
             'total_quantity'     => $new_total_quantity,
             'total_sum'          => $new_total_sum,
         ]
-    );
+    ) ? true : false;
 }
 // Расход одной строки документа со склада: читает уже сохранённое
 // распределение по партиям (document_item_batches), для каждой партии
@@ -298,25 +313,41 @@ function fncAutoDistributeBatches($nomenclature_id, $warehouse_id, $quantity, $d
     return $distribution;
 }
 
-// Сколько из каждой партии уже занято ДРУГИМИ строками этого же документа
-// (document_item_batches) — партии физически резервируются в момент
+// Сколько из каждой партии уже занято ДРУГИМИ строками этого же документа —
+// как обычными (document_item_batches), так и ингредиентами Выпуска ПФ
+// (document_item_ingredient_batches, через document_item_ingredients). Обе
+// таблицы — виртуальные резервы: партии физически резервируются в момент
 // добавления строки-черновика, а списываются с quantity_remaining только при
-// проведении, поэтому без этого две строки одного документа могли бы
-// "выбрать" одну и ту же партию дважды. Возвращает map batch_ledger_id =>
-// количество. Гонка МЕЖДУ документами архитектурно исключена (один активный
-// документ на склад), поэтому учитывать другие документы здесь не нужно.
-function fncBatchReservationsInDocument($document_id, $exclude_item_id = null) {
-    $exclude_sql = $exclude_item_id ? " AND di.id != :exclude_item_id" : "";
-    $binds = ['document_id' => $document_id];
+// проведении, поэтому без объединения обеих таблиц строка обычного документа
+// и строка ингредиента могли бы "выбрать" одну и ту же партию дважды —
+// именно так и происходило до объединения этой функции. Возвращает map
+// batch_ledger_id => количество. Гонка МЕЖДУ документами архитектурно
+// исключена (один активный документ на склад), поэтому учитывать другие
+// документы здесь не нужно.
+function fncBatchReservationsInDocument($document_id, $exclude_item_id = null, $exclude_ingredient_id = null) {
+    $exclude_sql_items = $exclude_item_id ? " AND di.id != :exclude_item_id" : "";
+    $exclude_sql_ing = $exclude_ingredient_id ? " AND dii.id != :exclude_ingredient_id" : "";
+    $binds = ['document_id' => $document_id, 'document_id2' => $document_id];
     if ($exclude_item_id) {
         $binds['exclude_item_id'] = $exclude_item_id;
     }
+    if ($exclude_ingredient_id) {
+        $binds['exclude_ingredient_id'] = $exclude_ingredient_id;
+    }
     $stmt = fncQuery(
-        "SELECT dib.batch_ledger_id, SUM(dib.quantity) AS reserved
-         FROM document_item_batches dib
-         INNER JOIN document_items di ON di.id = dib.document_item_id
-         WHERE di.document_id = :document_id{$exclude_sql}
-         GROUP BY dib.batch_ledger_id",
+        "SELECT batch_ledger_id, SUM(quantity) AS reserved FROM (
+            SELECT dib.batch_ledger_id, dib.quantity
+            FROM document_item_batches dib
+            INNER JOIN document_items di ON di.id = dib.document_item_id
+            WHERE di.document_id = :document_id{$exclude_sql_items}
+            UNION ALL
+            SELECT diib.batch_ledger_id, diib.quantity
+            FROM document_item_ingredient_batches diib
+            INNER JOIN document_item_ingredients dii ON dii.id = diib.document_item_ingredient_id
+            INNER JOIN document_items di ON di.id = dii.document_item_id
+            WHERE di.document_id = :document_id2{$exclude_sql_ing}
+         ) reservations
+         GROUP BY batch_ledger_id",
         $binds
     );
     $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
@@ -592,7 +623,8 @@ function fncStockLedgerTransfer($document_id, $document_type_id, $document_item_
 
     foreach ($distribution as $d) {
         $stmt = fncQuery(
-            "SELECT price, quantity_remaining FROM stock_ledger WHERE id = :id",
+            "SELECT price, quantity_remaining, tax_sum, quantity AS batch_original_quantity
+             FROM stock_ledger WHERE id = :id",
             ['id' => $d['batch_ledger_id']]
         );
         if (!$stmt) return false;
@@ -602,6 +634,16 @@ function fncStockLedgerTransfer($document_id, $document_type_id, $document_item_
         $take_quantity = (float)$d['quantity'];
         $batch_price = (float)$batch['price'];
         $take_sum = round($take_quantity * $batch_price, 2);
+
+        // НДС на единицу берём от ПЕРВОНАЧАЛЬНОГО количества этой партии
+        // (quantity записи stock_ledger, не quantity_remaining) — tax_sum
+        // в записи относится ко всему объёму партии при её создании,
+        // не пересчитывается при частичных расходах/перемещениях.
+        $tax_sum = null;
+        if ($batch['tax_sum'] !== null && (float)$batch['batch_original_quantity'] != 0) {
+            $tax_per_unit = (float)$batch['tax_sum'] / abs((float)$batch['batch_original_quantity']);
+            $tax_sum = round($tax_per_unit * $take_quantity, 2);
+        }
 
         $new_remaining = round((float)$batch['quantity_remaining'] - $take_quantity, 3);
         if (abs($new_remaining) < 0.001) {
@@ -614,8 +656,6 @@ function fncStockLedgerTransfer($document_id, $document_type_id, $document_item_
         );
         if (!$stmt) return false;
 
-        // Расходная запись на складе-источнике — по этой ОДНОЙ партии,
-        // не сводная (в отличие от fncStockLedgerOut для обычного Списания).
         $stmt = fncQuery(
             "SELECT id, total_quantity, total_sum
              FROM stock_ledger
@@ -678,10 +718,6 @@ function fncStockLedgerTransfer($document_id, $document_type_id, $document_item_
         );
         if (!$stmt) return false;
 
-        // Приходная запись на складе-получателе — с той же ценой/количеством,
-        // связана с расходной записью через source_ledger_id, создаёт НОВУЮ
-        // партию (quantity_remaining = take_quantity) для дальнейшего FIFO
-        // уже на складе-получателе.
         $stmt = fncQuery(
             "SELECT id, total_quantity, total_sum
              FROM stock_ledger
@@ -705,10 +741,10 @@ function fncStockLedgerTransfer($document_id, $document_type_id, $document_item_
         $stmt = fncQuery(
             "INSERT INTO stock_ledger
                 (document_id, document_type_id, document_item_id, warehouse_id, nomenclature_id,
-                 date, quantity, price, sum, quantity_remaining, total_quantity, total_sum, is_last, source_ledger_id)
+                 date, quantity, price, sum, tax_sum, quantity_remaining, total_quantity, total_sum, is_last, source_ledger_id)
              VALUES
                 (:document_id, :document_type_id, :document_item_id, :warehouse_id, :nomenclature_id,
-                 NOW(), :quantity, :price, :sum, :quantity_remaining, :total_quantity, :total_sum, 1, :source_ledger_id)",
+                 NOW(), :quantity, :price, :sum, :tax_sum, :quantity_remaining, :total_quantity, :total_sum, 1, :source_ledger_id)",
             [
                 'document_id'        => $document_id,
                 'document_type_id'   => $document_type_id,
@@ -718,6 +754,7 @@ function fncStockLedgerTransfer($document_id, $document_type_id, $document_item_
                 'quantity'           => $take_quantity,
                 'price'              => $batch_price,
                 'sum'                => $take_sum,
+                'tax_sum'            => $tax_sum,
                 'quantity_remaining' => $take_quantity,
                 'total_quantity'     => $new_in_quantity,
                 'total_sum'          => $new_in_sum,
@@ -727,6 +764,175 @@ function fncStockLedgerTransfer($document_id, $document_type_id, $document_item_
         if (!$stmt) return false;
 
         $total_sum += $take_sum;
+    }
+
+    return $total_sum;
+}
+// Проверяет остаток ингредиента для Выпуска ПФ: доступный остаток минус
+// уже зарезервированное количество ЭТОЙ ЖЕ номенклатуры другими строками
+// ингредиентов в рамках того же документа (ингредиент может повторяться
+// в разных ПФ одного документа выпуска). exclude_ingredient_id — исключить
+// из подсчёта саму пересчитываемую строку (для будущего пересчёта при
+// переключении авто/вручную).
+function fncCheckIngredientAvailability($nomenclature_id, $warehouse_id, $document_id, $quantity, $exclude_ingredient_id = null) {
+    $stmt = fncQuery(
+        "SELECT total_quantity FROM stock_ledger
+         WHERE nomenclature_id = :nomenclature_id AND warehouse_id = :warehouse_id AND is_last = 1
+         LIMIT 1",
+        ['nomenclature_id' => $nomenclature_id, 'warehouse_id' => $warehouse_id]
+    );
+    $stock_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+    $available = $stock_row ? (float)$stock_row['total_quantity'] : 0;
+
+    $exclude_sql = $exclude_ingredient_id ? " AND dii.id != :exclude_id" : "";
+    $binds = ['document_id' => $document_id, 'nomenclature_id' => $nomenclature_id];
+    if ($exclude_ingredient_id) {
+        $binds['exclude_id'] = $exclude_ingredient_id;
+    }
+
+    $stmt = fncQuery(
+        "SELECT COALESCE(SUM(dii.quantity), 0) AS already_reserved
+         FROM document_item_ingredients dii
+         INNER JOIN document_items di ON di.id = dii.document_item_id
+         WHERE di.document_id = :document_id AND dii.nomenclature_id = :nomenclature_id{$exclude_sql}",
+        $binds
+    );
+    $already_reserved = $stmt ? (float)$stmt->fetch(PDO::FETCH_ASSOC)['already_reserved'] : 0;
+
+    return (float)$quantity <= ($available - $already_reserved);
+}
+
+// Отменяет текущее распределение ингредиента по партиям: удаляет записи
+// document_item_ingredient_batches. Партии здесь — виртуальный резерв (как и
+// у обычных строк через document_item_batches, см. fncBatchReservationsInDocument) —
+// stock_ledger.quantity_remaining физически не трогается ни при резервировании,
+// ни при его отмене, только при проведении документа (fncStockLedgerOutForIngredient).
+// Используется при переключении режима авто/вручную и при пересохранении
+// ручного распределения — оно всегда пересчитывается с нуля, а не
+// корректируется частично.
+function fncReleaseIngredientBatches($ingredient_id) {
+    $stmt = fncQuery(
+        "DELETE FROM document_item_ingredient_batches WHERE document_item_ingredient_id = :id",
+        ['id' => $ingredient_id]
+    );
+    return $stmt ? true : false;
+}
+// Списание одного ингредиента Выпуска ПФ: та же механика, что и
+// fncStockLedgerOut (одна сводная расходная запись, средневзвешенная цена,
+// расшифровка по партиям через stock_ledger_consumption), но источник
+// распределения — document_item_ingredient_batches (строка ингредиента),
+// а не document_item_batches. Запись в stock_ledger получает
+// document_item_id РОДИТЕЛЬСКОЙ строки ПФ (не строки ингредиента), чтобы
+// просмотр складских операций строки показывал все её ингредиенты вместе.
+// Возвращает сумму списания (float) при успехе, false при ошибке.
+function fncStockLedgerOutForIngredient($document_id, $document_type_id, $pf_document_item_id, $ingredient_id, $warehouse_id, $nomenclature_id, $quantity) {
+    global $pdo;
+
+    $stmt = fncQuery(
+        "SELECT id, batch_ledger_id, quantity FROM document_item_ingredient_batches WHERE document_item_ingredient_id = :id",
+        ['id' => $ingredient_id]
+    );
+    if (!$stmt) return false;
+    $distribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (empty($distribution)) return false;
+
+    $total_sum = 0;
+    $consumptions = [];
+
+    foreach ($distribution as $d) {
+        $stmt = fncQuery(
+            "SELECT price, quantity_remaining FROM stock_ledger WHERE id = :id",
+            ['id' => $d['batch_ledger_id']]
+        );
+        if (!$stmt) return false;
+        $batch = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$batch) return false;
+
+        $take_quantity = (float)$d['quantity'];
+        $batch_price = (float)$batch['price'];
+        $take_sum = round($take_quantity * $batch_price, 2);
+
+        $new_remaining = round((float)$batch['quantity_remaining'] - $take_quantity, 3);
+        if (abs($new_remaining) < 0.001) {
+            $new_remaining = 0;
+        }
+
+        $stmt = fncQuery(
+            "UPDATE stock_ledger SET quantity_remaining = :remaining WHERE id = :id",
+            ['remaining' => $new_remaining, 'id' => $d['batch_ledger_id']]
+        );
+        if (!$stmt) return false;
+
+        $consumptions[] = ['batch_ledger_id' => $d['batch_ledger_id'], 'quantity' => $take_quantity, 'price' => $batch_price, 'sum' => $take_sum];
+        $total_sum += $take_sum;
+    }
+
+    $avg_price = (float)$quantity > 0 ? round($total_sum / (float)$quantity, 4) : 0;
+
+    $stmt = fncQuery(
+        "SELECT id, total_quantity, total_sum
+         FROM stock_ledger
+         WHERE nomenclature_id = :nomenclature_id AND warehouse_id = :warehouse_id AND is_last = 1
+         LIMIT 1",
+        ['nomenclature_id' => $nomenclature_id, 'warehouse_id' => $warehouse_id]
+    );
+    if (!$stmt) return false;
+    $prev = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $prev_quantity = $prev ? (float)$prev['total_quantity'] : 0;
+    $prev_sum = $prev ? (float)$prev['total_sum'] : 0;
+
+    $new_total_quantity = round($prev_quantity - (float)$quantity, 3);
+    if (abs($new_total_quantity) < 0.001) {
+        $new_total_quantity = 0;
+    }
+
+    $new_total_sum = round($prev_sum - $total_sum, 2);
+    if (abs($new_total_sum) < 0.001) {
+        $new_total_sum = 0;
+    }
+
+    if ($prev) {
+        $stmt = fncQuery("UPDATE stock_ledger SET is_last = 0 WHERE id = :id", ['id' => $prev['id']]);
+        if (!$stmt) return false;
+    }
+
+    $stmt = fncQuery(
+        "INSERT INTO stock_ledger
+            (document_id, document_type_id, document_item_id, warehouse_id, nomenclature_id,
+             date, quantity, price, sum, total_quantity, total_sum, is_last)
+         VALUES
+            (:document_id, :document_type_id, :document_item_id, :warehouse_id, :nomenclature_id,
+             NOW(), :quantity, :price, :sum, :total_quantity, :total_sum, 1)",
+        [
+            'document_id'      => $document_id,
+            'document_type_id' => $document_type_id,
+            'document_item_id' => $pf_document_item_id,
+            'warehouse_id'     => $warehouse_id,
+            'nomenclature_id'  => $nomenclature_id,
+            'quantity'         => -1 * (float)$quantity,
+            'price'            => $avg_price,
+            'sum'              => -1 * $total_sum,
+            'total_quantity'   => $new_total_quantity,
+            'total_sum'        => $new_total_sum,
+        ]
+    );
+    if (!$stmt) return false;
+    $new_ledger_id = (int)$pdo->lastInsertId();
+
+    foreach ($consumptions as $c) {
+        $stmt = fncQuery(
+            "INSERT INTO stock_ledger_consumption (ledger_id, batch_ledger_id, quantity, price, sum)
+             VALUES (:ledger_id, :batch_ledger_id, :quantity, :price, :sum)",
+            [
+                'ledger_id'       => $new_ledger_id,
+                'batch_ledger_id' => $c['batch_ledger_id'],
+                'quantity'        => $c['quantity'],
+                'price'           => $c['price'],
+                'sum'             => $c['sum'],
+            ]
+        );
+        if (!$stmt) return false;
     }
 
     return $total_sum;
@@ -1080,7 +1286,7 @@ switch ($action) {
             $binds['warehouse_id2'] = $warehouse_id;
         }
 
-        $sql = "SELECT d.id, d.number, d.document_date, d.status, d.sum,
+        $sql = "SELECT d.id, d.number, d.document_date, d.status, d.sum, d.tax_sum,
                        dt.code, dt.name AS type_name,
                        o.name AS organization_name, oot.abbreviation AS organization_abbreviation, oot.is_individual AS organization_is_individual,
                        c.name AS counterparty_name, cot.abbreviation AS counterparty_abbreviation, cot.is_individual AS counterparty_is_individual,
@@ -1517,43 +1723,115 @@ switch ($action) {
         try {
             $pdo->beginTransaction();
 
-            $stmt = fncQuery(
-                "INSERT INTO document_items (document_id, nomenclature_id, quantity, price, sum, tax_sum, created_by)
-                 VALUES (:document_id, :nomenclature_id, :quantity, :price, :sum, :tax_sum, :created_by)",
-                [
-                    'document_id'     => $document_id,
-                    'nomenclature_id' => $nomenclature_id,
-                    'quantity'        => $quantity,
-                    'price'           => $price,
-                    'sum'             => $sum,
-                    'tax_sum'         => $tax_sum,
-                    'created_by'      => $user_id,
-                ]
-            );
-            if (!$stmt) {
-                throw new Exception('Не удалось создать строку документа');
-            }
-            $new_item_id = (int)$pdo->lastInsertId();
-
-            if ($batches !== null) {
+            if (in_array($doc['code'], ['return_to_supplier', 'supplier_correction'], true)) {
+                // Возврат поставщику — особый случай: не одна строка с
+                // отложенной ценой (как у Списания), а по ОДНОЙ строке
+                // document_items НА КАЖДУЮ партию распределения, сразу с
+                // подлинной ценой и НДС именно этой партии (см. /decisions.md).
+                // Цена/сумма/НДС строки известны уже на этапе создания — в
+                // отличие от Списания, где price/sum заполняются только при
+                // проведении документа.
+                $created_ids = [];
                 foreach ($batches as $b) {
+                    $stmt = fncQuery(
+                        "SELECT price, tax_sum, quantity AS batch_original_quantity
+                         FROM stock_ledger WHERE id = :id",
+                        ['id' => (int)$b['batch_id']]
+                    );
+                    $batch_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+                    if (!$batch_row) {
+                        throw new Exception('Партия не найдена');
+                    }
+
+                    $row_quantity = (float)$b['quantity'];
+                    $row_price = (float)$batch_row['price'];
+                    $row_sum = round($row_quantity * $row_price, 2);
+
+                    $row_tax_sum = null;
+                    if ($batch_row['tax_sum'] !== null && (float)$batch_row['batch_original_quantity'] != 0) {
+                        $tax_per_unit = (float)$batch_row['tax_sum'] / abs((float)$batch_row['batch_original_quantity']);
+                        $row_tax_sum = round($tax_per_unit * $row_quantity, 2);
+                    }
+
+                    $stmt = fncQuery(
+                        "INSERT INTO document_items (document_id, nomenclature_id, quantity, price, sum, tax_sum, created_by)
+                         VALUES (:document_id, :nomenclature_id, :quantity, :price, :sum, :tax_sum, :created_by)",
+                        [
+                            'document_id'     => $document_id,
+                            'nomenclature_id' => $nomenclature_id,
+                            'quantity'        => $row_quantity,
+                            'price'           => $row_price,
+                            'sum'             => $row_sum,
+                            'tax_sum'         => $row_tax_sum,
+                            'created_by'      => $user_id,
+                        ]
+                    );
+                    if (!$stmt) {
+                        throw new Exception('Не удалось создать строку документа');
+                    }
+                    $new_item_id = (int)$pdo->lastInsertId();
+
                     $stmt = fncQuery(
                         "INSERT INTO document_item_batches (document_item_id, batch_ledger_id, quantity)
                          VALUES (:document_item_id, :batch_ledger_id, :quantity)",
                         [
                             'document_item_id' => $new_item_id,
                             'batch_ledger_id'  => (int)$b['batch_id'],
-                            'quantity'         => $b['quantity'],
+                            'quantity'         => $row_quantity,
                         ]
                     );
                     if (!$stmt) {
                         throw new Exception('Не удалось сохранить распределение по партиям');
                     }
-                }
-            }
 
-            $pdo->commit();
-            $result = ['sccss' => true, 'id' => $new_item_id];
+                    $created_ids[] = $new_item_id;
+                }
+
+                $pdo->commit();
+                $result = ['sccss' => true, 'ids' => $created_ids];
+
+            } else {
+                // Все остальные типы — прежняя логика: одна строка документа,
+                // при необходимости с распределением по нескольким партиям
+                // внутри неё (Списание/Перемещение).
+                $stmt = fncQuery(
+                    "INSERT INTO document_items (document_id, nomenclature_id, quantity, price, sum, tax_sum, created_by)
+                     VALUES (:document_id, :nomenclature_id, :quantity, :price, :sum, :tax_sum, :created_by)",
+                    [
+                        'document_id'     => $document_id,
+                        'nomenclature_id' => $nomenclature_id,
+                        'quantity'        => $quantity,
+                        'price'           => $price,
+                        'sum'             => $sum,
+                        'tax_sum'         => $tax_sum,
+                        'created_by'      => $user_id,
+                    ]
+                );
+                if (!$stmt) {
+                    throw new Exception('Не удалось создать строку документа');
+                }
+                $new_item_id = (int)$pdo->lastInsertId();
+
+                if ($batches !== null) {
+                    foreach ($batches as $b) {
+                        $stmt = fncQuery(
+                            "INSERT INTO document_item_batches (document_item_id, batch_ledger_id, quantity)
+                             VALUES (:document_item_id, :batch_ledger_id, :quantity)",
+                            [
+                                'document_item_id' => $new_item_id,
+                                'batch_ledger_id'  => (int)$b['batch_id'],
+                                'quantity'         => $b['quantity'],
+                            ]
+                        );
+                        if (!$stmt) {
+                            throw new Exception('Не удалось сохранить распределение по партиям');
+                        }
+                    }
+                }
+
+                $pdo->commit();
+                $result = ['sccss' => true, 'id' => $new_item_id];
+            }
 
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) {
@@ -1820,6 +2098,13 @@ switch ($action) {
             exit;
         }
 
+        $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM document_items WHERE document_id = :id", ['id' => $id]);
+        $items_count = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] : 0;
+        if ($items_count > 0) {
+            echo json_encode(['sccss' => false, 'msg' => 'Сначала удалите все строки документа']);
+            exit;
+        }
+
         $stmt = fncQuery("DELETE FROM documents WHERE id = :id", ['id' => $id]);
         $result = ['sccss' => (bool)$stmt];
         break;
@@ -1863,7 +2148,7 @@ switch ($action) {
             exit;
         }
 
-        $supported_codes = ['stock_adjustment', 'writeoff', 'transfer', 'incoming_upd', 'incoming_waybill', 'incoming_receipt'];
+        $supported_codes = ['stock_adjustment', 'writeoff', 'transfer', 'incoming_upd', 'incoming_waybill', 'incoming_receipt', 'sf_production', 'return_to_supplier', 'supplier_correction'];
         if (!in_array($doc['code'], $supported_codes, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Проведение этого типа документа пока не реализовано']);
             exit;
@@ -1896,75 +2181,193 @@ switch ($action) {
         try {
             $pdo->beginTransaction();
 
-            $is_incoming  = $doc['direction'] === 'incoming';
-            $is_outbound  = $doc['code'] === 'writeoff';
-            $is_transfer  = $doc['code'] === 'transfer';
+            $is_incoming    = $doc['direction'] === 'incoming';
+            $is_outbound    = in_array($doc['code'], ['writeoff', 'return_to_supplier', 'supplier_correction'], true);
+            $is_transfer    = $doc['code'] === 'transfer';
+            $is_production  = $doc['code'] === 'sf_production';
+            $is_return      = in_array($doc['code'], ['return_to_supplier', 'supplier_correction'], true);
 
-            // Перемещение блокирует ОБА склада — порядок блокировок фиксирован
-            // (сначала меньший id, потом больший), чтобы исключить deadlock при
-            // потенциальном встречном перемещении (документ A: склад 1 -> склад 2,
-            // документ B: склад 2 -> склад 1, проводимые одновременно).
-            if ($is_transfer) {
-                $warehouse_ids_to_lock = [(int)$doc['warehouse_out_id'], (int)$doc['warehouse_in_id']];
-                sort($warehouse_ids_to_lock);
-                foreach ($warehouse_ids_to_lock as $wid) {
-                    $stmt = fncQuery("SELECT id FROM objects WHERE id = :id FOR UPDATE", ['id' => $wid]);
-                    if (!$stmt) {
-                        throw new Exception('Не удалось заблокировать склад');
-                    }
-                }
-                $warehouse_id = null;
-            } else {
-                $warehouse_id = (int)($is_outbound ? $doc['warehouse_out_id'] : $doc['warehouse_in_id']);
+            $total_sum = 0;
+            $total_tax_sum = 0;
+
+            if ($is_production) {
+                // Выпуск ПФ: единственный склад (warehouse_in_id == warehouse_out_id,
+                // заложено при создании документа). Для каждой строки ПФ — списание
+                // всех её ингредиентов, расчёт фактической себестоимости, оприходование
+                // ПФ с этой ценой, проверка отклонения от цены последнего выпуска.
+                $confirm_override = fncValFind('confirm_override', $params);
+                $warehouse_id = (int)$doc['warehouse_in_id'];
+
                 $stmt = fncQuery("SELECT id FROM objects WHERE id = :id FOR UPDATE", ['id' => $warehouse_id]);
                 if (!$stmt) {
                     throw new Exception('Не удалось заблокировать склад');
                 }
-            }
 
-            $stmt = fncQuery(
-                "SELECT id, nomenclature_id, quantity, price, sum
-                 FROM document_items
-                 WHERE document_id = :id
-                 ORDER BY created_at",
-                ['id' => $document_id]
-            );
-            if (!$stmt) {
-                throw new Exception('Не удалось прочитать строки документа');
-            }
-            $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $stmt = fncQuery(
+                    "SELECT id, nomenclature_id, quantity FROM document_items WHERE document_id = :id ORDER BY created_at",
+                    ['id' => $document_id]
+                );
+                if (!$stmt) {
+                    throw new Exception('Не удалось прочитать строки ПФ');
+                }
+                $pf_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $total_sum = 0;
-
-            foreach ($items as $item) {
-                if ($is_transfer) {
-                    $item_sum = fncStockLedgerTransfer($document_id, $doc['document_type_id'], $item['id'], $doc['warehouse_out_id'], $doc['warehouse_in_id'], $item['nomenclature_id']);
-                    if ($item_sum === false) {
-                        throw new Exception('Не удалось переместить строку ' . $item['id']);
+                foreach ($pf_items as $pf) {
+                    $stmt = fncQuery(
+                        "SELECT id, nomenclature_id, quantity FROM document_item_ingredients WHERE document_item_id = :id",
+                        ['id' => $pf['id']]
+                    );
+                    if (!$stmt) {
+                        throw new Exception('Не удалось прочитать ингредиенты строки ' . $pf['id']);
                     }
-                    $total_sum += $item_sum;
-                } elseif ($is_outbound) {
-                    $item_sum = fncStockLedgerOut($document_id, $doc['document_type_id'], $item['id'], $warehouse_id, $item['nomenclature_id'], $item['quantity']);
-                    if ($item_sum === false) {
-                        throw new Exception('Не удалось создать запись остатка для строки ' . $item['id']);
+                    $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    $pf_cost = 0;
+                    foreach ($ingredients as $ing) {
+                        $ing_sum = fncStockLedgerOutForIngredient($document_id, $doc['document_type_id'], $pf['id'], $ing['id'], $warehouse_id, $ing['nomenclature_id'], $ing['quantity']);
+                        if ($ing_sum === false) {
+                            throw new Exception('Не удалось списать ингредиент ' . $ing['id']);
+                        }
+                        $pf_cost += $ing_sum;
                     }
-                    $total_sum += $item_sum;
-                } else {
-                    $ok = fncStockLedgerIn($document_id, $doc['document_type_id'], $item['id'], $warehouse_id, $item['nomenclature_id'], $item['quantity'], $item['price'], $item['sum']);
+
+                    $pf_price = (float)$pf['quantity'] > 0 ? round($pf_cost / (float)$pf['quantity'], 4) : 0;
+
+                    $stmt = fncQuery(
+                        "SELECT sl.price FROM stock_ledger sl
+                         WHERE sl.nomenclature_id = :nomenclature_id AND sl.document_type_id = :document_type_id AND sl.quantity > 0
+                         ORDER BY sl.id DESC LIMIT 1",
+                        ['nomenclature_id' => $pf['nomenclature_id'], 'document_type_id' => $doc['document_type_id']]
+                    );
+                    $last_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+
+                    if ($last_row && (float)$last_row['price'] > 0) {
+                        $last_price = (float)$last_row['price'];
+                        $deviation = abs($pf_price - $last_price) / $last_price * 100;
+
+                        if ($deviation > 10) {
+                            $has_override = fncCan($perms, 'inventory');
+                            if (!$has_override) {
+                                throw new Exception("Отклонение цены выпуска ({$deviation}%) превышает допустимые 10%");
+                            }
+                            if (!$confirm_override) {
+                                $pdo->rollBack();
+                                fncQuery(
+                                    "UPDATE documents SET status = 'draft', posting_started_at = NULL WHERE id = :id",
+                                    ['id' => $document_id]
+                                );
+                                echo json_encode([
+                                    'sccss' => false,
+                                    'needs_confirmation' => true,
+                                    'deviation' => round($deviation, 1),
+                                    'msg' => 'Отклонение цены выпуска составляет ' . round($deviation, 1) . '%. Требуется подтверждение.',
+                                ]);
+                                exit;
+                            }
+                        }
+                    }
+
+                    $stmt = fncQuery(
+                        "UPDATE document_items SET price = :price, sum = :sum WHERE id = :id",
+                        ['price' => $pf_price, 'sum' => $pf_cost, 'id' => $pf['id']]
+                    );
+                    if (!$stmt) {
+                        throw new Exception('Не удалось обновить строку ПФ ' . $pf['id']);
+                    }
+
+                    $ok = fncStockLedgerIn($document_id, $doc['document_type_id'], $pf['id'], $warehouse_id, $pf['nomenclature_id'], $pf['quantity'], $pf_price, $pf_cost);
                     if (!$ok) {
-                        throw new Exception('Не удалось создать запись остатка для строки ' . $item['id']);
+                        throw new Exception('Не удалось оприходовать ПФ ' . $pf['id']);
                     }
-                    $total_sum += (float)$item['sum'];
+
+                    $total_sum += $pf_cost;
+                }
+
+            } else {
+                // Все остальные типы — прежняя логика.
+                if ($is_transfer) {
+                    $warehouse_ids_to_lock = [(int)$doc['warehouse_out_id'], (int)$doc['warehouse_in_id']];
+                    sort($warehouse_ids_to_lock);
+                    foreach ($warehouse_ids_to_lock as $wid) {
+                        $stmt = fncQuery("SELECT id FROM objects WHERE id = :id FOR UPDATE", ['id' => $wid]);
+                        if (!$stmt) {
+                            throw new Exception('Не удалось заблокировать склад');
+                        }
+                    }
+                    $warehouse_id = null;
+                } else {
+                    $warehouse_id = (int)($is_outbound ? $doc['warehouse_out_id'] : $doc['warehouse_in_id']);
+                    $stmt = fncQuery("SELECT id FROM objects WHERE id = :id FOR UPDATE", ['id' => $warehouse_id]);
+                    if (!$stmt) {
+                        throw new Exception('Не удалось заблокировать склад');
+                    }
+                }
+
+                $stmt = fncQuery(
+                    "SELECT id, nomenclature_id, quantity, price, sum, tax_sum
+                     FROM document_items
+                     WHERE document_id = :id
+                     ORDER BY created_at",
+                    ['id' => $document_id]
+                );
+                if (!$stmt) {
+                    throw new Exception('Не удалось прочитать строки документа');
+                }
+                $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                foreach ($items as $item) {
+                    if ($is_transfer) {
+                        $item_sum = fncStockLedgerTransfer($document_id, $doc['document_type_id'], $item['id'], $doc['warehouse_out_id'], $doc['warehouse_in_id'], $item['nomenclature_id']);
+                        if ($item_sum === false) {
+                            throw new Exception('Не удалось переместить строку ' . $item['id']);
+                        }
+                        $total_sum += $item_sum;
+                    } elseif ($is_outbound) {
+                        // writeoff и return_to_supplier — расход со склада по
+                        // уже сохранённому распределению document_item_batches.
+                        // Для return_to_supplier в этом распределении всегда
+                        // ровно одна партия на строку (см. new_document_item),
+                        // поэтому средневзвешенная цена внутри fncStockLedgerOut
+                        // вырождается в подлинную цену этой партии — пересчёт
+                        // идемпотентен, tax_sum строки функция не трогает.
+                        $item_sum = fncStockLedgerOut($document_id, $doc['document_type_id'], $item['id'], $warehouse_id, $item['nomenclature_id'], $item['quantity']);
+                        if ($item_sum === false) {
+                            throw new Exception('Не удалось создать запись остатка для строки ' . $item['id']);
+                        }
+                        $total_sum += $item_sum;
+                    } else {
+                        // tax_sum передаётся дальше в fncStockLedgerIn только
+                        // здесь — единственная ветка, где document_items.tax_sum
+                        // заполнен (incoming). Для stock_adjustment колонка
+                        // всегда NULL, fncStockLedgerIn это корректно обработает.
+                        $ok = fncStockLedgerIn($document_id, $doc['document_type_id'], $item['id'], $warehouse_id, $item['nomenclature_id'], $item['quantity'], $item['price'], $item['sum'], $item['tax_sum']);
+                        if (!$ok) {
+                            throw new Exception('Не удалось создать запись остатка для строки ' . $item['id']);
+                        }
+                        $total_sum += (float)$item['sum'];
+                    }
+                    // Накопление НДС по строкам — для writeoff/transfer/sf_production
+                    // item['tax_sum'] всегда NULL, вклад 0, ничего не меняется.
+                    // Для return_to_supplier здесь появляется подлинная сумма НДС
+                    // возврата, которую дальше пишем в шапку документа.
+                    $total_tax_sum += (float)($item['tax_sum'] ?? 0);
                 }
             }
 
-            // Взаиморасчёты — только для incoming. Используем сумму ШАПКИ
-            // (documents.sum), а не сумму строк — они могут законно не совпадать
-            // (не все позиции документа поставщика заводятся построчно, см.
-            // /decisions.md). Знак: мы получаем товар — минус (см. конвенцию:
-            // платим/отгружаем — плюс, получаем — минус).
+            // Взаиморасчёты. Incoming — мы получаем товар, минус, по сумме
+            // ШАПКИ (documents.sum — может законно не совпадать с суммой
+            // строк, см. /decisions.md). Return_to_supplier — мы отгружаем
+            // товар поставщику, плюс, по факту посчитанной суммы строк
+            // ($total_sum) — у outgoing-документов сумма шапки не вводится
+            // вручную и известна только по результату проведения, как у
+            // writeoff.
             if ($is_incoming) {
                 $ok = fncSettlementsLedgerPost($document_id, $doc['organization_id'], $doc['counterparty_id'], -1 * (float)$doc['sum']);
+                if ($ok === false) {
+                    throw new Exception('Не удалось провести взаиморасчёты по документу');
+                }
+            } elseif ($is_return) {
+                $ok = fncSettlementsLedgerPost($document_id, $doc['organization_id'], $doc['counterparty_id'], (float)$total_sum);
                 if ($ok === false) {
                     throw new Exception('Не удалось провести взаиморасчёты по документу');
                 }
@@ -1974,8 +2377,9 @@ switch ($action) {
             $update_binds = ['posted_by' => $user_id, 'id' => $document_id];
 
             if (!$is_incoming) {
-                $update_fields .= ", sum = :sum";
+                $update_fields .= ", sum = :sum, tax_sum = :tax_sum";
                 $update_binds['sum'] = $total_sum;
+                $update_binds['tax_sum'] = $total_tax_sum;
             }
 
             $stmt = fncQuery(
@@ -2069,7 +2473,732 @@ switch ($action) {
             'ledger'            => $ledger_rows,
         ];
         break;
-        
+
+    //==========================================================================
+    // Состав ПФ для офканваса выпуска: список ингредиентов (nomenclature_composition),
+    // для каждого — остаток на складе, уже зарезервированное количество другими
+    // строками ПФ этого же документа (ингредиент может повторяться в разных ПФ
+    // одного документа выпуска), и доступный остаток. is_blocked — остатка нет
+    // вообще, ввод для этого ингредиента невозможен, выпуск этой строки не
+    // может быть сохранён, пока ингредиент не появится на складе.
+    case 'production_composition_data':
+        $document_id = (int)($_POST['document_id'] ?? 0);
+        $nomenclature_id = (int)($_POST['nomenclature_id'] ?? 0);
+
+        if (!$document_id || !$nomenclature_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указаны параметры']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT d.warehouse_in_id, d.status, dt.code
+             FROM documents d
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE d.id = :id",
+            ['id' => $document_id]
+        );
+        $doc = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$doc) {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
+            exit;
+        }
+        if (!fncCan($perms, 'inventory.documents.' . $doc['code'])) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        $warehouse_id = (int)$doc['warehouse_in_id'];
+
+        $stmt = fncQuery(
+            "SELECT nc.ingredient_id AS nomenclature_id, n.name AS nomenclature_name, u.short_name AS unit_short_name,
+                    (SELECT sl.total_quantity FROM stock_ledger sl
+                     WHERE sl.nomenclature_id = nc.ingredient_id AND sl.warehouse_id = :warehouse_id AND sl.is_last = 1
+                     LIMIT 1) AS stock_quantity,
+                    (SELECT COALESCE(SUM(dii.quantity), 0)
+                     FROM document_item_ingredients dii
+                     INNER JOIN document_items di ON di.id = dii.document_item_id
+                     WHERE di.document_id = :document_id AND dii.nomenclature_id = nc.ingredient_id) AS already_reserved
+             FROM nomenclature_composition nc
+             LEFT JOIN nomenclature n ON n.id = nc.ingredient_id
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE nc.nomenclature_id = :nomenclature_id",
+            ['warehouse_id' => $warehouse_id, 'document_id' => $document_id, 'nomenclature_id' => $nomenclature_id]
+        );
+        $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        foreach ($rows as $key => $row) {
+            $stock = $row['stock_quantity'] !== null ? (float)$row['stock_quantity'] : 0;
+            $reserved = (float)$row['already_reserved'];
+            $available = round($stock - $reserved, 3);
+            $rows[$key]['available'] = $available;
+            $rows[$key]['is_blocked'] = $available <= 0;
+        }
+
+        $result = ['ingredients' => $rows];
+        break;
+
+    //==========================================================================
+    // Сохранение строки Выпуска ПФ: создаёт строку document_items (сам ПФ,
+    // price/sum пока NULL — появятся при проведении) и по каждому ингредиенту
+    // состава — строку document_item_ingredients с НЕМЕДЛЕННЫМ авто-FIFO
+    // распределением по партиям (document_item_ingredient_batches). Ручной
+    // режим распределения выбирается постфактум, уже для сохранённой строки
+    // (см. upd_ingredient_batch_mode) — на этом шаге всегда авто. Состав
+    // подгружается из nomenclature_composition целиком и обязателен весь —
+    // частичное заполнение не допускается.
+    case 'new_production_item':
+        $document_id = (int)fncValFind('document_id', $params);
+        if (!$document_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указан документ']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT d.id, d.status, d.warehouse_in_id, dt.code
+             FROM documents d
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE d.id = :id",
+            ['id' => $document_id]
+        );
+        $doc = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$doc) {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
+            exit;
+        }
+        if ($doc['code'] !== 'sf_production') {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректный тип документа']);
+            exit;
+        }
+        if ($doc['status'] !== 'draft') {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
+            exit;
+        }
+        if (!fncCan($perms, 'inventory.documents.sf_production')) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
+        $produced_quantity = fncValFind('produced_quantity', $params);
+        $ingredients_raw = fncValFind('ingredients', $params);
+
+        if (!$nomenclature_id || !$produced_quantity || (float)$produced_quantity <= 0) {
+            echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $ingredients = $ingredients_raw ? json_decode($ingredients_raw, true) : null;
+        if (!is_array($ingredients) || empty($ingredients)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указан состав ингредиентов']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT ingredient_id FROM nomenclature_composition WHERE nomenclature_id = :id",
+            ['id' => $nomenclature_id]
+        );
+        $composition_rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $composition_ids = array_map(fn($r) => (int)$r['ingredient_id'], $composition_rows);
+
+        if (empty($composition_ids)) {
+            echo json_encode(['sccss' => false, 'msg' => 'У выбранного ПФ не задан состав']);
+            exit;
+        }
+
+        // Все ингредиенты состава обязательны — сверяем присланный набор с
+        // составом ровно один в один, без пропусков и без лишних позиций.
+        $sent_ids = array_map(fn($i) => (int)$i['nomenclature_id'], $ingredients);
+        sort($composition_ids);
+        sort($sent_ids);
+        if ($composition_ids !== $sent_ids) {
+            echo json_encode(['sccss' => false, 'msg' => 'Должны быть заполнены все ингредиенты состава']);
+            exit;
+        }
+
+        $warehouse_id = (int)$doc['warehouse_in_id'];
+
+        foreach ($ingredients as $ing) {
+            $qty = $ing['quantity'] ?? null;
+            if ($qty === null || (float)$qty <= 0) {
+                echo json_encode(['sccss' => false, 'msg' => 'Заполните количество по всем ингредиентам']);
+                exit;
+            }
+            if (!fncCheckIngredientAvailability((int)$ing['nomenclature_id'], $warehouse_id, $document_id, $qty)) {
+                echo json_encode(['sccss' => false, 'msg' => 'Количество одного из ингредиентов превышает доступный остаток']);
+                exit;
+            }
+        }
+
+        global $pdo;
+
+        try {
+            $pdo->beginTransaction();
+
+            $stmt = fncQuery(
+                "INSERT INTO document_items (document_id, nomenclature_id, quantity, price, sum, tax_sum, created_by)
+                 VALUES (:document_id, :nomenclature_id, :quantity, NULL, NULL, NULL, :created_by)",
+                [
+                    'document_id'     => $document_id,
+                    'nomenclature_id' => $nomenclature_id,
+                    'quantity'        => $produced_quantity,
+                    'created_by'      => $user_id,
+                ]
+            );
+            if (!$stmt) {
+                throw new Exception('Не удалось создать строку ПФ');
+            }
+            $pf_item_id = (int)$pdo->lastInsertId();
+
+            foreach ($ingredients as $ing) {
+                $ing_nomenclature_id = (int)$ing['nomenclature_id'];
+                $ing_quantity = $ing['quantity'];
+
+                $stmt = fncQuery(
+                    "INSERT INTO document_item_ingredients (document_item_id, nomenclature_id, quantity, created_by)
+                     VALUES (:document_item_id, :nomenclature_id, :quantity, :created_by)",
+                    [
+                        'document_item_id' => $pf_item_id,
+                        'nomenclature_id'  => $ing_nomenclature_id,
+                        'quantity'         => $ing_quantity,
+                        'created_by'       => $user_id,
+                    ]
+                );
+                if (!$stmt) {
+                    throw new Exception('Не удалось сохранить ингредиент');
+                }
+                $ingredient_row_id = (int)$pdo->lastInsertId();
+
+                $distribution = fncAutoDistributeBatches($ing_nomenclature_id, $warehouse_id, $ing_quantity, $document_id);
+                if ($distribution === false) {
+                    throw new Exception('Недостаточно партий для автоматического распределения ингредиента ' . $ing_nomenclature_id);
+                }
+
+                foreach ($distribution as $b) {
+                    $stmt = fncQuery(
+                        "INSERT INTO document_item_ingredient_batches (document_item_ingredient_id, batch_ledger_id, quantity)
+                         VALUES (:ingredient_id, :batch_ledger_id, :quantity)",
+                        [
+                            'ingredient_id'   => $ingredient_row_id,
+                            'batch_ledger_id' => (int)$b['batch_id'],
+                            'quantity'        => $b['quantity'],
+                        ]
+                    );
+                    if (!$stmt) {
+                        throw new Exception('Не удалось сохранить распределение партий ингредиента');
+                    }
+                }
+            }
+
+            $pdo->commit();
+            $result = ['sccss' => true, 'id' => $pf_item_id];
+
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            fncLog('Ошибка сохранения строки Выпуска ПФ: ' . $e->getMessage());
+            echo json_encode(['sccss' => false, 'msg' => 'Не удалось сохранить строку']);
+            exit;
+        }
+        break;
+
+    //==========================================================================
+    // Строки документа Выпуска ПФ с вложенными ингредиентами — для отображения
+    // в карточке. Каждая строка ПФ (document_items) сопровождается списком её
+    // ингредиентов (document_item_ingredients) с текущим batch_mode и статусом
+    // распределения (для ручного режима — распределено ли уже через партии).
+    case 'production_items_data':
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT d.status, dt.code
+             FROM documents d
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE d.id = :id",
+            ['id' => $id]
+        );
+        $doc_check = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$doc_check) {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
+            exit;
+        }
+        if (!fncCan($perms, 'inventory.documents.' . $doc_check['code'])) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT di.id, di.nomenclature_id, n.name AS nomenclature_name, di.quantity, di.price, di.sum,
+                    u.short_name AS unit_short_name
+             FROM document_items di
+             LEFT JOIN nomenclature n ON n.id = di.nomenclature_id
+             LEFT JOIN units u ON u.id = n.unit_id
+             WHERE di.document_id = :id
+             ORDER BY di.created_at",
+            ['id' => $id]
+        );
+        $pf_items = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        $total_sum = 0;
+        foreach ($pf_items as $key => $pf) {
+            $stmt = fncQuery(
+                "SELECT dii.id, dii.nomenclature_id, n.name AS nomenclature_name, dii.quantity, dii.batch_mode,
+                        u.short_name AS unit_short_name,
+                        (SELECT COALESCE(SUM(diib.quantity), 0)
+                         FROM document_item_ingredient_batches diib
+                         WHERE diib.document_item_ingredient_id = dii.id) AS distributed_quantity
+                 FROM document_item_ingredients dii
+                 LEFT JOIN nomenclature n ON n.id = dii.nomenclature_id
+                 LEFT JOIN units u ON u.id = n.unit_id
+                 WHERE dii.document_item_id = :document_item_id
+                 ORDER BY dii.created_at",
+                ['document_item_id' => $pf['id']]
+            );
+            $ingredients = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+            foreach ($ingredients as $ikey => $ing) {
+                $ingredients[$ikey]['is_distributed'] = abs((float)$ing['distributed_quantity'] - (float)$ing['quantity']) < 0.001;
+            }
+
+            $pf_items[$key]['ingredients'] = $ingredients;
+            $total_sum += (float)$pf['sum'];
+        }
+
+        $result = [
+            'items'     => $pf_items,
+            'status'    => $doc_check['status'],
+            'has_items' => !empty($pf_items),
+            'total_sum' => $total_sum,
+        ];
+        break;
+
+    //==========================================================================
+    // Переключение режима распределения партий ингредиента. Смена режима
+    // ВСЕГДА пересчитывает распределение с нуля: сначала освобождаются старые
+    // партии (fncReleaseIngredientBatches), затем — при переходе на auto —
+    // сразу выполняется новое авто-распределение; при переходе на manual
+    // распределение остаётся пустым до отдельного сохранения через
+    // save_ingredient_batches (пользователь ещё должен выбрать партии).
+    case 'upd_ingredient_batch_mode':
+        $ingredient_id = (int)fncValFind('ingredient_id', $params);
+        $mode = fncValFind('mode', $params);
+
+        if (!$ingredient_id || !in_array($mode, ['auto', 'manual'], true)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректные параметры']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT dii.id, dii.nomenclature_id, dii.quantity, di.document_id, d.status, d.warehouse_in_id, dt.code
+             FROM document_item_ingredients dii
+             LEFT JOIN document_items di ON di.id = dii.document_item_id
+             LEFT JOIN documents d ON d.id = di.document_id
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE dii.id = :id",
+            ['id' => $ingredient_id]
+        );
+        $ing = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$ing) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ингредиент не найден']);
+            exit;
+        }
+        if ($ing['status'] !== 'draft') {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
+            exit;
+        }
+        if (!fncCan($perms, 'inventory.documents.' . $ing['code'])) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        global $pdo;
+
+        try {
+            $pdo->beginTransaction();
+
+            if (!fncReleaseIngredientBatches($ingredient_id)) {
+                throw new Exception('Не удалось освободить прежнее распределение');
+            }
+
+            if ($mode === 'auto') {
+                $distribution = fncAutoDistributeBatches($ing['nomenclature_id'], $ing['warehouse_in_id'], $ing['quantity'], $ing['document_id']);
+                if ($distribution === false) {
+                    throw new Exception('Недостаточно партий для автоматического распределения');
+                }
+                foreach ($distribution as $b) {
+                    $stmt = fncQuery(
+                        "INSERT INTO document_item_ingredient_batches (document_item_ingredient_id, batch_ledger_id, quantity)
+                         VALUES (:ingredient_id, :batch_ledger_id, :quantity)",
+                        ['ingredient_id' => $ingredient_id, 'batch_ledger_id' => (int)$b['batch_id'], 'quantity' => $b['quantity']]
+                    );
+                    if (!$stmt) {
+                        throw new Exception('Не удалось сохранить распределение');
+                    }
+                }
+            }
+
+            $stmt = fncQuery(
+                "UPDATE document_item_ingredients SET batch_mode = :mode WHERE id = :id",
+                ['mode' => $mode, 'id' => $ingredient_id]
+            );
+            if (!$stmt) {
+                throw new Exception('Не удалось обновить режим распределения');
+            }
+
+            $pdo->commit();
+            $result = ['sccss' => true];
+
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            fncLog('Ошибка переключения режима распределения ингредиента: ' . $e->getMessage());
+            echo json_encode(['sccss' => false, 'msg' => 'Не удалось переключить режим']);
+            exit;
+        }
+        break;
+
+    case 'ingredient_batches_data':
+        $ingredient_id = (int)($_POST['ingredient_id'] ?? 0);
+        if (!$ingredient_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указан ингредиент']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT dii.nomenclature_id, di.document_id, d.warehouse_in_id, dt.code
+             FROM document_item_ingredients dii
+             LEFT JOIN document_items di ON di.id = dii.document_item_id
+             LEFT JOIN documents d ON d.id = di.document_id
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE dii.id = :id",
+            ['id' => $ingredient_id]
+        );
+        $ing = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$ing) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ингредиент не найден']);
+            exit;
+        }
+        if (!fncCan($perms, 'inventory.documents.' . $ing['code'])) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT sl.id, sl.date, sl.price, sl.quantity_remaining, d.number AS document_number, dt.name AS document_type_name
+             FROM stock_ledger sl
+             LEFT JOIN documents d ON d.id = sl.document_id
+             LEFT JOIN document_types dt ON dt.id = sl.document_type_id
+             WHERE sl.nomenclature_id = :nomenclature_id AND sl.warehouse_id = :warehouse_id
+               AND sl.quantity_remaining > 0
+             ORDER BY sl.date ASC, sl.id ASC",
+            ['nomenclature_id' => $ing['nomenclature_id'], 'warehouse_id' => $ing['warehouse_in_id']]
+        );
+        $batches_raw = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        // Сетка резервов ДРУГИХ строк/ингредиентов этого документа — свой
+        // собственный текущий резерв исключаем (redistribute должен видеть
+        // ровно тот остаток, который реально доступен, включая уже занятое
+        // им же самим — иначе форма покажет заниженный остаток при повторном
+        // открытии).
+        $reservations = fncBatchReservationsInDocument($ing['document_id'], null, $ingredient_id);
+
+        $stmt = fncQuery(
+            "SELECT batch_ledger_id, quantity FROM document_item_ingredient_batches WHERE document_item_ingredient_id = :id",
+            ['id' => $ingredient_id]
+        );
+        $own_rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $own_map = [];
+        foreach ($own_rows as $r) {
+            $own_map[(int)$r['batch_ledger_id']] = (float)$r['quantity'];
+        }
+
+        $result = [];
+        foreach ($batches_raw as $batch) {
+            $batch_id = (int)$batch['id'];
+            $own_qty = $own_map[$batch_id] ?? 0;
+            $net_remaining = round((float)$batch['quantity_remaining'] - ($reservations[$batch_id] ?? 0) + $own_qty, 3);
+            if ($net_remaining <= 0 && $own_qty <= 0) continue;
+
+            $batch['quantity_remaining'] = $net_remaining;
+            $batch['already_allocated'] = $own_qty;
+            $result[] = $batch;
+        }
+        break;
+    //==========================================================================
+    // Шапка карточки Выпуска ПФ + список производимых номенклатур (is_produced=1)
+    // для выбора. Отдельный action от document_header_data — там номенклатура
+    // подбирается по остатку на складе списания (для Списания/Перемещения) или
+    // по последней цене (для incoming), что не подходит для выбора ПФ.
+    case 'production_header_data':
+        $id = (int)($_POST['id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT d.id, d.number, d.document_date, d.status, d.organization_id, d.warehouse_in_id,
+                    dt.code, dt.name AS type_name,
+                    o.name AS organization_name, oot.abbreviation AS organization_abbreviation, oot.is_individual AS organization_is_individual,
+                    w.name AS warehouse_name
+             FROM documents d
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             LEFT JOIN organizations o ON o.id = d.organization_id
+             LEFT JOIN organization_types oot ON oot.id = o.organization_type_id
+             LEFT JOIN objects w ON w.id = d.warehouse_in_id
+             WHERE d.id = :id",
+            ['id' => $id]
+        );
+        $info = $stmt ? ($stmt->fetch(PDO::FETCH_ASSOC) ?: []) : [];
+        if (empty($info)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
+            exit;
+        }
+        if (!fncCan($perms, 'inventory.documents.' . $info['code'])) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        $info['organization_display_name'] = fncOrgDisplayName($info['organization_name'], $info['organization_abbreviation'], $info['organization_is_individual']);
+
+        $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM document_items WHERE document_id = :id", ['id' => $id]);
+        $is_empty = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] === 0 : false;
+
+        $nomenclature = [];
+        if ($info['status'] === 'draft') {
+            $stmt = fncQuery(
+                "SELECT id, name FROM nomenclature WHERE is_produced = 1 AND is_active = 1 ORDER BY name"
+            );
+            $nomenclature = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        }
+
+        $result = [
+            'info'         => $info,
+            'is_empty'     => $is_empty,
+            'nomenclature' => $nomenclature,
+        ];
+        break;
+
+    case 'save_ingredient_batches':
+        $ingredient_id = (int)fncValFind('ingredient_id', $params);
+        $batches_raw = fncValFind('batches', $params);
+
+        if (!$ingredient_id || !$batches_raw) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указаны параметры']);
+            exit;
+        }
+
+        $batches = json_decode($batches_raw, true);
+        if (!is_array($batches) || empty($batches)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректное распределение по партиям']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT dii.id, dii.quantity, dii.batch_mode, d.id AS document_id, d.status, d.warehouse_in_id, dt.code
+             FROM document_item_ingredients dii
+             LEFT JOIN document_items di ON di.id = dii.document_item_id
+             LEFT JOIN documents d ON d.id = di.document_id
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE dii.id = :id",
+            ['id' => $ingredient_id]
+        );
+        $ing = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$ing) {
+            echo json_encode(['sccss' => false, 'msg' => 'Ингредиент не найден']);
+            exit;
+        }
+        if ($ing['status'] !== 'draft') {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
+            exit;
+        }
+        if ($ing['batch_mode'] !== 'manual') {
+            echo json_encode(['sccss' => false, 'msg' => 'Ингредиент не в режиме ручного распределения']);
+            exit;
+        }
+        if (!fncCan($perms, 'inventory.documents.' . $ing['code'])) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        global $pdo;
+
+        try {
+            $pdo->beginTransaction();
+
+            // Сначала освобождаем прежнее распределение этого ингредиента —
+            // партии зарезервированы только виртуально (см.
+            // fncBatchReservationsInDocument), поэтому после освобождения
+            // валидация новой раскладки ниже уже не учитывает собственный
+            // старый резерв, и его не нужно отдельно исключать.
+            if (!fncReleaseIngredientBatches($ingredient_id)) {
+                throw new Exception('Не удалось освободить прежнее распределение');
+            }
+
+            $batches_error = fncValidateManualBatches($batches, $ing['warehouse_in_id'], $ing['document_id'], $ing['quantity']);
+            if ($batches_error !== null) {
+                $pdo->rollBack();
+                echo json_encode(['sccss' => false, 'msg' => $batches_error]);
+                exit;
+            }
+
+            foreach ($batches as $b) {
+                $stmt = fncQuery(
+                    "INSERT INTO document_item_ingredient_batches (document_item_ingredient_id, batch_ledger_id, quantity)
+                     VALUES (:ingredient_id, :batch_ledger_id, :quantity)",
+                    ['ingredient_id' => $ingredient_id, 'batch_ledger_id' => (int)$b['batch_id'], 'quantity' => $b['quantity']]
+                );
+                if (!$stmt) {
+                    throw new Exception('Не удалось сохранить распределение');
+                }
+            }
+
+            $pdo->commit();
+            $result = ['sccss' => true];
+
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            fncLog('Ошибка сохранения распределения ингредиента: ' . $e->getMessage());
+            echo json_encode(['sccss' => false, 'msg' => 'Не удалось сохранить распределение']);
+            exit;
+        }
+        break;
+
+    //==========================================================================
+    // Удаление строки ПФ целиком — вместе с ингредиентами (каскад по FK) и
+    // освобождением их резервов по партиям (fncReleaseIngredientBatches —
+    // только удаляет document_item_ingredient_batches, quantity_remaining
+    // партий не трогает: реальное списание происходит только при проведении).
+    case 'del_production_item':
+        $item_id = (int)(fncValFind('id', $params) ?? ($_POST['id'] ?? 0));
+        if (!$item_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указана строка']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT di.id, d.status, dt.code
+             FROM document_items di
+             LEFT JOIN documents d ON d.id = di.document_id
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE di.id = :id",
+            ['id' => $item_id]
+        );
+        $item = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$item) {
+            echo json_encode(['sccss' => false, 'msg' => 'Строка не найдена']);
+            exit;
+        }
+        if ($item['status'] !== 'draft') {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
+            exit;
+        }
+        if (!fncCan($perms, 'inventory.documents.' . $item['code'])) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        global $pdo;
+
+        try {
+            $pdo->beginTransaction();
+
+            $stmt = fncQuery(
+                "SELECT id FROM document_item_ingredients WHERE document_item_id = :id",
+                ['id' => $item_id]
+            );
+            if (!$stmt) {
+                throw new Exception('Не удалось прочитать ингредиенты строки');
+            }
+            $ingredients = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($ingredients as $ing) {
+                if (!fncReleaseIngredientBatches($ing['id'])) {
+                    throw new Exception('Не удалось освободить партии ингредиента ' . $ing['id']);
+                }
+            }
+
+            $stmt = fncQuery("DELETE FROM document_items WHERE id = :id", ['id' => $item_id]);
+            if (!$stmt) {
+                throw new Exception('Не удалось удалить строку');
+            }
+
+            $pdo->commit();
+            $result = ['sccss' => true];
+
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            fncLog('Ошибка удаления строки ПФ: ' . $e->getMessage());
+            echo json_encode(['sccss' => false, 'msg' => 'Не удалось удалить строку']);
+            exit;
+        }
+        break;
+
+    //==========================================================================
+    // Складские операции строки Выпуска ПФ — отдельный вид от обычного
+    // document_item_ledger_data: здесь в рамках ОДНОЙ строки документа
+    // участвуют РАЗНЫЕ номенклатуры (расход каждого ингредиента + приход
+    // самого ПФ), поэтому каждая запись обязательно подписывается своим
+    // названием номенклатуры, а группировка идёт по направлению
+    // (расход/приход), а не по складу — он у Выпуска ПФ всегда один.
+    case 'production_item_ledger_data':
+        $item_id = (int)($_POST['item_id'] ?? 0);
+
+        $stmt = fncQuery(
+            "SELECT di.id, di.quantity, n.name AS nomenclature_name, d.status, dt.code
+             FROM document_items di
+             LEFT JOIN nomenclature n ON n.id = di.nomenclature_id
+             LEFT JOIN documents d ON d.id = di.document_id
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE di.id = :id",
+            ['id' => $item_id]
+        );
+        $item_check = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$item_check) {
+            echo json_encode(['sccss' => false, 'msg' => 'Строка не найдена']);
+            exit;
+        }
+        if (!fncCan($perms, 'inventory.documents.' . $item_check['code'])) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        if ($item_check['status'] !== 'posted') {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ ещё не проведён']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT sl.id, sl.nomenclature_id, n.name AS nomenclature_name,
+                    sl.quantity, sl.price, sl.sum, sl.total_quantity
+             FROM stock_ledger sl
+             LEFT JOIN nomenclature n ON n.id = sl.nomenclature_id
+             WHERE sl.document_item_id = :item_id
+             ORDER BY sl.quantity ASC, sl.id ASC",
+            ['item_id' => $item_id]
+        );
+        $ledger_rows = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+
+        foreach ($ledger_rows as $key => $row) {
+            $stmt = fncQuery(
+                "SELECT slc.quantity, slc.price, slc.sum, sl_batch.date AS batch_date, d_batch.number AS batch_document_number, dt_batch.name AS batch_document_type_name
+                 FROM stock_ledger_consumption slc
+                 LEFT JOIN stock_ledger sl_batch ON sl_batch.id = slc.batch_ledger_id
+                 LEFT JOIN documents d_batch ON d_batch.id = sl_batch.document_id
+                 LEFT JOIN document_types dt_batch ON dt_batch.id = sl_batch.document_type_id
+                 WHERE slc.ledger_id = :ledger_id
+                 ORDER BY slc.id",
+                ['ledger_id' => $row['id']]
+            );
+            $ledger_rows[$key]['consumption'] = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        }
+
+        $result = [
+            'nomenclature_name' => $item_check['nomenclature_name'],
+            'quantity'          => $item_check['quantity'],
+            'ledger'            => $ledger_rows,
+        ];
+        break;
+
     default:
         echo json_encode(['sccss' => false, 'msg' => 'Неизвестное действие']);
         exit;

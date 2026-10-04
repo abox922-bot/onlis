@@ -53,7 +53,7 @@ foreach ($items as $item) {
             <?php if ($item['sum'] !== null): ?>
                 <div class="text-end me-2">
                     <div class="composition-row__sum"><?php echo fncFormatNumber($item['sum']); ?> ₽</div>
-                    <?php if ($is_incoming): ?>
+                    <?php if ($item['tax_sum'] !== null): ?>
                         <div class="text-muted" style="font-size: 0.78rem;">НДС: <?php echo fncFormatNumber($item['tax_sum']); ?> ₽</div>
                     <?php endif; ?>
                 </div>
