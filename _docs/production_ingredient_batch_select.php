@@ -25,7 +25,7 @@ if (!is_array($batches) || isset($batches['sccss'])) {
 
 <div class="mb-3">
     <span class="text-muted">Нужно распределить:</span>
-    <strong><?php echo number_format((float)$needed_quantity, 3, ',', ' '); ?></strong>
+    <strong><?php echo fncFormatQuantity((float)$needed_quantity); ?></strong>
 </div>
 
 <?php if (empty($batches)): ?>
@@ -38,7 +38,7 @@ if (!is_array($batches) || isset($batches['sccss'])) {
             <div class="composition-row__main">
                 <div class="composition-row__name"><?php echo htmlspecialchars($batch['document_type_name']); ?> №<?php echo htmlspecialchars($batch['document_number']); ?></div>
                 <div class="composition-row__calc text-muted">
-                    от <?php echo date('d.m.Y', strtotime($batch['date'])); ?> · <?php echo fncFormatNumber($batch['price']); ?> ₽/ед. · остаток <?php echo number_format((float)$batch['quantity_remaining'], 3, ',', ' '); ?>
+                    от <?php echo date('d.m.Y', strtotime($batch['date'])); ?> · <?php echo fncFormatNumber($batch['price']); ?> ₽/ед. · остаток <?php echo fncFormatQuantity($batch['quantity_remaining']); ?>
                 </div>
             </div>
             <div style="width: 100px;">
@@ -52,6 +52,10 @@ if (!is_array($batches) || isset($batches['sccss'])) {
 <div class="composition-total mt-3">
     <span>Распределено</span>
     <span id="spnIngredientBatchDistributed">0</span>
+</div>
+<div class="composition-total mt-1">
+    <span>Осталось распределить</span>
+    <span id="spnIngredientBatchRemaining"><?php echo fncFormatQuantity((float)$needed_quantity); ?></span>
 </div>
 
 <div class="col-12 mt-2 d-none" id="divIngredientBatchFormError">

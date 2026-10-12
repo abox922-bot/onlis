@@ -46,7 +46,7 @@ $has_batches = $item['has_batches'];
         <?php if ($show_price): ?>
         <div class="col-12 col-md-3 mb-3">
             <label for="inpEditItemPrice" class="my-input-label">Цена</label>
-            <input type="text" class="form-in form-inp" id="inpEditItemPrice" data-name="price" data-type="digits_double" data-required="1" value="<?php echo number_format($item['price'], 2, '.', ''); ?>">
+            <input type="text" class="form-in form-inp" id="inpEditItemPrice" data-name="price" data-type="digits_double" data-required="1" value="<?php echo preg_replace('/0{1,2}$/', '', number_format((float)$item['price'], 4, '.', '')); ?>">
         </div>
         <div class="col-12 col-md-3 mb-3">
             <label for="inpEditItemSum" class="my-input-label">Сумма</label>

@@ -18,6 +18,9 @@ if (!is_array($data) || isset($data['sccss'])) {
 
 $info        = $data['info'];
 $is_draft    = $info['status'] === 'draft';
+// Форма добавления строки и правка шапки — только при праве на изменение
+// (у роли «только просмотр» карточка read-only даже у черновика).
+$is_editable = $is_draft && !empty($info['can_edit']);
 $is_incoming = $info['direction'] === 'incoming';
 $show_price  = $is_incoming || $info['code'] === 'stock_adjustment';
 // Сумма/НДС в шапке: у incoming известны сразу (вводятся вручную при
@@ -26,12 +29,17 @@ $show_price  = $is_incoming || $info['code'] === 'stock_adjustment';
 $show_total  = $is_incoming || (in_array($info['code'], ['return_to_supplier', 'supplier_correction'], true) && !$is_draft);
 ?>
 <input type="hidden" id="inpDocumentId" value="<?php echo (int)$info['id']; ?>"
+    data-status="<?php echo htmlspecialchars($info['status']); ?>"
+    data-can-edit="<?php echo !empty($info['can_edit']) ? '1' : '0'; ?>"
+    data-can-reset-posting="<?php echo !empty($info['can_reset_posting']) ? '1' : '0'; ?>"
+    data-can-unpost="<?php echo !empty($info['can_unpost']) ? '1' : '0'; ?>"
+    data-posting-minutes-left="<?php echo (int)($info['posting_minutes_left'] ?? 0); ?>"
     data-warehouse-out-id="<?php echo (int)($info['warehouse_out_id'] ?? 0); ?>"
     data-header-sum="<?php echo $is_incoming ? $info['sum'] : ''; ?>"
     data-header-tax-sum="<?php echo $is_incoming ? $info['tax_sum'] : ''; ?>">
 
-<div class="doc-header-compact doc-header-readonly mb-3<?php echo $is_draft ? ' doc-header-compact--clickable' : ''; ?>" id="divDocHeader">
-    <?php if ($is_draft): ?>
+<div class="doc-header-compact doc-header-readonly mb-3<?php echo $is_editable ? ' doc-header-compact--clickable' : ''; ?>" id="divDocHeader">
+    <?php if ($is_editable): ?>
         <i class="bi bi-pencil doc-header-compact__edit-icon"></i>
     <?php endif; ?>
 
@@ -76,7 +84,7 @@ $show_total  = $is_incoming || (in_array($info['code'], ['return_to_supplier', '
     </div>
 </div>
 
-<?php if ($is_draft): ?>
+<?php if ($is_editable): ?>
 <div class="row" id="divNewItemForm">
     <div class="col-12 col-md mb-2">
         <label class="my-input-label">Номенклатура</label>

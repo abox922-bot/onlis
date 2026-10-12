@@ -36,6 +36,15 @@ function fncFormatNumber($value, $decimals = 2) {
     return number_format((float)$value, $decimals, ',', ' ');
 }
 
+// Количество (кг/л/шт) — до 3 знаков, без хвостовых нулей: 13 / 0,133 / 2,5.
+// Для денег по-прежнему fncFormatNumber (всегда 2 знака).
+function fncFormatQuantity($value) {
+    if ($value === null || $value === '') {
+        return '';
+    }
+    return rtrim(rtrim(number_format((float)$value, 3, ',', ' '), '0'), ',');
+}
+
 // Проверка видимости UI-элемента (пункт меню, раздел, вкладка), когда право
 // распределено по параллельным дочерним slug (per-type), а не по линейной
 // вложенности — см. модуль Товароучёт, документы разных типов.

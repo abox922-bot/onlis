@@ -33,7 +33,7 @@ foreach ($ledger as $row) {
 ?>
 <div class="mb-3">
     <div class="fw-bold" style="font-size: 1.1rem;"><?php echo htmlspecialchars($data['nomenclature_name']); ?></div>
-    <div class="text-muted">Количество по строке: <?php echo fncFormatNumber($data['quantity']); ?></div>
+    <div class="text-muted">Количество по строке: <?php echo fncFormatQuantity($data['quantity']); ?></div>
 </div>
 <hr>
 
@@ -60,9 +60,9 @@ foreach ($ledger as $row) {
                         </div>
                     <?php endif; ?>
                     <div class="composition-row__calc text-muted">
-                        <?php echo fncFormatNumber(abs($row['quantity'])); ?> по <?php echo fncFormatNumber($row['price']); ?> ₽
+                        <?php echo fncFormatQuantity(abs($row['quantity'])); ?> по <?php echo fncFormatNumber($row['price']); ?> ₽
                     </div>
-                    <div class="text-muted" style="font-size: 0.78rem;">Остаток на складе: <?php echo fncFormatNumber($row['total_quantity']); ?></div>
+                    <div class="text-muted" style="font-size: 0.78rem;">Остаток на складе: <?php echo fncFormatQuantity($row['total_quantity']); ?></div>
                 </div>
                 <div class="text-end me-2 d-flex align-items-center gap-2">
                     <div class="composition-row__sum"><?php echo fncFormatNumber(abs($row['sum'])); ?> ₽</div>
@@ -84,7 +84,7 @@ foreach ($ledger as $row) {
                                 </div>
                             </div>
                             <div class="text-end me-2">
-                                <div class="composition-row__sum"><?php echo fncFormatNumber($c['quantity']); ?></div>
+                                <div class="composition-row__sum"><?php echo fncFormatQuantity($c['quantity']); ?></div>
                             </div>
                         </div>
                     <?php endforeach; ?>

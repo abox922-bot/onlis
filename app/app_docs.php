@@ -39,6 +39,163 @@ function fncItemRequiresPrice($direction, $code) {
     return $direction === 'incoming' || $code === 'stock_adjustment';
 }
 
+// Единая точность количеств в учёте — 3 знака (кг/л до грамма/миллилитра).
+// Все колонки quantity/quantity_remaining/total_quantity — decimal(12,3);
+// значения с клиента приводятся к ней здесь, а не округляются СУБД молча и
+// по-разному в разных таблицах. QTY_EPS — допуск сравнения: половина
+// последнего знака, т.е. разница в целую единицу 0.001 уже НЕ допускается.
+const QTY_EPS = 0.0005;
+
+function fncRoundQuantity($value) {
+    return round((float)$value, 3);
+}
+
+// Денежное значение/цена с клиента: неотрицательное десятичное число в виде
+// "123" или "123.45". Фронт отсекает минус и буквы, но не лишние точки
+// ("1.2.3"), а прямой запрос в обход фронта не фильтруется вообще.
+function fncIsNonNegativeNumber($value) {
+    return (is_string($value) || is_int($value) || is_float($value))
+        && preg_match('/^\d+(\.\d+)?$/', trim((string)$value)) === 1;
+}
+
+// Приводит quantity каждой партии ручного распределения к 3 знакам. Вызывается
+// сразу после json_decode, до валидации и вставки — чтобы проверяли и писали
+// одно и то же значение. Некорректные элементы оставляет как есть (их отсеет
+// fncValidateManualBatches).
+function fncNormalizeBatchQuantities(array $batches) {
+    foreach ($batches as $i => $b) {
+        if (is_array($b) && isset($b['quantity'])) {
+            $batches[$i]['quantity'] = fncRoundQuantity($b['quantity']);
+        }
+    }
+    return $batches;
+}
+
+// ── Доступ: права по типу документа + организации пользователя ──────────────
+// Область организаций: null — без ограничения (полный доступ `inventory`,
+// как и в форме создания документа), иначе список id организаций, где
+// пользователь сейчас числится сотрудником (organization_staff, date_end IS
+// NULL). Единственное место, где это правило записано — все actions ходят
+// сюда, а не пишут своё условие.
+function fncOrgScope() {
+    global $user_id, $perms;
+    static $scope = false;
+    if ($scope !== false) {
+        return $scope;
+    }
+    if (fncCan($perms, 'inventory')) {
+        return $scope = null;
+    }
+    $stmt = fncQuery(
+        "SELECT DISTINCT organization_id FROM organization_staff WHERE user_id = :user_id AND date_end IS NULL",
+        ['user_id' => $user_id]
+    );
+    $rows = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+    return $scope = array_map('intval', $rows);
+}
+
+function fncCanAccessOrganization($organization_id) {
+    $scope = fncOrgScope();
+    return $scope === null || in_array((int)$organization_id, $scope, true);
+}
+
+// Доступ к документу: право на его тип (изменение — `inventory.documents.<код>`,
+// просмотр — `.view`; fncCan поднимается по иерархии, поэтому право на
+// изменение включает просмотр) И организация документа в области доступа
+// пользователя. $row обязан содержать code и organization_id — при их
+// отсутствии доступ закрыт (не открыт).
+function fncDocAccess(array $row, $edit) {
+    global $perms;
+    if (empty($row['code'])) {
+        return false;
+    }
+    return fncCan($perms, 'inventory.documents.' . $row['code'] . ($edit ? '' : '.view'))
+        && fncCanAccessOrganization($row['organization_id'] ?? 0);
+}
+
+// Плейсхолдеры для IN (...) под список значений; пары имя=>значение
+// добавляются в $binds.
+function fncInPlaceholders(array $values, $prefix, array &$binds) {
+    $keys = [];
+    foreach (array_values($values) as $i => $value) {
+        $key = $prefix . $i;
+        $keys[] = ':' . $key;
+        $binds[$key] = $value;
+    }
+    return implode(',', $keys);
+}
+
+// Условие " AND <колонка> IN (...)" по области организаций пользователя
+// (пустая строка — без ограничения; " AND 1 = 0" — доступных организаций нет).
+function fncOrgScopeSql($column, $prefix, array &$binds) {
+    $scope = fncOrgScope();
+    if ($scope === null) {
+        return '';
+    }
+    if (empty($scope)) {
+        return ' AND 1 = 0';
+    }
+    return " AND {$column} IN (" . fncInPlaceholders($scope, $prefix, $binds) . ")";
+}
+
+// Через сколько минут после начала проведения документ, застрявший в
+// статусе posting, можно вернуть в черновик вручную. Совпадает с лимитом
+// выполнения post_document (set_time_limit(600)): к этому моменту
+// проводящий запрос гарантированно завершён, а незакоммиченная транзакция
+// откатана СУБД — проводка атомарна, частичных записей в учёте нет.
+const POSTING_RESET_MINUTES = 10;
+
+// Состояние кнопки "Вернуть в черновик" для карточки документа.
+function fncPostingResetState($status, $posting_minutes, $can_edit) {
+    $is_posting = $status === 'posting';
+    $minutes = $posting_minutes === null ? 0 : (int)$posting_minutes;
+    return [
+        'can_reset_posting'    => $is_posting && $can_edit && $minutes >= POSTING_RESET_MINUTES,
+        'posting_minutes_left' => $is_posting ? max(0, POSTING_RESET_MINUTES - $minutes) : 0,
+    ];
+}
+
+// Проверка ссылок документа при создании/смене шапки: организация в области
+// доступа пользователя и является собственной активной; склады — активные
+// складские объекты ИМЕННО этой организации; контрагент — активный
+// контрагент. Клиентские списки это уже фильтруют, но сервер не должен
+// верить присланным id. Возвращает null или текст ошибки.
+function fncValidateDocumentRefs($organization_id, array $warehouse_ids, $counterparty_id) {
+    if (!fncCanAccessOrganization($organization_id)) {
+        return 'Нет доступа к выбранной организации';
+    }
+
+    $stmt = fncQuery(
+        "SELECT id FROM organizations WHERE id = :id AND is_contractor = 0 AND is_active = 1",
+        ['id' => $organization_id]
+    );
+    if (!$stmt || !$stmt->fetch(PDO::FETCH_ASSOC)) {
+        return 'Некорректная организация';
+    }
+
+    foreach (array_unique(array_filter($warehouse_ids)) as $warehouse_id) {
+        $stmt = fncQuery(
+            "SELECT id FROM objects WHERE id = :id AND organization_id = :organization_id AND is_stock = 1 AND is_active = 1",
+            ['id' => $warehouse_id, 'organization_id' => $organization_id]
+        );
+        if (!$stmt || !$stmt->fetch(PDO::FETCH_ASSOC)) {
+            return 'Некорректный склад';
+        }
+    }
+
+    if ($counterparty_id) {
+        $stmt = fncQuery(
+            "SELECT id FROM organizations WHERE id = :id AND is_contractor = 1 AND is_active = 1",
+            ['id' => $counterparty_id]
+        );
+        if (!$stmt || !$stmt->fetch(PDO::FETCH_ASSOC)) {
+            return 'Некорректный контрагент';
+        }
+    }
+
+    return null;
+}
+
 // Проверяет, что quantity не превышает доступный остаток номенклатуры на
 // складе списания, с учётом количества, уже "занятого" другими строками
 // этого же документа (exclude_item_id — исключить из подсчёта саму
@@ -68,7 +225,7 @@ function fncCheckStockAvailability($nomenclature_id, $warehouse_id, $document_id
     );
     $already_reserved = $stmt ? (float)$stmt->fetch(PDO::FETCH_ASSOC)['already_reserved'] : 0;
 
-    return (float)$quantity <= ($available - $already_reserved);
+    return fncRoundQuantity($quantity) <= round($available - $already_reserved, 3) + QTY_EPS;
 }
 
 // Общий первый шаг для fncStockLedgerIn/fncStockLedgerOut: читает текущий
@@ -120,7 +277,7 @@ function fncStockLedgerIn($document_id, $document_type_id, $document_item_id, $w
     $prev_quantity = $prev ? (float)$prev['total_quantity'] : 0;
     $prev_sum = $prev ? (float)$prev['total_sum'] : 0;
 
-    $new_total_quantity = $prev_quantity + (float)$quantity;
+    $new_total_quantity = round($prev_quantity + (float)$quantity, 3);
     $new_total_sum = $prev_sum + (float)$sum;
 
     if ($prev) {
@@ -175,6 +332,7 @@ function fncStockLedgerOut($document_id, $document_type_id, $document_item_id, $
     if (empty($distribution)) return false;
 
     $total_sum = 0;
+    $exact_sum = 0;
     $consumptions = [];
 
     foreach ($distribution as $d) {
@@ -203,9 +361,15 @@ function fncStockLedgerOut($document_id, $document_type_id, $document_item_id, $
 
         $consumptions[] = ['batch_ledger_id' => $d['batch_ledger_id'], 'quantity' => $take_quantity, 'price' => $batch_price, 'sum' => $take_sum];
         $total_sum += $take_sum;
+        $exact_sum += $take_quantity * $batch_price;
     }
 
-    $avg_price = (float)$quantity > 0 ? round($total_sum / (float)$quantity, 4) : 0;
+    // Цена — средневзвешенная по ТОЧНОЙ сумме (без промежуточного округления
+    // до копеек по каждой партии), иначе при дробных количествах она уходит от
+    // реальной цены партии (159,9399 вместо 159,96). Сумма строки ($total_sum)
+    // остаётся суммой округлённых по партиям значений — она связывает строку с
+    // расшифровкой в stock_ledger_consumption.
+    $avg_price = (float)$quantity > 0 ? round($exact_sum / (float)$quantity, 4) : 0;
 
     $prev_totals = fncFlipLastStockLedger($nomenclature_id, $warehouse_id);
     if ($prev_totals === false) return false;
@@ -292,21 +456,21 @@ function fncAutoDistributeBatches($nomenclature_id, $warehouse_id, $quantity, $d
 
     $reservations = fncBatchReservationsInDocument($document_id);
 
-    $remaining_to_distribute = (float)$quantity;
+    $remaining_to_distribute = fncRoundQuantity($quantity);
     $distribution = [];
 
     foreach ($available_batches as $batch) {
         if ($remaining_to_distribute <= 0) break;
 
-        $net_remaining = (float)$batch['quantity_remaining'] - ($reservations[(int)$batch['id']] ?? 0);
+        $net_remaining = round((float)$batch['quantity_remaining'] - ($reservations[(int)$batch['id']] ?? 0), 3);
         if ($net_remaining <= 0) continue;
 
-        $take = min($remaining_to_distribute, $net_remaining);
+        $take = round(min($remaining_to_distribute, $net_remaining), 3);
         $distribution[] = ['batch_id' => (int)$batch['id'], 'quantity' => $take];
-        $remaining_to_distribute -= $take;
+        $remaining_to_distribute = round($remaining_to_distribute - $take, 3);
     }
 
-    if ($remaining_to_distribute > 0.001) {
+    if ($remaining_to_distribute > QTY_EPS) {
         return false;
     }
 
@@ -366,7 +530,7 @@ function fncBatchReservationsInDocument($document_id, $exclude_item_id = null, $
 function fncValidateManualBatches(array $batches, $warehouse_id, $document_id, $quantity) {
     $batch_ids = [];
     foreach ($batches as $b) {
-        if (!isset($b['batch_id']) || !isset($b['quantity']) || (float)$b['quantity'] <= 0) {
+        if (!isset($b['batch_id']) || !isset($b['quantity']) || fncRoundQuantity($b['quantity']) <= 0) {
             return 'Некорректное распределение по партиям';
         }
         $batch_ids[] = (int)$b['batch_id'];
@@ -399,15 +563,15 @@ function fncValidateManualBatches(array $batches, $warehouse_id, $document_id, $
             return 'Партия не найдена';
         }
 
-        $net_remaining = $remaining_by_batch[$batch_id] - ($reservations[$batch_id] ?? 0);
-        if ((float)$b['quantity'] > $net_remaining) {
+        $net_remaining = round($remaining_by_batch[$batch_id] - ($reservations[$batch_id] ?? 0), 3);
+        if (fncRoundQuantity($b['quantity']) > $net_remaining + QTY_EPS) {
             return 'Количество по партии превышает её остаток';
         }
 
-        $batches_sum += (float)$b['quantity'];
+        $batches_sum += fncRoundQuantity($b['quantity']);
     }
 
-    if (abs($batches_sum - (float)$quantity) > 0.001) {
+    if (abs(round($batches_sum, 3) - fncRoundQuantity($quantity)) > QTY_EPS) {
         return 'Сумма по партиям не совпадает с количеством строки';
     }
 
@@ -422,6 +586,7 @@ function fncFetchDocumentHeaderData($id, $include_nomenclature) {
     $stmt = fncQuery(
         "SELECT d.id, d.number, d.document_date, d.status, d.sum, d.tax_sum,
                 d.organization_id, d.counterparty_id, d.warehouse_out_id, d.warehouse_in_id,
+                TIMESTAMPDIFF(MINUTE, d.posting_started_at, NOW()) AS posting_minutes,
                 dt.code, dt.name AS type_name, dt.direction, dt.warehouse_count, dt.warehouse_field,
                 o.name AS organization_name, oot.abbreviation AS organization_abbreviation, oot.is_individual AS organization_is_individual,
                 c.name AS counterparty_name, cot.abbreviation AS counterparty_abbreviation, cot.is_individual AS counterparty_is_individual,
@@ -449,6 +614,9 @@ function fncFetchDocumentHeaderData($id, $include_nomenclature) {
     // тот же fncItemRequiresPrice, что использует new_document_item. Фронт
     // читает этот флаг вместо повторного вывода правила по коду типа.
     $info['needs_batches'] = (bool)$info['warehouse_out_id'] && !fncItemRequiresPrice($info['direction'], $info['code']);
+    $info['can_edit'] = fncDocAccess($info, true);
+    $info = array_merge($info, fncPostingResetState($info['status'], $info['posting_minutes'], $info['can_edit']));
+    $info = array_merge($info, fncUnpostCardState($info));
 
     $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM document_items WHERE document_id = :id", ['id' => $id]);
     $is_empty = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] === 0 : false;
@@ -540,30 +708,28 @@ function fncFetchDocumentHeaderData($id, $include_nomenclature) {
 }
 // Проводка взаиморасчётов с контрагентом при проведении документа. Знак
 // delta_sum уже включает направление (см. конвенцию: мы платим/отгружаем —
-// плюс, мы получаем товар/деньги — минус). Блокирует строку контрагента
-// (organizations) на время чтения-изменения-записи total_balance — защита
-// от гонки, когда два документа одного контрагента (на разных складах,
-// иначе конфликтовали бы уже на уровне склада) проводятся одновременно.
+// плюс, мы получаем товар/деньги — минус). ОБЯЗАТЕЛЬНО вызывать внутри уже
+// открытой транзакции: блокировка строки контрагента (organizations) держится
+// до её commit/rollback — защита от гонки, когда два документа одного
+// контрагента (на разных складах, иначе конфликтовали бы уже на уровне
+// склада) проводятся одновременно. Именно так, а не GET_LOCK: именованный
+// замок снимается раньше commit, и второй проводящий прочитал бы устаревший
+// баланс. Чтение is_last-строки — тоже FOR UPDATE: обычный SELECT под
+// REPEATABLE READ читает снимок, снятый ДО ожидания блокировки, а
+// блокирующее чтение всегда видит последнюю закоммиченную версию.
 // Возвращает true при успехе, false при ошибке.
 function fncSettlementsLedgerPost($document_id, $organization_id, $counterparty_id, $delta_sum) {
-    $lock_name = "settlements:{$organization_id}:{$counterparty_id}";
-
-    $stmt = fncQuery("SELECT GET_LOCK(:lock_name, 10) AS locked", ['lock_name' => $lock_name]);
-    $locked = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
-    if (!$locked || (int)$locked['locked'] !== 1) {
-        return false;
-    }
+    $stmt = fncQuery("SELECT id FROM organizations WHERE id = :id FOR UPDATE", ['id' => $counterparty_id]);
+    if (!$stmt) return false;
 
     $stmt = fncQuery(
         "SELECT id, total_balance FROM settlements_ledger
          WHERE organization_id = :organization_id AND counterparty_id = :counterparty_id AND is_last = 1
-         LIMIT 1",
+         LIMIT 1
+         FOR UPDATE",
         ['organization_id' => $organization_id, 'counterparty_id' => $counterparty_id]
     );
-    if (!$stmt) {
-        fncQuery("SELECT RELEASE_LOCK(:lock_name)", ['lock_name' => $lock_name]);
-        return false;
-    }
+    if (!$stmt) return false;
     $prev = $stmt->fetch(PDO::FETCH_ASSOC);
     $prev_balance = $prev ? (float)$prev['total_balance'] : 0;
 
@@ -574,10 +740,7 @@ function fncSettlementsLedgerPost($document_id, $organization_id, $counterparty_
 
     if ($prev) {
         $stmt = fncQuery("UPDATE settlements_ledger SET is_last = 0 WHERE id = :id", ['id' => $prev['id']]);
-        if (!$stmt) {
-            fncQuery("SELECT RELEASE_LOCK(:lock_name)", ['lock_name' => $lock_name]);
-            return false;
-        }
+        if (!$stmt) return false;
     }
 
     $stmt = fncQuery(
@@ -591,8 +754,6 @@ function fncSettlementsLedgerPost($document_id, $organization_id, $counterparty_
             'total_balance'   => $new_balance,
         ]
     );
-
-    fncQuery("SELECT RELEASE_LOCK(:lock_name)", ['lock_name' => $lock_name]);
 
     return $stmt ? true : false;
 }
@@ -730,7 +891,7 @@ function fncStockLedgerTransfer($document_id, $document_type_id, $document_item_
         $prev_in_quantity = $prev_in ? (float)$prev_in['total_quantity'] : 0;
         $prev_in_sum = $prev_in ? (float)$prev_in['total_sum'] : 0;
 
-        $new_in_quantity = $prev_in_quantity + $take_quantity;
+        $new_in_quantity = round($prev_in_quantity + $take_quantity, 3);
         $new_in_sum = $prev_in_sum + $take_sum;
 
         if ($prev_in) {
@@ -799,7 +960,7 @@ function fncCheckIngredientAvailability($nomenclature_id, $warehouse_id, $docume
     );
     $already_reserved = $stmt ? (float)$stmt->fetch(PDO::FETCH_ASSOC)['already_reserved'] : 0;
 
-    return (float)$quantity <= ($available - $already_reserved);
+    return fncRoundQuantity($quantity) <= round($available - $already_reserved, 3) + QTY_EPS;
 }
 
 // Отменяет текущее распределение ингредиента по партиям: удаляет записи
@@ -837,6 +998,7 @@ function fncStockLedgerOutForIngredient($document_id, $document_type_id, $pf_doc
     if (empty($distribution)) return false;
 
     $total_sum = 0;
+    $exact_sum = 0;
     $consumptions = [];
 
     foreach ($distribution as $d) {
@@ -865,9 +1027,15 @@ function fncStockLedgerOutForIngredient($document_id, $document_type_id, $pf_doc
 
         $consumptions[] = ['batch_ledger_id' => $d['batch_ledger_id'], 'quantity' => $take_quantity, 'price' => $batch_price, 'sum' => $take_sum];
         $total_sum += $take_sum;
+        $exact_sum += $take_quantity * $batch_price;
     }
 
-    $avg_price = (float)$quantity > 0 ? round($total_sum / (float)$quantity, 4) : 0;
+    // Цена — средневзвешенная по ТОЧНОЙ сумме (без промежуточного округления
+    // до копеек по каждой партии), иначе при дробных количествах она уходит от
+    // реальной цены партии (159,9399 вместо 159,96). Сумма строки ($total_sum)
+    // остаётся суммой округлённых по партиям значений — она связывает строку с
+    // расшифровкой в stock_ledger_consumption.
+    $avg_price = (float)$quantity > 0 ? round($exact_sum / (float)$quantity, 4) : 0;
 
     $stmt = fncQuery(
         "SELECT id, total_quantity, total_sum
@@ -937,6 +1105,177 @@ function fncStockLedgerOutForIngredient($document_id, $document_type_id, $pf_doc
 
     return $total_sum;
 }
+// Откатывает ОДНУ строку stock_ledger: возвращает quantity_remaining партиям-
+// источникам из её stock_ledger_consumption, удаляет сами consumption-строки
+// и саму запись, затем восстанавливает is_last = 1 на предшествующей записи
+// той же пары (nomenclature_id, warehouse_id). Предшественником может быть
+// как чужая запись, так и другая строка ТОГО ЖЕ документа — для этого
+// вызывающий код (unpost_document) обязан обрабатывать строки в порядке
+// убывания id, тогда к моменту обработки каждой следующей строки её
+// предшественник либо уже восстановлен, либо остался нетронутым чужим.
+function fncUnwindStockLedgerRow($row) {
+    $stmt = fncQuery(
+        "SELECT batch_ledger_id, quantity FROM stock_ledger_consumption WHERE ledger_id = :id",
+        ['id' => $row['id']]
+    );
+    if (!$stmt) return false;
+    $consumptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($consumptions as $c) {
+        $stmt = fncQuery(
+            "UPDATE stock_ledger SET quantity_remaining = quantity_remaining + :qty WHERE id = :id",
+            ['qty' => $c['quantity'], 'id' => $c['batch_ledger_id']]
+        );
+        if (!$stmt) return false;
+    }
+
+    $stmt = fncQuery("DELETE FROM stock_ledger_consumption WHERE ledger_id = :id", ['id' => $row['id']]);
+    if (!$stmt) return false;
+
+    $stmt = fncQuery("DELETE FROM stock_ledger WHERE id = :id", ['id' => $row['id']]);
+    if (!$stmt) return false;
+
+    $stmt = fncQuery(
+        "SELECT id FROM stock_ledger
+         WHERE nomenclature_id = :nomenclature_id AND warehouse_id = :warehouse_id AND id < :id
+         ORDER BY id DESC LIMIT 1",
+        ['nomenclature_id' => $row['nomenclature_id'], 'warehouse_id' => $row['warehouse_id'], 'id' => $row['id']]
+    );
+    if (!$stmt) return false;
+    $predecessor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($predecessor) {
+        $stmt = fncQuery("UPDATE stock_ledger SET is_last = 1 WHERE id = :id", ['id' => $predecessor['id']]);
+        if (!$stmt) return false;
+    }
+
+    return true;
+}
+
+// Типы документов, которые умеет проводить post_document и откатывать
+// unpost_document.
+const POSTABLE_CODES = ['stock_adjustment', 'writeoff', 'transfer', 'incoming_upd', 'incoming_waybill', 'incoming_receipt', 'sf_production', 'return_to_supplier', 'supplier_correction'];
+
+// Можно ли сейчас отменить проведение документа. null — можно, иначе текст
+// причины. Условия (подробно — над unpost_document):
+//   C. на складах документа нет draft/posting-документов;
+//   A. по каждой паре номенклатура+склад его записи stock_ledger — последние;
+//   B. если есть контрагент — его запись settlements_ledger последняя.
+// $for_update = true — вызов внутри транзакции отмены (контрагент блокируется
+// FOR UPDATE); false — информационная проверка при открытии карточки, чтобы
+// не показывать кнопку, которая заведомо не сработает. $ledger_rows и
+// $settlement_row возвращаются для самой отмены. Сервер при отмене всё равно
+// проверяет заново — карточка может устареть.
+function fncUnpostBlockReason(array $doc, $for_update, &$ledger_rows = null, &$settlement_row = null) {
+    $document_id   = (int)$doc['id'];
+    $check_failed  = 'Не удалось проверить возможность отмены проведения';
+    $warehouse_ids = array_unique(array_filter([(int)($doc['warehouse_out_id'] ?? 0), (int)($doc['warehouse_in_id'] ?? 0)]));
+    if (empty($warehouse_ids)) {
+        return $check_failed;
+    }
+
+    // Условие C. PDO без эмуляции подготовленных запросов (db.php) — один
+    // именованный параметр дважды недопустим, поэтому отдельные плейсхолдеры
+    // под склад списания и склад поступления.
+    $binds = ['self_id' => $document_id];
+    $wh_out_sql = fncInPlaceholders($warehouse_ids, 'whout', $binds);
+    $wh_in_sql  = fncInPlaceholders($warehouse_ids, 'whin', $binds);
+    $stmt = fncQuery(
+        "SELECT COUNT(*) AS cnt FROM documents
+         WHERE id != :self_id AND status IN ('draft', 'posting')
+           AND (warehouse_out_id IN ({$wh_out_sql}) OR warehouse_in_id IN ({$wh_in_sql}))",
+        $binds
+    );
+    if (!$stmt) {
+        return $check_failed;
+    }
+    if ((int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] !== 0) {
+        return 'На складе документа есть незавершённые документы — отмена невозможна';
+    }
+
+    // Условие A.
+    $stmt = fncQuery(
+        "SELECT id, nomenclature_id, warehouse_id FROM stock_ledger WHERE document_id = :id ORDER BY id DESC",
+        ['id' => $document_id]
+    );
+    if (!$stmt) {
+        return $check_failed;
+    }
+    $ledger_rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (empty($ledger_rows)) {
+        return 'У документа нет записей учёта — нечего отменять';
+    }
+
+    $checked_pairs = [];
+    foreach ($ledger_rows as $row) {
+        $pair_key = $row['nomenclature_id'] . ':' . $row['warehouse_id'];
+        if (isset($checked_pairs[$pair_key])) {
+            continue;
+        }
+        $checked_pairs[$pair_key] = true;
+
+        $stmt = fncQuery(
+            "SELECT document_id FROM stock_ledger
+             WHERE nomenclature_id = :nomenclature_id AND warehouse_id = :warehouse_id AND is_last = 1
+             LIMIT 1",
+            ['nomenclature_id' => $row['nomenclature_id'], 'warehouse_id' => $row['warehouse_id']]
+        );
+        if (!$stmt) {
+            return $check_failed;
+        }
+        $last_row = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$last_row || (int)$last_row['document_id'] !== $document_id) {
+            return 'После этого документа уже проводились другие операции по той же номенклатуре и складу — отмена невозможна';
+        }
+    }
+
+    // Условие B.
+    $settlement_row = null;
+    if (!empty($doc['counterparty_id'])) {
+        if ($for_update) {
+            $stmt = fncQuery("SELECT id FROM organizations WHERE id = :id FOR UPDATE", ['id' => $doc['counterparty_id']]);
+            if (!$stmt) {
+                return $check_failed;
+            }
+        }
+
+        $stmt = fncQuery("SELECT id FROM settlements_ledger WHERE document_id = :id LIMIT 1", ['id' => $document_id]);
+        if (!$stmt) {
+            return $check_failed;
+        }
+        $settlement_row = $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+
+        if ($settlement_row) {
+            $stmt = fncQuery(
+                "SELECT id FROM settlements_ledger
+                 WHERE organization_id = :organization_id AND counterparty_id = :counterparty_id AND is_last = 1
+                 LIMIT 1",
+                ['organization_id' => $doc['organization_id'], 'counterparty_id' => $doc['counterparty_id']]
+            );
+            if (!$stmt) {
+                return $check_failed;
+            }
+            $last_settlement = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$last_settlement || (int)$last_settlement['id'] !== (int)$settlement_row['id']) {
+                return 'После этого документа уже проводились другие операции взаиморасчётов с этим контрагентом — отмена невозможна';
+            }
+        }
+    }
+
+    return null;
+}
+
+// Для карточки документа: может ли пользователь отменить проведение прямо
+// сейчас. Только для проведённого документа поддерживаемого типа и только
+// при праве на изменение; иначе проверку (несколько запросов) не делаем.
+function fncUnpostCardState(array $info) {
+    $state = ['can_unpost' => false, 'unpost_block_reason' => null];
+    if ($info['status'] !== 'posted' || empty($info['can_edit']) || !in_array($info['code'], POSTABLE_CODES, true)) {
+        return $state;
+    }
+    $reason = fncUnpostBlockReason($info, false);
+    return ['can_unpost' => $reason === null, 'unpost_block_reason' => $reason];
+}
 
 switch ($action) {
 
@@ -950,13 +1289,25 @@ switch ($action) {
              WHERE dt.is_active = 1
              ORDER BY dt.name"
         );
-        $document_types = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
+        $all_document_types = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
+        // Только типы, которые пользователь вправе хотя бы смотреть, и только
+        // склады его организаций.
+        $document_types = [];
+        foreach ($all_document_types as $dt) {
+            if (fncCan($perms, 'inventory.documents.' . $dt['code'] . '.view')) {
+                $document_types[] = $dt;
+            }
+        }
+
+        $binds = [];
+        $scope_sql = fncOrgScopeSql('o.organization_id', 'org', $binds);
         $stmt = fncQuery(
             "SELECT o.id, o.name
              FROM objects o
-             WHERE o.is_stock = 1 AND o.is_active = 1
-             ORDER BY o.name"
+             WHERE o.is_stock = 1 AND o.is_active = 1{$scope_sql}
+             ORDER BY o.name",
+            $binds
         );
         $warehouses = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
@@ -988,54 +1339,30 @@ switch ($action) {
             }
         }
 
-        $has_full_access = fncCan($perms, 'inventory');
-
-        if ($has_full_access) {
-            $stmt = fncQuery(
-                "SELECT o.id, o.name
-                 FROM organizations o
-                 WHERE o.is_contractor = 0 AND o.is_active = 1
-                   AND EXISTS (
-                       SELECT 1 FROM objects ob
-                       WHERE ob.organization_id = o.id AND ob.is_stock = 1 AND ob.is_active = 1
-                   )
-                 ORDER BY o.name"
-            );
-        } else {
-            $stmt = fncQuery(
-                "SELECT DISTINCT o.id, o.name
-                 FROM organizations o
-                 INNER JOIN organization_staff os ON os.organization_id = o.id
-                 WHERE o.is_contractor = 0 AND o.is_active = 1
-                   AND os.user_id = :user_id AND os.date_end IS NULL
-                   AND EXISTS (
-                       SELECT 1 FROM objects ob
-                       WHERE ob.organization_id = o.id AND ob.is_stock = 1 AND ob.is_active = 1
-                   )
-                 ORDER BY o.name",
-                ['user_id' => $user_id]
-            );
-        }
+        $binds = [];
+        $scope_sql = fncOrgScopeSql('o.id', 'org', $binds);
+        $stmt = fncQuery(
+            "SELECT o.id, o.name
+             FROM organizations o
+             WHERE o.is_contractor = 0 AND o.is_active = 1{$scope_sql}
+               AND EXISTS (
+                   SELECT 1 FROM objects ob
+                   WHERE ob.organization_id = o.id AND ob.is_stock = 1 AND ob.is_active = 1
+               )
+             ORDER BY o.name",
+            $binds
+        );
         $organizations = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
-        if ($has_full_access) {
-            $stmt = fncQuery(
-                "SELECT ob.id, ob.name, ob.organization_id
-                 FROM objects ob
-                 WHERE ob.is_stock = 1 AND ob.is_active = 1
-                 ORDER BY ob.name"
-            );
-        } else {
-            $stmt = fncQuery(
-                "SELECT DISTINCT ob.id, ob.name, ob.organization_id
-                 FROM objects ob
-                 INNER JOIN organization_staff os ON os.organization_id = ob.organization_id
-                 WHERE ob.is_stock = 1 AND ob.is_active = 1
-                   AND os.user_id = :user_id AND os.date_end IS NULL
-                 ORDER BY ob.name",
-                ['user_id' => $user_id]
-            );
-        }
+        $binds = [];
+        $scope_sql = fncOrgScopeSql('ob.organization_id', 'org', $binds);
+        $stmt = fncQuery(
+            "SELECT ob.id, ob.name, ob.organization_id
+             FROM objects ob
+             WHERE ob.is_stock = 1 AND ob.is_active = 1{$scope_sql}
+             ORDER BY ob.name",
+            $binds
+        );
         $warehouses = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
         $stmt = fncQuery(
@@ -1136,6 +1463,12 @@ switch ($action) {
             }
         }
 
+        $refs_error = fncValidateDocumentRefs($organization_id, [$warehouse_out_id, $warehouse_in_id], $counterparty_id);
+        if ($refs_error !== null) {
+            echo json_encode(['sccss' => false, 'msg' => $refs_error]);
+            exit;
+        }
+
         $number = null;
         $document_date = date('Y-m-d');
         $sum = 0;
@@ -1148,7 +1481,7 @@ switch ($action) {
             $sum = fncValFind('sum', $params);
             $tax_sum = fncValFind('tax_sum', $params);
 
-            if (!$number || !$document_date || $sum === null || $sum === '') {
+            if (!$number || !$document_date || !fncIsNonNegativeNumber($sum) || !fncIsNonNegativeNumber($tax_sum)) {
                 echo json_encode(['sccss' => false, 'msg' => 'Заполните все обязательные поля']);
                 exit;
             }
@@ -1258,9 +1591,9 @@ switch ($action) {
     //==========================================================================
     // Список документов за период с фильтрами по типу и складу. Сортировка:
     // сначала по document_date (новые сверху), внутри дня — draft/posting
-    // перед posted, внутри статуса — по created_at (новые сверху). Права на
-    // просмотр пока не фильтруются построчно — раздел уже защищён per-type
-    // правами на уровне видимости самого модуля (см. slug_prefix).
+    // перед posted, внутри статуса — по created_at (новые сверху). Видны только
+    // документы типов, на которые у пользователя есть право просмотра, и только
+    // его организаций (fncOrgScope) — иначе список показал бы чужие документы.
     case 'documents_list':
         $date_from    = $_POST['date_from'] ?? '';
         $date_to      = $_POST['date_to'] ?? '';
@@ -1272,8 +1605,24 @@ switch ($action) {
             break;
         }
 
+        $stmt = fncQuery("SELECT code FROM document_types WHERE is_active = 1");
+        $all_codes = $stmt ? $stmt->fetchAll(PDO::FETCH_COLUMN) : [];
+        $allowed_codes = [];
+        foreach ($all_codes as $code) {
+            if (fncCan($perms, 'inventory.documents.' . $code . '.view')) {
+                $allowed_codes[] = $code;
+            }
+        }
+        if (empty($allowed_codes) || ($type_code && !in_array($type_code, $allowed_codes, true))) {
+            $result = [];
+            break;
+        }
+
         $where = ["d.document_date BETWEEN :date_from AND :date_to"];
         $binds = ['date_from' => $date_from, 'date_to' => $date_to];
+
+        $where[] = "dt.code IN (" . fncInPlaceholders($allowed_codes, 'tc', $binds) . ")";
+        $scope_sql = fncOrgScopeSql('d.organization_id', 'org', $binds);
 
         if ($type_code) {
             $where[] = "dt.code = :type_code";
@@ -1300,7 +1649,7 @@ switch ($action) {
                 LEFT JOIN organization_types cot ON cot.id = c.organization_type_id
                 LEFT JOIN objects wo ON wo.id = d.warehouse_out_id
                 LEFT JOIN objects wi ON wi.id = d.warehouse_in_id
-                WHERE " . implode(' AND ', $where) . "
+                WHERE " . implode(' AND ', $where) . $scope_sql . "
                 ORDER BY d.document_date DESC,
                          (d.status = 'posted') ASC,
                          d.created_at DESC";
@@ -1332,7 +1681,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $data['info']['code'])) {
+        if (!fncDocAccess($data['info'], false)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -1353,7 +1702,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $data['info']['code'])) {
+        if (!fncDocAccess($data['info'], true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -1369,7 +1718,7 @@ switch ($action) {
         $id = (int)($_POST['id'] ?? 0);
 
         $stmt = fncQuery(
-            "SELECT d.status, dt.code, dt.direction
+            "SELECT d.status, d.organization_id, dt.code, dt.direction
              FROM documents d
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
              WHERE d.id = :id",
@@ -1380,7 +1729,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $doc_check['code'])) {
+        if (!fncDocAccess($doc_check, false)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -1401,6 +1750,7 @@ switch ($action) {
             'items'       => $items,
             'status'      => $doc_check['status'],
             'is_incoming' => $doc_check['direction'] === 'incoming',
+            'can_edit'    => fncDocAccess($doc_check, true),
         ];
         break;
 
@@ -1420,7 +1770,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT d.id, d.status, d.warehouse_out_id, d.warehouse_in_id,
+            "SELECT d.id, d.status, d.organization_id, d.warehouse_out_id, d.warehouse_in_id,
                     dt.code, dt.direction, dt.warehouse_count, dt.warehouse_field
              FROM documents d
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
@@ -1436,7 +1786,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $doc['code'])) {
+        if (!fncDocAccess($doc, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -1514,11 +1864,17 @@ switch ($action) {
                 $update_binds['counterparty_id'] = $counterparty_id;
             }
 
+            $refs_error = fncValidateDocumentRefs($organization_id, [$new_warehouse_out_id, $new_warehouse_in_id], $counterparty_id ?? null);
+            if ($refs_error !== null) {
+                echo json_encode(['sccss' => false, 'msg' => $refs_error]);
+                exit;
+            }
+
             if ($doc['direction'] === 'incoming') {
                 $sum = fncValFind('sum', $params);
                 $tax_sum = fncValFind('tax_sum', $params);
-                if ($sum === null || $sum === '') {
-                    echo json_encode(['sccss' => false, 'msg' => 'Укажите сумму']);
+                if (!fncIsNonNegativeNumber($sum) || !fncIsNonNegativeNumber($tax_sum)) {
+                    echo json_encode(['sccss' => false, 'msg' => 'Укажите корректные сумму и налог']);
                     exit;
                 }
                 $update_fields[] = 'sum = :sum';
@@ -1605,7 +1961,8 @@ switch ($action) {
     // price/sum обязательны для incoming И для stock_adjustment (см.
     // fncItemRequiresPrice). tax_sum — только для incoming. Номенклатура
     // фильтруется по направлению: incoming — только is_purchased, остальные
-    // (кроме sf_production, отложен) — is_purchased ИЛИ is_produced.
+    // — is_purchased ИЛИ is_produced (Выпуск ПФ сюда не попадает: его строки
+    // создаёт new_production_item).
     // Партии (для складов списания без ручного ввода цены) — либо авто-FIFO,
     // либо явное ручное распределение с проверкой остатка каждой партии.
     case 'new_document_item':
@@ -1616,7 +1973,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT d.id, d.status, d.warehouse_out_id, dt.code, dt.direction
+            "SELECT d.id, d.status, d.organization_id, d.warehouse_out_id, dt.code, dt.direction
              FROM documents d
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
              WHERE d.id = :id",
@@ -1631,15 +1988,23 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $doc['code'])) {
+        if (!fncDocAccess($doc, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
 
-        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
-        $quantity = fncValFind('quantity', $params);
+        // Строки Выпуска ПФ несут ингредиенты и их партии — их создаёт только
+        // new_production_item. Обычная строка без ингредиентов провелась бы как
+        // ПФ с нулевой себестоимостью.
+        if ($doc['code'] === 'sf_production') {
+            echo json_encode(['sccss' => false, 'msg' => 'Строки Выпуска ПФ добавляются через форму выпуска']);
+            exit;
+        }
 
-        if (!$nomenclature_id || !$quantity || (float)$quantity <= 0) {
+        $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
+        $quantity = fncRoundQuantity(fncValFind('quantity', $params));
+
+        if (!$nomenclature_id || $quantity <= 0) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
             exit;
         }
@@ -1673,7 +2038,7 @@ switch ($action) {
             $price = fncValFind('price', $params);
             $sum = fncValFind('sum', $params);
 
-            if ($price === null || $price === '' || $sum === null || $sum === '') {
+            if (!fncIsNonNegativeNumber($price) || !fncIsNonNegativeNumber($sum)) {
                 echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
                 exit;
             }
@@ -1681,7 +2046,7 @@ switch ($action) {
 
         if ($doc['direction'] === 'incoming') {
             $tax_sum = fncValFind('tax_sum', $params);
-            if ($tax_sum === null || $tax_sum === '') {
+            if (!fncIsNonNegativeNumber($tax_sum)) {
                 echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
                 exit;
             }
@@ -1710,6 +2075,7 @@ switch ($action) {
                     echo json_encode(['sccss' => false, 'msg' => 'Некорректное распределение по партиям']);
                     exit;
                 }
+                $batches = fncNormalizeBatchQuantities($batches);
                 $batches_error = fncValidateManualBatches($batches, $doc['warehouse_out_id'], $document_id, $quantity);
                 if ($batches_error !== null) {
                     echo json_encode(['sccss' => false, 'msg' => $batches_error]);
@@ -1727,7 +2093,7 @@ switch ($action) {
                 // Возврат поставщику — особый случай: не одна строка с
                 // отложенной ценой (как у Списания), а по ОДНОЙ строке
                 // document_items НА КАЖДУЮ партию распределения, сразу с
-                // подлинной ценой и НДС именно этой партии (см. /decisions.md).
+                // подлинной ценой и НДС именно этой партии.
                 // Цена/сумма/НДС строки известны уже на этапе создания — в
                 // отличие от Списания, где price/sum заполняются только при
                 // проведении документа.
@@ -1856,7 +2222,7 @@ switch ($action) {
         $stmt = fncQuery(
             "SELECT di.id, di.nomenclature_id, n.name AS nomenclature_name,
                     di.quantity, di.price, di.sum, di.tax_sum,
-                    d.tax_sum AS document_tax_sum, d.warehouse_out_id, dt.code, dt.direction
+                    d.tax_sum AS document_tax_sum, d.warehouse_out_id, d.organization_id, dt.code, dt.direction
              FROM document_items di
              LEFT JOIN nomenclature n ON n.id = di.nomenclature_id
              LEFT JOIN documents d ON d.id = di.document_id
@@ -1869,7 +2235,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Строка не найдена']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $item['code'])) {
+        if (!fncDocAccess($item, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -1898,7 +2264,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT d.warehouse_out_id, dt.code
+            "SELECT d.warehouse_out_id, d.organization_id, dt.code
              FROM documents d
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
              WHERE d.id = :id",
@@ -1909,7 +2275,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $doc['code'])) {
+        if (!fncDocAccess($doc, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -1959,7 +2325,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT di.id, di.document_id, di.nomenclature_id, d.status, d.warehouse_out_id, dt.code, dt.direction
+            "SELECT di.id, di.document_id, di.nomenclature_id, d.status, d.organization_id, d.warehouse_out_id, dt.code, dt.direction
              FROM document_items di
              LEFT JOIN documents d ON d.id = di.document_id
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
@@ -1975,7 +2341,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $item['code'])) {
+        if (!fncDocAccess($item, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -1986,8 +2352,8 @@ switch ($action) {
             exit;
         }
 
-        $quantity = fncValFind('quantity', $params);
-        if (!$quantity || (float)$quantity <= 0) {
+        $quantity = fncRoundQuantity(fncValFind('quantity', $params));
+        if ($quantity <= 0) {
             echo json_encode(['sccss' => false, 'msg' => 'Укажите количество']);
             exit;
         }
@@ -2006,7 +2372,7 @@ switch ($action) {
             $price = fncValFind('price', $params);
             $sum = fncValFind('sum', $params);
 
-            if ($price === null || $price === '' || $sum === null || $sum === '') {
+            if (!fncIsNonNegativeNumber($price) || !fncIsNonNegativeNumber($sum)) {
                 echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
                 exit;
             }
@@ -2019,7 +2385,7 @@ switch ($action) {
 
         if ($item['direction'] === 'incoming') {
             $tax_sum = fncValFind('tax_sum', $params);
-            if ($tax_sum === null || $tax_sum === '') {
+            if (!fncIsNonNegativeNumber($tax_sum)) {
                 echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
                 exit;
             }
@@ -2043,7 +2409,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT di.id, d.status, dt.code
+            "SELECT di.id, d.status, d.organization_id, dt.code
              FROM document_items di
              LEFT JOIN documents d ON d.id = di.document_id
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
@@ -2059,7 +2425,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $item['code'])) {
+        if (!fncDocAccess($item, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -2078,7 +2444,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT d.id, d.status, dt.code
+            "SELECT d.id, d.status, d.organization_id, dt.code
              FROM documents d
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
              WHERE d.id = :id",
@@ -2093,7 +2459,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Можно удалять только черновики']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $doc['code'])) {
+        if (!fncDocAccess($doc, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -2118,8 +2484,11 @@ switch ($action) {
     // и документ зависнет в posting с неполными данными. catch (Throwable)
     // вместо (Exception) — перехватывает и Error/TypeError, не только
     // штатные исключения бизнес-логики.
-    // Реализовано для stock_adjustment (приход, fncStockLedgerIn) и writeoff
-    // (расход по FIFO/партиям, fncStockLedgerOut).
+    // Типы, которые проводятся, перечислены в POSTABLE_CODES: приход
+    // (fncStockLedgerIn), расход по партиям (fncStockLedgerOut), перемещение
+    // (fncStockLedgerTransfer), выпуск ПФ (ингредиенты + приход ПФ). Если
+    // проведение оборвалось (документ завис в posting), его возвращает в
+    // черновик вручную reset_posting — только через POSTING_RESET_MINUTES.
     case 'post_document':
         set_time_limit(600);
 
@@ -2143,13 +2512,12 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $doc['code'])) {
+        if (!fncDocAccess($doc, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
 
-        $supported_codes = ['stock_adjustment', 'writeoff', 'transfer', 'incoming_upd', 'incoming_waybill', 'incoming_receipt', 'sf_production', 'return_to_supplier', 'supplier_correction'];
-        if (!in_array($doc['code'], $supported_codes, true)) {
+        if (!in_array($doc['code'], POSTABLE_CODES, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Проведение этого типа документа пока не реализовано']);
             exit;
         }
@@ -2235,9 +2603,10 @@ switch ($action) {
 
                     $stmt = fncQuery(
                         "SELECT sl.price FROM stock_ledger sl
-                         WHERE sl.nomenclature_id = :nomenclature_id AND sl.document_type_id = :document_type_id AND sl.quantity > 0
+                         WHERE sl.nomenclature_id = :nomenclature_id AND sl.document_type_id = :document_type_id
+                           AND sl.warehouse_id = :warehouse_id AND sl.quantity > 0
                          ORDER BY sl.id DESC LIMIT 1",
-                        ['nomenclature_id' => $pf['nomenclature_id'], 'document_type_id' => $doc['document_type_id']]
+                        ['nomenclature_id' => $pf['nomenclature_id'], 'document_type_id' => $doc['document_type_id'], 'warehouse_id' => $warehouse_id]
                     );
                     $last_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
 
@@ -2248,7 +2617,16 @@ switch ($action) {
                         if ($deviation > 10) {
                             $has_override = fncCan($perms, 'inventory');
                             if (!$has_override) {
-                                throw new Exception("Отклонение цены выпуска ({$deviation}%) превышает допустимые 10%");
+                                $pdo->rollBack();
+                                fncQuery(
+                                    "UPDATE documents SET status = 'draft', posting_started_at = NULL WHERE id = :id",
+                                    ['id' => $document_id]
+                                );
+                                echo json_encode([
+                                    'sccss' => false,
+                                    'msg' => 'Отклонение цены выпуска составляет ' . round($deviation, 1) . '% (допустимо до 10%). Провести такой документ может только пользователь с полным доступом к товароучёту.',
+                                ]);
+                                exit;
                             }
                             if (!$confirm_override) {
                                 $pdo->rollBack();
@@ -2356,7 +2734,8 @@ switch ($action) {
 
             // Взаиморасчёты. Incoming — мы получаем товар, минус, по сумме
             // ШАПКИ (documents.sum — может законно не совпадать с суммой
-            // строк, см. /decisions.md). Return_to_supplier — мы отгружаем
+            // строк — это допустимо, сверка идёт на стороне интерфейса).
+            // Return_to_supplier — мы отгружаем
             // товар поставщику, плюс, по факту посчитанной суммы строк
             // ($total_sum) — у outgoing-документов сумма шапки не вводится
             // вручную и известна только по результату проведения, как у
@@ -2408,6 +2787,79 @@ switch ($action) {
         break;
 
     //==========================================================================
+    // Возврат зависшего документа из posting в черновик. Только вручную и
+    // только через POSTING_RESET_MINUTES после начала проведения (см. константу:
+    // к этому моменту проводящий запрос завершён, а транзакция откатана).
+    // Автоматически ничего не возвращается — решение принимает человек. Если по
+    // документу уже есть записи учёта (при атомарной проводке невозможно),
+    // возврат отклоняется: такой случай нужно разбирать вручную.
+    case 'reset_posting':
+        $document_id = (int)fncValFind('id', $params);
+        if (!$document_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указан документ']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT d.id, d.status, d.organization_id,
+                    TIMESTAMPDIFF(MINUTE, d.posting_started_at, NOW()) AS posting_minutes,
+                    dt.code
+             FROM documents d
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE d.id = :id",
+            ['id' => $document_id]
+        );
+        $doc = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$doc) {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
+            exit;
+        }
+        if (!fncDocAccess($doc, true)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+        if ($doc['status'] !== 'posting') {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ не находится в проведении']);
+            exit;
+        }
+
+        $reset_state = fncPostingResetState($doc['status'], $doc['posting_minutes'], true);
+        if (!$reset_state['can_reset_posting']) {
+            echo json_encode([
+                'sccss' => false,
+                'msg'   => 'Вернуть в черновик можно через ' . $reset_state['posting_minutes_left'] . ' мин. — проведение ещё может выполняться',
+            ]);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT (SELECT COUNT(*) FROM stock_ledger WHERE document_id = :id1)
+                  + (SELECT COUNT(*) FROM settlements_ledger WHERE document_id = :id2) AS cnt",
+            ['id1' => $document_id, 'id2' => $document_id]
+        );
+        $ledger_rows = $stmt ? (int)$stmt->fetch(PDO::FETCH_ASSOC)['cnt'] : -1;
+        if ($ledger_rows !== 0) {
+            fncLog('Отказ возврата документа ' . $document_id . ' из posting: записей учёта ' . $ledger_rows);
+            echo json_encode(['sccss' => false, 'msg' => 'По документу уже есть записи учёта — вернуть в черновик нельзя, обратитесь к администратору']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "UPDATE documents SET status = 'draft', posting_started_at = NULL
+             WHERE id = :id AND status = 'posting'
+               AND TIMESTAMPDIFF(MINUTE, posting_started_at, NOW()) >= " . (int)POSTING_RESET_MINUTES,
+            ['id' => $document_id]
+        );
+        if (!$stmt || $stmt->rowCount() === 0) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не удалось вернуть документ в черновик']);
+            exit;
+        }
+
+        fncLog('Документ ' . $document_id . ' возвращён из posting в draft пользователем ' . $user_id);
+        $result = ['sccss' => true];
+        break;
+
+    //==========================================================================
     // Складские операции, связанные с конкретной строкой документа — для
     // просмотра после проведения. Строка может породить несколько записей
     // stock_ledger (Перемещение — по одной паре расход/приход на партию), и
@@ -2417,7 +2869,7 @@ switch ($action) {
         $item_id = (int)($_POST['item_id'] ?? 0);
 
         $stmt = fncQuery(
-            "SELECT di.id, di.quantity, n.name AS nomenclature_name, d.status, dt.code
+            "SELECT di.id, di.quantity, n.name AS nomenclature_name, d.status, d.organization_id, dt.code
              FROM document_items di
              LEFT JOIN nomenclature n ON n.id = di.nomenclature_id
              LEFT JOIN documents d ON d.id = di.document_id
@@ -2430,7 +2882,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Строка не найдена']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $item_check['code'])) {
+        if (!fncDocAccess($item_check, false)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -2491,7 +2943,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT d.warehouse_in_id, d.status, dt.code
+            "SELECT d.warehouse_in_id, d.status, d.organization_id, dt.code
              FROM documents d
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
              WHERE d.id = :id",
@@ -2502,7 +2954,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $doc['code'])) {
+        if (!fncDocAccess($doc, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -2553,7 +3005,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT d.id, d.status, d.warehouse_in_id, dt.code
+            "SELECT d.id, d.status, d.organization_id, d.warehouse_in_id, dt.code
              FROM documents d
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
              WHERE d.id = :id",
@@ -2572,17 +3024,26 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.sf_production')) {
+        if (!fncDocAccess($doc, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
 
         $nomenclature_id = (int)fncValFind('nomenclature_id', $params);
-        $produced_quantity = fncValFind('produced_quantity', $params);
+        $produced_quantity = fncRoundQuantity(fncValFind('produced_quantity', $params));
         $ingredients_raw = fncValFind('ingredients', $params);
 
-        if (!$nomenclature_id || !$produced_quantity || (float)$produced_quantity <= 0) {
+        if (!$nomenclature_id || $produced_quantity <= 0) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT id FROM nomenclature WHERE id = :id AND is_produced = 1 AND is_active = 1",
+            ['id' => $nomenclature_id]
+        );
+        if (!$stmt || !$stmt->fetch(PDO::FETCH_ASSOC)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Некорректная номенклатура']);
             exit;
         }
 
@@ -2616,12 +3077,13 @@ switch ($action) {
 
         $warehouse_id = (int)$doc['warehouse_in_id'];
 
-        foreach ($ingredients as $ing) {
-            $qty = $ing['quantity'] ?? null;
-            if ($qty === null || (float)$qty <= 0) {
+        foreach ($ingredients as $k => $ing) {
+            $qty = fncRoundQuantity($ing['quantity'] ?? 0);
+            if ($qty <= 0) {
                 echo json_encode(['sccss' => false, 'msg' => 'Заполните количество по всем ингредиентам']);
                 exit;
             }
+            $ingredients[$k]['quantity'] = $qty;
             if (!fncCheckIngredientAvailability((int)$ing['nomenclature_id'], $warehouse_id, $document_id, $qty)) {
                 echo json_encode(['sccss' => false, 'msg' => 'Количество одного из ингредиентов превышает доступный остаток']);
                 exit;
@@ -2710,7 +3172,7 @@ switch ($action) {
         $id = (int)($_POST['id'] ?? 0);
 
         $stmt = fncQuery(
-            "SELECT d.status, dt.code
+            "SELECT d.status, d.organization_id, dt.code
              FROM documents d
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
              WHERE d.id = :id",
@@ -2721,7 +3183,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $doc_check['code'])) {
+        if (!fncDocAccess($doc_check, false)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -2756,7 +3218,7 @@ switch ($action) {
             $ingredients = $stmt ? $stmt->fetchAll(PDO::FETCH_ASSOC) : [];
 
             foreach ($ingredients as $ikey => $ing) {
-                $ingredients[$ikey]['is_distributed'] = abs((float)$ing['distributed_quantity'] - (float)$ing['quantity']) < 0.001;
+                $ingredients[$ikey]['is_distributed'] = abs((float)$ing['distributed_quantity'] - (float)$ing['quantity']) < QTY_EPS;
             }
 
             $pf_items[$key]['ingredients'] = $ingredients;
@@ -2768,6 +3230,7 @@ switch ($action) {
             'status'    => $doc_check['status'],
             'has_items' => !empty($pf_items),
             'total_sum' => $total_sum,
+            'can_edit'  => fncDocAccess($doc_check, true),
         ];
         break;
 
@@ -2788,7 +3251,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT dii.id, dii.nomenclature_id, dii.quantity, di.document_id, d.status, d.warehouse_in_id, dt.code
+            "SELECT dii.id, dii.nomenclature_id, dii.quantity, di.document_id, d.status, d.organization_id, d.warehouse_in_id, dt.code
              FROM document_item_ingredients dii
              LEFT JOIN document_items di ON di.id = dii.document_item_id
              LEFT JOIN documents d ON d.id = di.document_id
@@ -2805,7 +3268,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $ing['code'])) {
+        if (!fncDocAccess($ing, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -2865,7 +3328,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT dii.nomenclature_id, di.document_id, d.warehouse_in_id, dt.code
+            "SELECT dii.nomenclature_id, di.document_id, d.organization_id, d.warehouse_in_id, dt.code
              FROM document_item_ingredients dii
              LEFT JOIN document_items di ON di.id = dii.document_item_id
              LEFT JOIN documents d ON d.id = di.document_id
@@ -2878,7 +3341,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Ингредиент не найден']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $ing['code'])) {
+        if (!fncDocAccess($ing, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -2916,7 +3379,10 @@ switch ($action) {
         foreach ($batches_raw as $batch) {
             $batch_id = (int)$batch['id'];
             $own_qty = $own_map[$batch_id] ?? 0;
-            $net_remaining = round((float)$batch['quantity_remaining'] - ($reservations[$batch_id] ?? 0) + $own_qty, 3);
+            // $reservations уже без собственного резерва ингредиента (см.
+            // exclude_ingredient_id выше) — прибавлять $own_qty ещё раз нельзя,
+            // иначе остаток завышается на размер собственного резерва.
+            $net_remaining = round((float)$batch['quantity_remaining'] - ($reservations[$batch_id] ?? 0), 3);
             if ($net_remaining <= 0 && $own_qty <= 0) continue;
 
             $batch['quantity_remaining'] = $net_remaining;
@@ -2933,7 +3399,9 @@ switch ($action) {
         $id = (int)($_POST['id'] ?? 0);
 
         $stmt = fncQuery(
-            "SELECT d.id, d.number, d.document_date, d.status, d.organization_id, d.warehouse_in_id,
+            "SELECT d.id, d.number, d.document_date, d.status, d.organization_id, d.counterparty_id,
+                    d.warehouse_in_id, d.warehouse_out_id,
+                    TIMESTAMPDIFF(MINUTE, d.posting_started_at, NOW()) AS posting_minutes,
                     dt.code, dt.name AS type_name,
                     o.name AS organization_name, oot.abbreviation AS organization_abbreviation, oot.is_individual AS organization_is_individual,
                     w.name AS warehouse_name
@@ -2950,11 +3418,14 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $info['code'])) {
+        if (!fncDocAccess($info, false)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
 
+        $info['can_edit'] = fncDocAccess($info, true);
+        $info = array_merge($info, fncPostingResetState($info['status'], $info['posting_minutes'], $info['can_edit']));
+        $info = array_merge($info, fncUnpostCardState($info));
         $info['organization_display_name'] = fncOrgDisplayName($info['organization_name'], $info['organization_abbreviation'], $info['organization_is_individual']);
 
         $stmt = fncQuery("SELECT COUNT(*) AS cnt FROM document_items WHERE document_id = :id", ['id' => $id]);
@@ -2989,9 +3460,10 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Некорректное распределение по партиям']);
             exit;
         }
+        $batches = fncNormalizeBatchQuantities($batches);
 
         $stmt = fncQuery(
-            "SELECT dii.id, dii.quantity, dii.batch_mode, d.id AS document_id, d.status, d.warehouse_in_id, dt.code
+            "SELECT dii.id, dii.quantity, dii.batch_mode, d.id AS document_id, d.status, d.organization_id, d.warehouse_in_id, dt.code
              FROM document_item_ingredients dii
              LEFT JOIN document_items di ON di.id = dii.document_item_id
              LEFT JOIN documents d ON d.id = di.document_id
@@ -3012,7 +3484,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Ингредиент не в режиме ручного распределения']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $ing['code'])) {
+        if (!fncDocAccess($ing, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -3075,7 +3547,7 @@ switch ($action) {
         }
 
         $stmt = fncQuery(
-            "SELECT di.id, d.status, dt.code
+            "SELECT di.id, d.status, d.organization_id, dt.code
              FROM document_items di
              LEFT JOIN documents d ON d.id = di.document_id
              LEFT JOIN document_types dt ON dt.id = d.document_type_id
@@ -3091,7 +3563,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Документ уже проведён']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $item['code'])) {
+        if (!fncDocAccess($item, true)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -3145,7 +3617,7 @@ switch ($action) {
         $item_id = (int)($_POST['item_id'] ?? 0);
 
         $stmt = fncQuery(
-            "SELECT di.id, di.quantity, n.name AS nomenclature_name, d.status, dt.code
+            "SELECT di.id, di.quantity, n.name AS nomenclature_name, d.status, d.organization_id, dt.code
              FROM document_items di
              LEFT JOIN nomenclature n ON n.id = di.nomenclature_id
              LEFT JOIN documents d ON d.id = di.document_id
@@ -3158,7 +3630,7 @@ switch ($action) {
             echo json_encode(['sccss' => false, 'msg' => 'Строка не найдена']);
             exit;
         }
-        if (!fncCan($perms, 'inventory.documents.' . $item_check['code'])) {
+        if (!fncDocAccess($item_check, false)) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
             exit;
         }
@@ -3197,6 +3669,163 @@ switch ($action) {
             'quantity'          => $item_check['quantity'],
             'ledger'            => $ledger_rows,
         ];
+        break;
+
+    //==========================================================================
+    // Отмена проведения (распроведение) уже проведённого документа — обратная
+    // операция к post_document. Разрешена только если документ прямо сейчас
+    // "последний" во всех цепочках, которые он затронул:
+    //   A. все его строки stock_ledger (по парам nomenclature_id+warehouse_id)
+    //      сейчас is_last = 1 — позже никто не трогал эту же номенклатуру на
+    //      этом же складе;
+    //   B. если есть counterparty_id — его строка settlements_ledger (по паре
+    //      organization_id+counterparty_id) сейчас is_last = 1;
+    //   C. нет ни одного документа в статусе draft/posting, ссылающегося на
+    //      любой из складов этого документа — черновик может уже держать
+    //      резерв конкретной партии (document_item_batches/
+    //      document_item_ingredient_batches), и удаление партии его осиротит;
+    //      поштучная проверка резерваций дороже и ненадёжнее, чем просто не
+    //      разрешать отмену, пока на складе есть открытые черновики.
+    // document_items/document_item_batches НЕ трогаем — документ возвращается
+    // в draft с уже заполненными строками для ручной правки перед повторным
+    // проведением. sum/tax_sum сбрасываются в 0 только для не-incoming
+    // направлений (там эти поля считаются ТОЛЬКО при проведении); для
+    // incoming — ручной ввод пользователя, не трогаем.
+    case 'unpost_document':
+        $document_id = (int)fncValFind('id', $params);
+        if (!$document_id) {
+            echo json_encode(['sccss' => false, 'msg' => 'Не указан документ']);
+            exit;
+        }
+
+        $stmt = fncQuery(
+            "SELECT d.id, d.status, d.organization_id, d.counterparty_id,
+                    d.warehouse_in_id, d.warehouse_out_id, d.document_type_id,
+                    dt.code, dt.direction
+             FROM documents d
+             LEFT JOIN document_types dt ON dt.id = d.document_type_id
+             WHERE d.id = :id",
+            ['id' => $document_id]
+        );
+        $doc = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+        if (!$doc) {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ не найден']);
+            exit;
+        }
+        if (!fncDocAccess($doc, true)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
+            exit;
+        }
+
+        if (!in_array($doc['code'], POSTABLE_CODES, true)) {
+            echo json_encode(['sccss' => false, 'msg' => 'Отмена проведения этого типа документа не реализована']);
+            exit;
+        }
+        if ($doc['status'] !== 'posted') {
+            echo json_encode(['sccss' => false, 'msg' => 'Документ не проведён']);
+            exit;
+        }
+
+        $is_incoming = $doc['direction'] === 'incoming';
+        $warehouse_ids = array_unique(array_filter([(int)$doc['warehouse_out_id'], (int)$doc['warehouse_in_id']]));
+
+        global $pdo;
+
+        try {
+            $pdo->beginTransaction();
+
+            // Блокируем склады документа — та же дисциплина, что в post_document,
+            // чтобы ни проведение другого документа, ни смена склада на пустом
+            // черновике не вклинились между проверкой C и самим откатом.
+            $lock_ids = $warehouse_ids;
+            sort($lock_ids);
+            foreach ($lock_ids as $wid) {
+                $stmt = fncQuery("SELECT id FROM objects WHERE id = :id FOR UPDATE", ['id' => $wid]);
+                if (!$stmt) {
+                    throw new Exception('Не удалось заблокировать склад');
+                }
+            }
+
+            // Условия A, B, C — в fncUnpostBlockReason (та же проверка питает
+            // кнопку в карточке документа, чтобы она не показывалась зря).
+            $ledger_rows    = [];
+            $settlement_row = null;
+            $block_reason   = fncUnpostBlockReason($doc, true, $ledger_rows, $settlement_row);
+            if ($block_reason !== null) {
+                $pdo->rollBack();
+                echo json_encode(['sccss' => false, 'msg' => $block_reason]);
+                exit;
+            }
+
+            // Все условия пройдены — откатываем. Строки stock_ledger — в порядке
+            // убывания id (см. fncUnwindStockLedgerRow).
+            foreach ($ledger_rows as $row) {
+                if (!fncUnwindStockLedgerRow($row)) {
+                    throw new Exception('Не удалось откатить запись остатка ' . $row['id']);
+                }
+            }
+
+            if ($settlement_row) {
+                $stmt = fncQuery("DELETE FROM settlements_ledger WHERE id = :id", ['id' => $settlement_row['id']]);
+                if (!$stmt) {
+                    throw new Exception('Не удалось откатить взаиморасчёты');
+                }
+
+                $stmt = fncQuery(
+                    "SELECT id FROM settlements_ledger
+                     WHERE organization_id = :organization_id AND counterparty_id = :counterparty_id AND id < :id
+                     ORDER BY id DESC LIMIT 1",
+                    ['organization_id' => $doc['organization_id'], 'counterparty_id' => $doc['counterparty_id'], 'id' => $settlement_row['id']]
+                );
+                $prev_settlement = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+                if ($prev_settlement) {
+                    $stmt = fncQuery("UPDATE settlements_ledger SET is_last = 1 WHERE id = :id", ['id' => $prev_settlement['id']]);
+                    if (!$stmt) {
+                        throw new Exception('Не удалось восстановить предыдущий баланс взаиморасчётов');
+                    }
+                }
+            }
+
+            // Строки Списания и Выпуска ПФ получают price/sum только при
+            // проведении. После отмены обнуляем их, иначе в черновике остались бы
+            // прошлые суммы, а "Итого" смешивало бы их с новыми строками.
+            // Возвраты поставщику не трогаем: их цена известна с создания строки.
+            if (in_array($doc['code'], ['writeoff', 'sf_production'], true)) {
+                $stmt = fncQuery(
+                    "UPDATE document_items SET price = NULL, sum = NULL WHERE document_id = :id",
+                    ['id' => $document_id]
+                );
+                if (!$stmt) {
+                    throw new Exception('Не удалось сбросить цены строк');
+                }
+            }
+
+            $update_fields = "status = 'draft', posting_date = NULL, posting_started_at = NULL,
+                               posting_finished_at = NULL, posted_by = NULL";
+            if (!$is_incoming) {
+                $update_fields .= ", sum = 0, tax_sum = 0";
+            }
+
+            $stmt = fncQuery(
+                "UPDATE documents SET {$update_fields} WHERE id = :id AND status = 'posted'",
+                ['id' => $document_id]
+            );
+            if (!$stmt || $stmt->rowCount() === 0) {
+                throw new Exception('Документ уже изменился параллельно');
+            }
+
+            $pdo->commit();
+            fncLog('Отменено проведение документа ' . $document_id . ' пользователем ' . $user_id);
+            $result = ['sccss' => true];
+
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            fncLog('Ошибка отмены проведения документа ' . $document_id . ': ' . $e->getMessage());
+            echo json_encode(['sccss' => false, 'msg' => 'Не удалось отменить проведение документа']);
+            exit;
+        }
         break;
 
     default:

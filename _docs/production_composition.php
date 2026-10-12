@@ -43,7 +43,7 @@ foreach ($ingredients as $ing) {
                 <?php if ($ing['is_blocked']): ?>
                     <div class="text-danger" style="font-size: 0.8rem;">Нет в наличии</div>
                 <?php else: ?>
-                    <div class="text-muted" style="font-size: 0.8rem;">Доступно: <?php echo fncFormatNumber($ing['available']); ?> <?php echo htmlspecialchars($ing['unit_short_name']); ?></div>
+                    <div class="text-muted" style="font-size: 0.8rem;">Доступно: <?php echo fncFormatQuantity($ing['available']); ?> <?php echo htmlspecialchars($ing['unit_short_name']); ?></div>
                 <?php endif; ?>
             </div>
             <div class="col-5">

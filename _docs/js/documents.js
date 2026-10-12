@@ -28,6 +28,43 @@ $(function(){
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Цена хранится с 4 знаками (decimal(10,4)); в поле показываем минимум 2 без
+// лишних нулей: 99.5 -> "99.50", 66.3333 -> "66.3333". Округление до 2 знаков
+// давало копеечные расхождения между суммой прихода и стоимостью списания.
+function fncPriceString(value) {
+    return Number(value).toFixed(4).replace(/0{1,2}$/, "");
+}
+
+// Подсказка при ручном распределении по партиям: сколько ещё осталось
+// распределить из нужного количества за вычетом уже введённого. 0 — зелёным
+// (можно подтверждать), перебор — красным с размером превышения.
+function fncShowBatchRemaining(selector, needed, total) {
+    let remaining = Math.round((needed - total) * 1000) / 1000;
+    let $el = $(selector).removeClass("text-success text-danger");
+    if (Math.abs(remaining) < 0.0005) {
+        $el.text("0").addClass("text-success");
+    } else if (remaining < 0) {
+        $el.text("превышено на " + fncFormatQuantity(-remaining)).addClass("text-danger");
+    } else {
+        $el.text(fncFormatQuantity(remaining));
+    }
+}
+
+// Поле количества: цифры и одна точка, не больше 3 знаков после неё (учёт
+// ведётся с точностью до грамма/миллилитра, см. decimal(12,3) в БД).
+function fncNormalizeQuantity(el) {
+    fncNormalizeInp(el, "digits_double");
+    let $el = $(el);
+    let val = $el.val();
+    let dot = val.indexOf(".");
+    if (dot !== -1) {
+        val = val.slice(0, dot + 1) + val.slice(dot + 1).replace(/\./g, "").slice(0, 3);
+    }
+    $el.val(val);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function fncValidateDateRange() {
     let date_from = $("#inpDateFrom").val();
     let date_to   = $("#inpDateTo").val();
@@ -131,7 +168,7 @@ function fncFillWarehouseSelects(organization_id, warehouses_arr) {
 
     warehouses_arr.forEach(function(w){
         if (w.organization_id === organization_id) {
-            $("#slctWarehouseOut, #slctWarehouseIn").append(`<option value="${w.id}">${w.name}</option>`);
+            $("#slctWarehouseOut, #slctWarehouseIn").append($("<option>").val(w.id).text(w.name));
         }
     });
 
@@ -255,7 +292,7 @@ function infoLoadFunction(document_id) {
     let type_code = $(`.itemTr[data-id="${document_id}"]`).data("type-code");
 
     $("#mainModalBody").html(spnr_loading);
-    $("#mainModalLabel").html(item_name);
+    $("#mainModalLabel").text(item_name);
     fncHideFormError();
     main_modal._config.backdrop = false;
     main_modal.show();
@@ -293,14 +330,14 @@ function fncInitDocumentInfo(document_id) {
                     if ($("#inpItemPrice").length) {
                         let price = $(`#slctItemNomenclature option[value="${value}"]`).data("price");
                         if (price !== undefined) {
-                            $("#inpItemPrice").val(parseFloat(price).toFixed(2));
+                            $("#inpItemPrice").val(fncPriceString(parseFloat(price)));
                             fncRecalcItemFromPriceOrQuantity();
                         }
                     }
                     let $option = $(`#slctItemNomenclature option[value="${value}"]`);
                     if ($option.data("stock") !== undefined) {
                         window.currentItemStock = parseFloat($option.data("stock")) || 0;
-                        $("#divStockHint").html("Доступно: " + fncFormatNumber(window.currentItemStock)).show();
+                        $("#divStockHint").html("Доступно: " + fncFormatQuantity(window.currentItemStock)).show();
                     } else {
                         window.currentItemStock = null;
                         $("#divStockHint").hide();
@@ -337,6 +374,7 @@ function fncInitDocumentInfo(document_id) {
     });
 
     $("#inpItemQuantity").off("input").on("input", function(){
+        fncNormalizeQuantity(this);
         fncRecalcItemFromPriceOrQuantity();
         if (window.currentItemStock !== null && window.currentItemStock !== undefined) {
             let entered = parseFloat($(this).val().replace(",", ".")) || 0;
@@ -472,7 +510,7 @@ function fncRecalcItemFromSum() {
     let quantity = parseFloat($("#inpItemQuantity").val().replace(",", ".")) || 0;
     let sum      = parseFloat($("#inpItemSum").val().replace(",", ".")) || 0;
     if (quantity > 0) {
-        $("#inpItemPrice").val((sum / quantity).toFixed(2));
+        $("#inpItemPrice").val(fncPriceString(sum / quantity));
     }
 }
 
@@ -520,12 +558,13 @@ function fncInitBatchSelection() {
         $(".batch-quantity-input").each(function(){
             total += parseFloat($(this).val().replace(",", ".")) || 0;
         });
-        $("#spnBatchDistributed").html(fncFormatNumber(total));
+        $("#spnBatchDistributed").html(fncFormatQuantity(total));
+        fncShowBatchRemaining("#spnBatchRemaining", needed, total);
         return total;
     }
 
     $(".batch-quantity-input").off("input").on("input", function(){
-        fncNormalizeInp(this, "digits_double");
+        fncNormalizeQuantity(this);
 
         let remaining = parseFloat($(this).closest(".composition-row").data("batch-remaining")) || 0;
         let entered = parseFloat($(this).val().replace(",", ".")) || 0;
@@ -544,8 +583,8 @@ function fncInitBatchSelection() {
             return;
         }
 
-        if (Math.abs(total - needed) > 0.001) {
-            $("#spnBatchFormError").html("Сумма по партиям должна равняться " + fncFormatNumber(needed));
+        if (Math.abs(total - needed) > 0.0005) {
+            $("#spnBatchFormError").html("Сумма по партиям должна равняться " + fncFormatQuantity(needed));
             $("#divBatchFormError").removeClass("d-none");
             return;
         }
@@ -559,7 +598,7 @@ function fncInitBatchSelection() {
         });
 
         window.selectedBatches = distribution;
-        $("#spnBatchStatus").html("Распределено: " + fncFormatNumber(total)).removeClass("text-muted").addClass("text-success");
+        $("#spnBatchStatus").html("Распределено: " + fncFormatQuantity(total)).removeClass("text-muted").addClass("text-success");
         modalOffcanvas.hide();
     });
 }
@@ -576,12 +615,16 @@ function fncLoadDocumentItems(document_id) {
         let is_draft      = $inner.data("is-draft") === 1;
         let total_sum     = parseFloat($inner.data("total-sum")) || 0;
         let total_tax_sum = parseFloat($inner.data("total-tax-sum")) || 0;
+        let status        = $inner.data("status");
+        let can_edit      = $inner.data("can-edit") === 1;
 
         $(".composition-row--clickable").off("click").on("click", function(){
             let clicked_item_id = +$(this).data("id");
             if (is_draft) {
-                fncOpenItemEdit(clicked_item_id, document_id);
-            } else {
+                if (can_edit) {
+                    fncOpenItemEdit(clicked_item_id, document_id);
+                }
+            } else if (status === "posted") {
                 let nomenclature_name = $(this).find(".composition-row__name").first().text().trim();
                 fncOpenItemLedger(clicked_item_id, nomenclature_name);
             }
@@ -599,7 +642,7 @@ function fncLoadDocumentItems(document_id) {
 
 function fncOpenItemLedger(item_id, nomenclature_name) {
     $("#modalOffcanvasBody").html(spnr_loading);
-    $("#modalOffcanvasLabel").html(nomenclature_name || "Складские операции");
+    $("#modalOffcanvasLabel").text(nomenclature_name || "Складские операции");
     modalOffcanvas.show();
     let path = new URL("./_docs/document_item_ledger.php", url);
     $("#modalOffcanvasBody").load(path.href, {item_id: item_id}, function(){
@@ -624,20 +667,82 @@ function fncUpdateDocumentFooter(document_id, has_items, is_incoming, is_draft, 
         ? `<div class="fw-bold">Итого: ${fncFormatNumber(total_sum)} ₽ <span class="text-muted fw-normal">(НДС: ${fncFormatNumber(total_tax_sum)} ₽)</span></div>`
         : `<div class="fw-bold">Итого: ${fncFormatNumber(total_sum)} ₽</div>`;
 
-    let post_button_html = is_draft
+    let $doc_state = $("#inpDocumentId");
+    let status     = $doc_state.data("status");
+    let can_edit   = $doc_state.data("can-edit") === 1;
+
+    let post_button_html = (is_draft && can_edit)
         ? `<button type="button" class="btn-action-main" id="btnPostDocument">Провести</button>`
+        : '';
+
+    // Документ завис в проведении: вернуть в черновик можно только вручную и
+    // только спустя установленное время (кнопка до тех пор неактивна).
+    let reset_button_html = '';
+    if (status === "posting") {
+        if (!can_edit) {
+            reset_button_html = `<span class="text-muted">Документ проводится</span>`;
+        } else if ($doc_state.data("can-reset-posting") === 1) {
+            reset_button_html = `<button type="button" class="btn-action-outline" id="btnResetPosting">Вернуть в черновик</button>`;
+        } else {
+            let minutes_left = +$doc_state.data("posting-minutes-left") || 0;
+            reset_button_html = `<button type="button" class="btn-action-outline" disabled>Вернуть в черновик (через ${minutes_left} мин.)</button>`;
+        }
+    }
+
+    // Кнопка только если отмена сейчас возможна — сервер проверил это при
+    // открытии карточки (после документа уже были движения, на складе есть
+    // черновики и т.п. — тогда кнопки нет вовсе).
+    let can_unpost = $doc_state.data("can-unpost") === 1;
+    let unpost_button_html = (status === "posted" && can_edit && can_unpost)
+        ? `<button type="button" class="btn-action-outline" id="btnUnpostDocument">Отменить проведение</button>`
         : '';
 
     let footer_html = `
         <div class="d-flex justify-content-between align-items-center w-100">
             ${total_html}
             ${post_button_html}
+            ${reset_button_html}
+            ${unpost_button_html}
         </div>
     `;
 
     $("#mainModalFooter").removeClass("d-none").html(footer_html);
 
-    if (is_draft) {
+    $("#btnUnpostDocument").off("click").on("click", async function(){
+        let confirmed = await fncConfirm("Отменить проведение? Записи складского учёта и взаиморасчётов по документу будут удалены, документ вернётся в черновик.");
+        if (!confirmed) return;
+        $(this).prop("disabled", true);
+        fncMyAjax("unpost_document", "docs", [{name: "id", value: document_id}], 1)
+            .done(function(data){
+                if (data.sccss) {
+                    main_modal.hide();
+                    listLoadFunction();
+                } else {
+                    fncShowFormError(data.msg ?? "Не удалось отменить проведение");
+                    $("#btnUnpostDocument").prop("disabled", false);
+                }
+            })
+            .fail(function(){ $("#btnUnpostDocument").prop("disabled", false); });
+    });
+
+    $("#btnResetPosting").off("click").on("click", async function(){
+        let confirmed = await fncConfirm("Вернуть документ в черновик? Проведение этого документа не завершилось.");
+        if (!confirmed) return;
+        $(this).prop("disabled", true);
+        fncMyAjax("reset_posting", "docs", [{name: "id", value: document_id}], 1)
+            .done(function(data){
+                if (data.sccss) {
+                    main_modal.hide();
+                    listLoadFunction();
+                } else {
+                    fncShowFormError(data.msg ?? "Не удалось вернуть документ в черновик");
+                    $("#btnResetPosting").prop("disabled", false);
+                }
+            })
+            .fail(function(){ $("#btnResetPosting").prop("disabled", false); });
+    });
+
+    if (is_draft && can_edit) {
         $("#btnPostDocument").off("click").on("click", async function(){
             if (is_incoming) {
                 let header_sum = parseFloat($("#inpDocumentId").data("header-sum"));
@@ -730,8 +835,12 @@ function fncInitEditItemForm(item_id, document_id) {
             let quantity = parseFloat($("#inpEditItemQuantity").val().replace(",", ".")) || 0;
             let sum      = parseFloat($("#inpEditItemSum").val().replace(",", ".")) || 0;
             if (quantity > 0) {
-                $("#inpEditItemPrice").val((sum / quantity).toFixed(2));
+                $("#inpEditItemPrice").val(fncPriceString(sum / quantity));
             }
+        });
+
+        $("#inpEditItemQuantity").on("input", function(){
+            fncNormalizeQuantity(this);
         });
 
         $("#formEditItem").off("submit").on("submit", function(e){
@@ -779,7 +888,7 @@ function fncInitEditItemForm(item_id, document_id) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function fncAddDocumentItem(document_id) {
-    fncNormalizeInp("#inpItemQuantity", "digits_double");
+    fncNormalizeQuantity("#inpItemQuantity");
 
     let nomenclature_id = window.docItemNomenclaturePicker.getValue();
     let quantity = $("#inpItemQuantity").val();
@@ -935,10 +1044,14 @@ function fncInitProductionInfo(document_id) {
 
 function fncInitProductionComposition(document_id) {
     $(".production-ingredient-input").off("input").on("input", function(){
-        fncNormalizeInp(this, "digits_double");
+        fncNormalizeQuantity(this);
         let available = parseFloat($(this).data("available")) || 0;
         let entered = parseFloat($(this).val().replace(",", ".")) || 0;
         $(this).toggleClass("is-invalid", entered > available);
+    });
+
+    $("#inpProducedQuantity").off("input").on("input", function(){
+        fncNormalizeQuantity(this);
     });
 
     $("#btnSaveProductionItem").off("click").on("click", function(){
@@ -950,7 +1063,7 @@ function fncInitProductionComposition(document_id) {
             return;
         }
 
-        fncNormalizeInp("#inpProducedQuantity", "digits_double");
+        fncNormalizeQuantity("#inpProducedQuantity");
         let produced_quantity = $("#inpProducedQuantity").val();
         if (!produced_quantity || parseFloat(produced_quantity) <= 0) {
             $("#spnProductionFormError").html("Укажите полученное количество ПФ");
@@ -1052,23 +1165,20 @@ function fncInitIngredientBatchSelection() {
     let ingredient_id = $("#inpIngredientBatchId").val();
     let needed = parseFloat($("#inpIngredientBatchNeededQuantity").val()) || 0;
 
-    function fncFormatQuantity3(value) {
-        return value.toFixed(3).replace(".", ",");
-    }
-
     function fncRecalcDistributed() {
         let total = 0;
         $(".batch-quantity-input").each(function(){
             total += parseFloat($(this).val().replace(",", ".")) || 0;
         });
-        $("#spnIngredientBatchDistributed").html(fncFormatQuantity3(total));
+        $("#spnIngredientBatchDistributed").html(fncFormatQuantity(total));
+        fncShowBatchRemaining("#spnIngredientBatchRemaining", needed, total);
         return total;
     }
 
     fncRecalcDistributed();
 
     $(".batch-quantity-input").off("input").on("input", function(){
-        fncNormalizeInp(this, "digits_double");
+        fncNormalizeQuantity(this);
 
         let remaining = parseFloat($(this).closest(".composition-row").data("batch-remaining")) || 0;
         let entered = parseFloat($(this).val().replace(",", ".")) || 0;
@@ -1087,8 +1197,8 @@ function fncInitIngredientBatchSelection() {
             return;
         }
 
-        if (Math.abs(total - needed) > 0.001) {
-            $("#spnIngredientBatchFormError").html("Сумма по партиям должна равняться " + fncFormatQuantity3(needed));
+        if (Math.abs(total - needed) > 0.0005) {
+            $("#spnIngredientBatchFormError").html("Сумма по партиям должна равняться " + fncFormatQuantity(needed));
             $("#divIngredientBatchFormError").removeClass("d-none");
             return;
         }
@@ -1135,12 +1245,16 @@ function fncLoadProductionItems(document_id) {
         let has_items = $inner.data("has-items") === 1;
         let is_draft  = $inner.data("is-draft") === 1;
         let total_sum = parseFloat($inner.data("total-sum")) || 0;
+        let status    = $inner.data("status");
+        let can_edit  = $inner.data("can-edit") === 1;
 
         $(".composition-row--clickable[data-production-item]").off("click").on("click", function(){
             let item_id = +$(this).data("id");
             if (is_draft) {
-                fncOpenProductionItemDelete(item_id, document_id);
-            } else {
+                if (can_edit) {
+                    fncOpenProductionItemDelete(item_id, document_id);
+                }
+            } else if (status === "posted") {
                 fncOpenProductionItemLedger(item_id);
             }
         });

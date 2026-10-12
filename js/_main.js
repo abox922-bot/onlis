@@ -483,3 +483,14 @@ function fncFormatNumber(value, decimals = 2) {
     return parts.join(',');
 }
 //==============================================================================
+// Количество (кг/л/шт) — до 3 знаков, без хвостовых нулей: 13 / 0,133 / 2,5.
+function fncFormatQuantity(value) {
+    if (value === null || value === undefined || value === '') {
+        return '';
+    }
+    let parts = Number(value).toFixed(3).split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    let fraction = parts[1].replace(/0+$/, '');
+    return fraction ? parts[0] + ',' + fraction : parts[0];
+}
+//==============================================================================

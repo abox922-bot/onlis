@@ -20,7 +20,7 @@ $ledger = $data['ledger'];
 ?>
 <div class="mb-3">
     <div class="fw-bold" style="font-size: 1.1rem;"><?php echo htmlspecialchars($data['nomenclature_name']); ?></div>
-    <div class="text-muted">Получено: <?php echo fncFormatNumber($data['quantity']); ?></div>
+    <div class="text-muted">Получено: <?php echo fncFormatQuantity($data['quantity']); ?></div>
 </div>
 <hr>
 
@@ -45,9 +45,9 @@ $ledger = $data['ledger'];
                 <div class="composition-row__main">
                     <div class="composition-row__name"><?php echo htmlspecialchars($row['nomenclature_name']); ?></div>
                     <div class="composition-row__calc text-muted">
-                        <?php echo fncFormatNumber(abs($row['quantity'])); ?> по <?php echo fncFormatNumber($row['price']); ?> ₽
+                        <?php echo fncFormatQuantity(abs($row['quantity'])); ?> по <?php echo fncFormatNumber($row['price']); ?> ₽
                     </div>
-                    <div class="text-muted" style="font-size: 0.78rem;">Остаток на складе: <?php echo fncFormatNumber($row['total_quantity']); ?></div>
+                    <div class="text-muted" style="font-size: 0.78rem;">Остаток на складе: <?php echo fncFormatQuantity($row['total_quantity']); ?></div>
                 </div>
                 <div class="text-end me-2 d-flex align-items-center gap-2">
                     <div class="composition-row__sum"><?php echo fncFormatNumber(abs($row['sum'])); ?> ₽</div>
@@ -69,7 +69,7 @@ $ledger = $data['ledger'];
                                 </div>
                             </div>
                             <div class="text-end me-2">
-                                <div class="composition-row__sum"><?php echo fncFormatNumber($c['quantity']); ?></div>
+                                <div class="composition-row__sum"><?php echo fncFormatQuantity($c['quantity']); ?></div>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -89,9 +89,9 @@ $ledger = $data['ledger'];
                 <div class="composition-row__main">
                     <div class="composition-row__name"><?php echo htmlspecialchars($row['nomenclature_name']); ?></div>
                     <div class="composition-row__calc text-muted">
-                        <?php echo fncFormatNumber($row['quantity']); ?> по <?php echo fncFormatNumber($row['price']); ?> ₽
+                        <?php echo fncFormatQuantity($row['quantity']); ?> по <?php echo fncFormatNumber($row['price']); ?> ₽
                     </div>
-                    <div class="text-muted" style="font-size: 0.78rem;">Остаток на складе: <?php echo fncFormatNumber($row['total_quantity']); ?></div>
+                    <div class="text-muted" style="font-size: 0.78rem;">Остаток на складе: <?php echo fncFormatQuantity($row['total_quantity']); ?></div>
                 </div>
                 <div class="text-end me-2">
                     <div class="composition-row__sum"><?php echo fncFormatNumber($row['sum']); ?> ₽</div>

@@ -31,6 +31,8 @@ foreach ($items as $item) {
      data-has-items="<?php echo empty($items) ? '0' : '1'; ?>"
      data-is-incoming="<?php echo $is_incoming ? '1' : '0'; ?>"
      data-is-draft="<?php echo $is_draft ? '1' : '0'; ?>"
+     data-status="<?php echo htmlspecialchars($data['status']); ?>"
+     data-can-edit="<?php echo !empty($data['can_edit']) ? '1' : '0'; ?>"
      data-total-sum="<?php echo $total_sum; ?>"
      data-total-tax-sum="<?php echo $total_tax_sum; ?>">
 <?php if (empty($items)): ?>
@@ -44,7 +46,7 @@ foreach ($items as $item) {
             <div class="composition-row__main">
                 <div class="composition-row__name"><?php echo htmlspecialchars($item['nomenclature_name']); ?></div>
                 <div class="composition-row__calc text-muted">
-                    <?php echo fncFormatNumber($item['quantity']); ?> <?php echo htmlspecialchars($item['unit_short_name']); ?>
+                    <?php echo fncFormatQuantity($item['quantity']); ?> <?php echo htmlspecialchars($item['unit_short_name']); ?>
                     <?php if ($item['price'] !== null): ?>
                         <span class="composition-row__unit-price"><?php echo fncFormatNumber($item['price']); ?> ₽</span>
                     <?php endif; ?>

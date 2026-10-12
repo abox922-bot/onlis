@@ -17,12 +17,18 @@ if (!is_array($data) || isset($data['sccss'])) {
 }
 
 $info     = $data['info'];
-$is_draft = $info['status'] === 'draft';
+$is_draft    = $info['status'] === 'draft';
+$is_editable = $is_draft && !empty($info['can_edit']);
 ?>
-<input type="hidden" id="inpDocumentId" value="<?php echo (int)$info['id']; ?>" data-warehouse-id="<?php echo (int)($info['warehouse_in_id'] ?? 0); ?>">
+<input type="hidden" id="inpDocumentId" value="<?php echo (int)$info['id']; ?>" data-warehouse-id="<?php echo (int)($info['warehouse_in_id'] ?? 0); ?>"
+    data-status="<?php echo htmlspecialchars($info['status']); ?>"
+    data-can-edit="<?php echo !empty($info['can_edit']) ? '1' : '0'; ?>"
+    data-can-reset-posting="<?php echo !empty($info['can_reset_posting']) ? '1' : '0'; ?>"
+    data-can-unpost="<?php echo !empty($info['can_unpost']) ? '1' : '0'; ?>"
+    data-posting-minutes-left="<?php echo (int)($info['posting_minutes_left'] ?? 0); ?>">
 
-<div class="doc-header-compact doc-header-readonly mb-3<?php echo $is_draft ? ' doc-header-compact--clickable' : ''; ?>" id="divDocHeader">
-    <?php if ($is_draft): ?>
+<div class="doc-header-compact doc-header-readonly mb-3<?php echo $is_editable ? ' doc-header-compact--clickable' : ''; ?>" id="divDocHeader">
+    <?php if ($is_editable): ?>
         <i class="bi bi-pencil doc-header-compact__edit-icon"></i>
     <?php endif; ?>
     <div class="doc-header-compact__grid">
@@ -39,7 +45,7 @@ $is_draft = $info['status'] === 'draft';
     </div>
 </div>
 
-<?php if ($is_draft): ?>
+<?php if ($is_editable): ?>
 <div class="row mb-3">
     <div class="col-12">
         <label class="my-input-label">Выберите ПФ для выпуска</label>

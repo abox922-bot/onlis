@@ -63,4 +63,4 @@ $date_to_default    = date('Y-m-d');
     <?php endif; ?>
 </div>
 <div id="divChptContent"></div>
-<script src="./_docs/js/documents.js?2026100400"></script>
+<script src="./_docs/js/documents.js?2026101301"></script>

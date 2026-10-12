@@ -99,6 +99,40 @@ function fncGetServiceUnitId() {
     return $row ? (int)$row['id'] : null;
 }
 
+// Приводит название к единому виду: без пробелов по краям и без повторяющихся
+// пробелов внутри ("Сыр  Гауда " -> "Сыр Гауда"). Иначе дубль, отличающийся
+// лишним пробелом, проскочил бы проверку.
+function fncNormalizeNomenclatureName($name) {
+    return trim(preg_replace('/\s+/u', ' ', (string)$name));
+}
+
+// Проверка на дубль названия. Таблица nomenclature общая для сырья,
+// полуфабрикатов и товаров, поэтому ищем среди ВСЕХ позиций, включая
+// архивные. Регистр и ё/е не различаются (unicode_ci). $exclude_id — не
+// считать саму редактируемую позицию. Возвращает текст ошибки или null.
+// Сообщение выводится на форму через .html(), поэтому название экранируется.
+function fncNomenclatureDuplicateError($name, $exclude_id = null) {
+    $binds = ['name' => $name];
+    $exclude_sql = '';
+    if ($exclude_id) {
+        $exclude_sql = ' AND id != :exclude_id';
+        $binds['exclude_id'] = (int)$exclude_id;
+    }
+    $stmt = fncQuery(
+        "SELECT name, is_active FROM nomenclature
+         WHERE name COLLATE utf8mb4_unicode_ci = :name{$exclude_sql}
+         LIMIT 1",
+        $binds
+    );
+    $found = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
+    if (!$found) {
+        return null;
+    }
+    return 'Позиция «' . htmlspecialchars($found['name'], ENT_QUOTES, 'UTF-8') . '» уже есть в базе'
+        . ($found['is_active'] ? '' : ' (в архиве — её можно восстановить)')
+        . '. Повторно сохранить одно и то же название нельзя.';
+}
+
 switch ($action) {
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -501,7 +535,7 @@ switch ($action) {
             exit;
         }
 
-        $name                 = fncValFind('name', $params);
+        $name                 = fncNormalizeNomenclatureName(fncValFind('name', $params));
         $display_name         = fncValFind('display_name', $params) ?: null;
         $description          = fncValFind('description', $params) ?: null;
         $unit_id              = (int)fncValFind('unit_id', $params);
@@ -520,6 +554,12 @@ switch ($action) {
 
         if (!$name || !$unit_id) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $duplicate_error = fncNomenclatureDuplicateError($name);
+        if ($duplicate_error !== null) {
+            echo json_encode(['sccss' => false, 'msg' => $duplicate_error]);
             exit;
         }
 
@@ -595,7 +635,7 @@ switch ($action) {
             exit;
         }
 
-        $name         = fncValFind('name', $params);
+        $name         = fncNormalizeNomenclatureName(fncValFind('name', $params));
         $group_id     = (int)fncValFind('group_id', $params);
         $product_type = fncValFind('product_type', $params);
 
@@ -616,6 +656,12 @@ switch ($action) {
 
         if (!$name || !$group_id || !$unit_id) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
+            exit;
+        }
+
+        $duplicate_error = fncNomenclatureDuplicateError($name);
+        if ($duplicate_error !== null) {
+            echo json_encode(['sccss' => false, 'msg' => $duplicate_error]);
             exit;
         }
 
@@ -752,14 +798,14 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT n.is_produced, n.group_id, n.product_type FROM nomenclature n WHERE n.id = :id", ['id' => $id]);
+        $stmt = fncQuery("SELECT n.name, n.is_produced, n.group_id, n.product_type FROM nomenclature n WHERE n.id = :id", ['id' => $id]);
         $current = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
         if (!$current) {
             echo json_encode(['sccss' => false, 'msg' => 'Позиция не найдена']);
             exit;
         }
 
-        $name                 = fncValFind('name', $params);
+        $name                 = fncNormalizeNomenclatureName(fncValFind('name', $params));
         $display_name         = fncValFind('display_name', $params) ?: null;
         $description          = fncValFind('description', $params) ?: null;
         $unit_id              = (int)fncValFind('unit_id', $params);
@@ -791,6 +837,16 @@ switch ($action) {
         if (!$name || !$unit_id) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
             exit;
+        }
+
+        // Только при смене названия: уже существующие дубли (созданные до
+        // появления проверки) не должны мешать править остальные поля позиции.
+        if ($name !== fncNormalizeNomenclatureName($current['name'])) {
+            $duplicate_error = fncNomenclatureDuplicateError($name, $id);
+            if ($duplicate_error !== null) {
+                echo json_encode(['sccss' => false, 'msg' => $duplicate_error]);
+                exit;
+            }
         }
 
         if ($current['is_produced']) {
@@ -887,7 +943,7 @@ switch ($action) {
             exit;
         }
         $id              = (int)fncValFind('id', $params);
-        $name            = fncValFind('name', $params);
+        $name            = fncNormalizeNomenclatureName(fncValFind('name', $params));
         $group_id        = (int)fncValFind('group_id', $params);
         $description     = fncValFind('description', $params) ?: null;
         $output_quantity = fncValFind('output_quantity', $params) ?: null;
@@ -899,7 +955,7 @@ switch ($action) {
             exit;
         }
 
-        $stmt = fncQuery("SELECT product_type FROM nomenclature WHERE id = :id", ['id' => $id]);
+        $stmt = fncQuery("SELECT name, product_type FROM nomenclature WHERE id = :id", ['id' => $id]);
         $current = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : false;
         if (!$current) {
             echo json_encode(['sccss' => false, 'msg' => 'Товар не найден']);
@@ -945,6 +1001,15 @@ switch ($action) {
         if (!$id || !$name || !$group_id) {
             echo json_encode(['sccss' => false, 'msg' => 'Заполните обязательные поля']);
             exit;
+        }
+
+        // Только при смене названия — см. upd_nomenclature.
+        if ($name !== fncNormalizeNomenclatureName($current['name'])) {
+            $duplicate_error = fncNomenclatureDuplicateError($name, $id);
+            if ($duplicate_error !== null) {
+                echo json_encode(['sccss' => false, 'msg' => $duplicate_error]);
+                exit;
+            }
         }
 
         if ($bonus_percent !== null && ((float)$bonus_percent < 0 || (float)$bonus_percent > 100)) {

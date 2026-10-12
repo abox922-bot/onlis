@@ -17,9 +17,10 @@ if (!is_array($data) || isset($data['sccss'])) {
 }
 
 $items    = $data['items'];
-$is_draft = $data['status'] === 'draft';
+$is_draft    = $data['status'] === 'draft';
+$is_editable = $is_draft && !empty($data['can_edit']);
 ?>
-<div id="divProductionItemsInner" data-has-items="<?php echo empty($items) ? '0' : '1'; ?>" data-is-draft="<?php echo $is_draft ? '1' : '0'; ?>" data-total-sum="<?php echo $data['total_sum']; ?>">
+<div id="divProductionItemsInner" data-has-items="<?php echo empty($items) ? '0' : '1'; ?>" data-is-draft="<?php echo $is_draft ? '1' : '0'; ?>" data-status="<?php echo htmlspecialchars($data['status']); ?>" data-can-edit="<?php echo !empty($data['can_edit']) ? '1' : '0'; ?>" data-total-sum="<?php echo $data['total_sum']; ?>">
 <?php if (empty($items)): ?>
     <div class="empty-hint">
         <i class="bi bi-inbox empty-hint__icon"></i>
@@ -31,7 +32,7 @@ $is_draft = $data['status'] === 'draft';
             <div class="composition-row__main">
                 <div class="composition-row__name"><?php echo htmlspecialchars($pf['nomenclature_name']); ?></div>
                 <div class="composition-row__calc text-muted">
-                    <?php echo fncFormatNumber($pf['quantity']); ?> <?php echo htmlspecialchars($pf['unit_short_name']); ?>
+                    <?php echo fncFormatQuantity($pf['quantity']); ?> <?php echo htmlspecialchars($pf['unit_short_name']); ?>
                     <?php if ($pf['price'] !== null): ?>
                         <span class="composition-row__unit-price"><?php echo fncFormatNumber($pf['price']); ?> ₽</span>
                     <?php endif; ?>
@@ -44,13 +45,13 @@ $is_draft = $data['status'] === 'draft';
             <?php endif; ?>
         </div>
 
-        <?php if ($is_draft): ?>
+        <?php if ($is_editable): ?>
         <div class="ps-3 mb-2">
             <div class="form-group-label mt-2 mb-2">Ингредиенты</div>
             <?php foreach ($pf['ingredients'] as $ing): ?>
                 <div class="mb-2">
                     <div class="d-flex justify-content-between align-items-center text-muted">
-                        <span><?php echo htmlspecialchars($ing['nomenclature_name']); ?> — <?php echo fncFormatNumber($ing['quantity']); ?> <?php echo htmlspecialchars($ing['unit_short_name']); ?></span>
+                        <span><?php echo htmlspecialchars($ing['nomenclature_name']); ?> — <?php echo fncFormatQuantity($ing['quantity']); ?><?php echo htmlspecialchars($ing['unit_short_name']); ?></span>
                     </div>
                     <div class="form-check form-switch mt-1">
                         <input type="checkbox" class="form-check-input ingredient-auto-batch" role="switch"
