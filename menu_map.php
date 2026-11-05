@@ -7,12 +7,19 @@ return [
         'module' => 'main',
         'onload' => 1,
     ],
-    'turnover' => [
-        'title' => 'Товарооборот',
-        'icon'  => 'bi-arrow-left-right',
+    'documents' => [
+        'title'       => 'Документы',
+        'icon'        => 'bi-file-earmark-text',
+        'single'      => true,
+        'module'      => 'inventory',
+        'slug_prefix' => 'inventory.documents.',
+    ],
+    'finance' => [
+        'title' => 'Финансы',
+        'icon'  => 'bi-wallet2',
         'items' => [
-            ['slug_prefix' => 'inventory.documents.', 'module' => 'inventory',   'title' => 'Документы',     'icon' => 'bi-file-earmark-text'],
-            ['slug' => 'settlements.manage.view',     'module' => 'settlements', 'title' => 'Взаиморасчёты', 'icon' => 'bi-cash-stack'],
+            ['slug' => 'finance.money.manage.view',       'module' => 'money',       'title' => 'Деньги',        'icon' => 'bi-cash-coin'],
+            ['slug' => 'finance.settlements.manage.view', 'module' => 'settlements', 'title' => 'Взаиморасчёты', 'icon' => 'bi-cash-stack'],
         ]
     ],
     'reference' => [
@@ -26,6 +33,7 @@ return [
             ['slug' => 'organizations.manage.view', 'module' => 'organizations',  'title' => 'Организации',       'icon' => 'bi-building'],
             ['slug' => 'geography.manage.view',     'module' => 'geography',      'title' => 'География',         'icon' => 'bi-globe-americas'],
             ['slug' => 'units.manage.view',         'module' => 'units',          'title' => 'Единицы измерения', 'icon' => 'bi-rulers'],
+            ['slug' => 'finance.articles.manage.view', 'module' => 'articles',    'title' => 'Статьи доходов и расходов', 'icon' => 'bi-diagram-3'],
         ]
     ],
 ];

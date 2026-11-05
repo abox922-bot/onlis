@@ -77,12 +77,27 @@
           ],
       ],
 
+      'money' => [
+          'folder'   => '_money',
+          'sections' => [
+              ['key' => 'money_storages',    'slug' => 'finance.money.manage.view', 'title' => 'Остатки',        'file' => 'money_storages',    'default' => true],
+              ['key' => 'money_movements',   'slug' => 'finance.money.manage.view', 'title' => 'Движение денег', 'file' => 'money_movements'],
+              ['key' => 'money_statements',  'slug' => 'finance.money.manage.view', 'title' => 'Выписки',        'file' => 'money_statements'],
+          ],
+      ],
+
       'settlements' => [
           'folder'   => '_payments',
           'sections' => [
-              ['key' => 'settlements',      'slug' => 'settlements.manage.view', 'title' => 'Взаиморасчёты', 'file' => 'settlements',      'default' => true],
-              ['key' => 'payments',         'slug' => 'settlements.manage.view', 'title' => 'Платежи',       'file' => 'payments'],
-              ['key' => 'reconciliations',  'slug' => 'settlements.manage.view', 'title' => 'Сверки',        'file' => 'reconciliations'],
+              ['key' => 'payments',        'slug' => 'finance.settlements.manage.view', 'title' => 'Платежи', 'file' => 'payments',      'default' => true],
+              ['key' => 'reconciliations', 'slug' => 'finance.settlements.manage.view', 'title' => 'Сверки',  'file' => 'reconciliations'],
+          ],
+      ],
+
+      'articles' => [
+          'folder'   => '_books_articles',
+          'sections' => [
+              ['key' => 'articles',  'slug' => 'finance.articles.manage.view',  'title' => 'Статьи доходов и расходов',  'file' => 'articles',  'default' => true],
           ],
       ],
 

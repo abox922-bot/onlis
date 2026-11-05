@@ -9,4 +9,6 @@
 			"noms"			=> API_BASE_URL . "/app/app_noms.php",
 			"docs"			=> API_BASE_URL . "/app/app_docs.php",
 			"pmnts"			=> API_BASE_URL . "/app/app_pmnts.php",
+			"mnys"			=> API_BASE_URL . "/app/app_mnys.php",
+			"artc"			=> API_BASE_URL . "/app/app_artc.php",
 	];
