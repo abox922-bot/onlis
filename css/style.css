@@ -199,6 +199,7 @@ body {
     padding: 8px 20px; border-radius: 10px; font-weight: 600;
     font-size: 0.85rem; transition: all 0.2s ease;
     display: inline-flex; align-items: center; border: none;
+    gap: 7px;
     font-family: var(--bs-body-font-family);
 }
 .btn-action { background-color: var(--accent-color); color: #fff; }
@@ -208,7 +209,14 @@ body {
     border: 1px solid var(--border-color);
     color: var(--text-main);
 }
+
 .btn-action-outline:hover { border-color: var(--accent-color); background-color: var(--bg-hover); }
+
+.btn-check:checked + .btn-action-outline {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #fff;
+}
 
 .btn-danger-action {
     padding: 8px 20px;

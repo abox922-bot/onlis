@@ -352,6 +352,7 @@ switch ($action) {
         break;
 
     //--------------------------------------------------------------------------
+
     case 'upd_object_main':
         if (!fncCan($perms, 'objects.manage')) {
             echo json_encode(['sccss' => false, 'msg' => 'Нет доступа']);
@@ -363,7 +364,7 @@ switch ($action) {
         $type_id   = fncValFind('type_id', $params);
         $area      = fncValFind('area', $params);
         $is_stock  = (int)fncValFind('is_stock', $params);
-        $is_active = fncValFind('is_active', $params);
+        $is_active = (int)fncValFind('is_active', $params);
 
         $stmt = fncQuery("SELECT is_operational FROM object_types WHERE id = ?", [$type_id]);
         $type_row = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
@@ -371,8 +372,94 @@ switch ($action) {
             $is_stock = 1;
         }
 
+        // Текущее состояние объекта — для проверок ниже
+        $stmt = fncQuery("SELECT organization_id, is_stock, is_active FROM objects WHERE id = ?", [$id]);
+        $current = $stmt ? $stmt->fetch(PDO::FETCH_ASSOC) : null;
+        if (!$current) {
+            echo json_encode(['sccss' => false, 'msg' => 'Объект не найден']);
+            exit;
+        }
+
+        // Снять признак склада или архивировать объект можно только при пустом складе
+        // и без незавершённых документов: иначе остатки «повиснут» на объекте, который
+        // больше не склад, а черновик или документ в проведении потеряет свой склад.
+        // Проверка только при изменении (1 → 0), обычное сохранение её не запускает.
+        $turning_off_stock = (int)$current['is_stock'] === 1 && $is_stock === 0;
+        $archiving         = (int)$current['is_active'] === 1 && $is_active === 0;
+        if ($turning_off_stock || $archiving) {
+            // Допуск 0.0005 — тот же, что QTY_EPS в app_docs.php
+            $stmt_stock = fncQuery(
+                "SELECT COUNT(*) FROM stock_ledger
+                 WHERE warehouse_id = ? AND is_last = 1 AND ABS(total_quantity) > 0.0005",
+                [$id]
+            );
+            $stmt_open = fncQuery(
+                "SELECT COUNT(*) FROM documents
+                 WHERE status IN ('draft', 'posting')
+                   AND (warehouse_out_id = :whout OR warehouse_in_id = :whin)",
+                ['whout' => $id, 'whin' => $id]
+            );
+            if (!$stmt_stock || !$stmt_open) {
+                echo json_encode(['sccss' => false, 'msg' => 'Не удалось проверить остатки склада']);
+                exit;
+            }
+            $stock_count = (int)$stmt_stock->fetchColumn();
+            $open_count  = (int)$stmt_open->fetchColumn();
+
+            $reasons = [];
+            if ($stock_count > 0) {
+                $reasons[] = 'на складе есть остатки (позиций: ' . $stock_count . ') — спишите или переместите их';
+            }
+            if ($open_count > 0) {
+                $reasons[] = 'есть незавершённые документы (' . $open_count . ') — проведите или удалите их';
+            }
+            if ($reasons) {
+                $action_text = $archiving ? 'Нельзя архивировать объект' : 'Нельзя снять признак склада';
+                echo json_encode([
+                    'sccss' => false,
+                    'msg'   => $action_text . ': ' . implode('; ', $reasons) . '.',
+                ]);
+                exit;
+            }
+        }
+
         if (fncCan($perms, 'objects')) {
-            $organization_id = fncValFind('organization_id', $params);
+            $organization_id = (int)fncValFind('organization_id', $params);
+
+            // Смену организации у объекта запрещаем, если у объекта есть история,
+            // принадлежащая текущей организации: документы товароучёта (объект как склад)
+            // или места хранения денег. После смены эта история оказалась бы на объекте
+            // чужой организации.
+            if ((int)$current['organization_id'] !== $organization_id) {
+                $stmt_docs = fncQuery(
+                    "SELECT COUNT(*) FROM documents
+                     WHERE warehouse_out_id = :whout OR warehouse_in_id = :whin",
+                    ['whout' => $id, 'whin' => $id]
+                );
+                $stmt_storages = fncQuery("SELECT COUNT(*) FROM money_storages WHERE object_id = ?", [$id]);
+                if (!$stmt_docs || !$stmt_storages) {
+                    echo json_encode(['sccss' => false, 'msg' => 'Не удалось проверить связанные данные объекта']);
+                    exit;
+                }
+                $docs_count     = (int)$stmt_docs->fetchColumn();
+                $storages_count = (int)$stmt_storages->fetchColumn();
+
+                $reasons = [];
+                if ($docs_count > 0) {
+                    $reasons[] = 'по объекту есть документы товароучёта (' . $docs_count . ')';
+                }
+                if ($storages_count > 0) {
+                    $reasons[] = 'к объекту привязаны места хранения денег (' . $storages_count
+                               . ') — сначала отвяжите их';
+                }
+                if ($reasons) {
+                    echo json_encode([
+                        'sccss' => false,
+                        'msg'   => 'Нельзя сменить организацию: ' . implode('; ', $reasons) . '.',
+                    ]);
+                    exit;
+                }
+            }
 
             $stmt = fncQuery(
                 "UPDATE objects
@@ -393,7 +480,7 @@ switch ($action) {
 
         $result = ['sccss' => (bool)$stmt];
         break;
-
+                
     //--------------------------------------------------------------------------
     case 'object_info_address_form':
         if (!fncCan($perms, 'objects.manage.view')) {
